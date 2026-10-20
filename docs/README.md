@@ -41,7 +41,7 @@ specifications; the design docs above are the source of truth.
 
 - [`../evals/README.md`](../evals/README.md) — deterministic evaluation harness,
   suites, gates, ablations, and how to add a suite.
-- [`../packages/harnmem-pi/README.md`](../packages/harnmem-pi/README.md) — pi
+- [`../packages/pi-harnmem/README.md`](../packages/pi-harnmem/README.md) — pi
   extension install and verification.
 - [`../packages/cli/README.md`](../packages/cli/README.md) — CLI command
   reference and migration guarantees.

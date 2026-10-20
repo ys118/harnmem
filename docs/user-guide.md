@@ -28,12 +28,12 @@ pnpm install
 pnpm -r build
 ```
 
-[Verified] `pnpm -r build` builds `@harnmem/core`, `@harnmem/cli`, and `harnmem-pi`; `pnpm test` passes 19/19 (build + `node --test`).
+[Verified] `pnpm -r build` builds `@harnmem/core`, `@harnmem/cli`, and `pi-harnmem`; `pnpm test` passes 19/19 (build + `node --test`).
 
 Install into pi (local path):
 
 ```powershell
-pi install ./packages/harnmem-pi     # -l installs only into the current project's settings
+pi install ./packages/pi-harnmem     # -l installs only into the current project's settings
 ```
 
 [Syntax-verified] (partial) pi 1.3.0 `install --help` supports local paths; install + extension load were verified in an isolated profile (the `settings.json` entry was written and the store initialized), but a full provider turn was not run (no API key available).
@@ -41,7 +41,7 @@ pi install ./packages/harnmem-pi     # -l installs only into the current project
 Development/debugging (loads the extension directly, without writing pi settings):
 
 ```powershell
-pi -e ./packages/harnmem-pi/dist/index.js
+pi -e ./packages/pi-harnmem/dist/index.js
 ```
 
 [Verified] A real pi 1.3.0 session exercised empty-store loading, writing, cross-session recall, byte-stable injection, and the read-only subagent path (child marker set programmatically; a real foreground child was not launched).
@@ -55,7 +55,7 @@ shard user [user] total=1 active=1 superseded=0 archived=0 pinned=0
 extraction: pending=0 failed=0
 ```
 
-npm installation (`pi install npm:harnmem-pi`) has not been published yet.
+npm installation (`pi install npm:pi-harnmem`) has not been published yet.
 
 ## 2. First use
 
@@ -270,8 +270,8 @@ Safety: dry-run is the default; `--apply` backs up the source first, writes a le
 
 ```text
 Build: pnpm install && pnpm -r build      Test: pnpm test
-Load in dev: pi -e ./packages/harnmem-pi/dist/index.js
-Install: pi install ./packages/harnmem-pi
+Load in dev: pi -e ./packages/pi-harnmem/dist/index.js
+Install: pi install ./packages/pi-harnmem
 Isolated environment: $env:HARNMEM_HOME="D:\tmp\harnmem-test"
 Store: ~/.harnmem    Logs: <home>/logs/pi.jsonl    Status: /memory status
 
@@ -281,4 +281,4 @@ Migration: harnmem import dsh|pi|zcode|json   (dry-run by default; add --apply)
 Migration checks: harnmem import list | verify <runId> | rollback <runId> | unresolved
 ```
 
-Related docs: `README.md` (overview), `docs/design/02-data-model.md` (fields), `docs/design/03-retrieval.md` (retrieval/injection), `packages/harnmem-pi/README.md` (plugin docs).
+Related docs: `README.md` (overview), `docs/design/02-data-model.md` (fields), `docs/design/03-retrieval.md` (retrieval/injection), `packages/pi-harnmem/README.md` (plugin docs).

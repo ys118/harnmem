@@ -10,13 +10,13 @@
 |---|---|---|---|
 | M0 Research | 4 research tracks: pi API / reference projects / evaluation algorithms / DSH plugin and migration | ✅ done | `docs/research/*.md` (~2,000 lines total) |
 | M1 Core engine | Data model, storage, indexing, retrieval, writes, extraction, governance, facade | ✅ done; build + tests pass | `pnpm --filter @harnmem/core build`; `node --test packages/core/test/*.test.mjs` **19/19** |
-| M2 pi adapter | 5 tools, /memory command, injection snapshots, auto-extraction, subagent read-only | ✅ done, verified end-to-end in a real pi session; hardening items pending (§6 item D) | `packages/harnmem-pi/`; real `pi` 1.3.0 session runs |
+| M2 pi adapter | 5 tools, /memory command, injection snapshots, auto-extraction, subagent read-only | ✅ done, verified end-to-end in a real pi session; hardening items pending (§6 item D) | `packages/pi-harnmem/`; real `pi` 1.3.0 session runs |
 | M3 Evaluation | S1–S12 deterministic corpora, metrics, gates, A0–A5 ablations | ✅ done; all functional gates PASS (5 advisory items, see 05 §3.1) | `evals/README.md`, `evals/results/eval-report.md` |
 | M4 Governance | Mechanical dedupe/merge, bitemporal supersede, decay/archive/trash, capacity, audit | ✅ core done; LLM digest is an optional phase | `packages/core/src/{lifecycle,consolidate}.ts`, `prompts/consolidate-digest.md` |
 | M5 CLI + migration | `harnmem` commands, dsh/pi/zcode/json import, dry-run/ledger/rollback | ✅ done; verified end-to-end on copies of real directories (second import adds 0, rollback verified) | `packages/cli/` |
 | M6 DSH plugin | cordis plugin, systemPrompt.section injection, tools, end-of-session extraction | 🟡 design done (08), implementation not started (no runtime e2e environment) | `docs/design/08-dsh-adapter.md` |
 | M7 Claude Code | hooks + zero-dependency MCP stdio server | 🟡 design done (09, in the repo) | `docs/design/09-claude-adapter.md` |
-| M8 Release | npm packages/install docs/versioning/CI | 🟡 v0.1.0 usable locally + docs complete; `pi install ./packages/harnmem-pi` and npm publish not done | §5/§7 of this file |
+| M8 Release | npm packages/install docs/versioning/CI | 🟡 v0.1.0 usable locally + docs complete; `pi install ./packages/pi-harnmem` and npm publish not done | §5/§7 of this file |
 
 ## 2. Repository map (current reality)
 
@@ -25,7 +25,7 @@ harnmem/
 ├── packages/
 │   ├── core/          @harnmem/core: types/config/project/store/indexer/text/retrieval/
 │   │                  lifecycle/extract/consolidate/harnmem/frontmatter/util + test/
-│   ├── harnmem-pi/     pi extension: index/state/context/tools/command/format/journal/subagent/log
+│   ├── pi-harnmem/     pi extension: index/state/context/tools/command/format/journal/subagent/log
 │   └── cli/           harnmem CLI: main/args/commands/pipeline/importers/{dsh,pi,zcode,json}
 ├── evals/             gen/ (deterministic generator), data/ (lexicons/bilingual/synonyms), lib/ (metrics/store), run.mjs, gates.json
 ├── prompts/           extract.md / write-policy.md / consolidate-digest.md / README.md (loading contract)
@@ -57,7 +57,7 @@ Coverage: write/read/retrieval, dedupe decisions, bitemporal supersede, forget+r
 
 Verified with a real `pi` 1.3.0 process and temporary `PI_HOME`/`HARNMEM_HOME` directories:
 
-- `pi -p -e packages/harnmem-pi/dist/index.js` loads the extension and registers 5 tools;
+- `pi -p -e packages/pi-harnmem/dist/index.js` loads the extension and registers 5 tools;
 - session A writes a memory via the tool → session B (new process) sees that memory in the injected system-prompt block;
 - in the same session, two consecutive `before_agent_start` injections produce identical sha256 (KV-cache stability), invalidating and rebuilding after a write;
 - a subagent (background fork) neither re-writes nor re-extracts (the root session owns that).
@@ -101,10 +101,10 @@ The command surface is documented in `packages/cli/README.md`. Migration was ver
 |---|---|---|---|
 | `@harnmem/core` | Engine + types + default prompts/data | ESM `dist/` + `.d.ts` | zero runtime dependencies |
 | `harnmem` | CLI (bin: `harnmem`) | ESM + bin shim | exact version of `@harnmem/core` |
-| `harnmem-pi` | pi extension | ESM; `package.json`'s `pi.extensions: ["dist/index.js"]`, `keywords:["pi-package"]` | peer: `@earendil-works/pi-coding-agent`, `pi-ai`, `typebox`; dep `@harnmem/core` |
+| `pi-harnmem` | pi extension | ESM; `package.json`'s `pi.extensions: ["dist/index.js"]`, `keywords:["pi-package"]` | peer: `@earendil-works/pi-coding-agent`, `pi-ai`, `typebox`; dep `@harnmem/core` |
 | `harnmem-dsh` / `mcp` (`@harnmem/mcp`, Claude Code hooks + MCP) | later adapters | same core/protocol form | same as above |
 
-- Phase 1: `pi install ./packages/harnmem-pi` (local path), no publishing; publish to npm only after the UX is confirmed.
+- Phase 1: `pi install ./packages/pi-harnmem` (local path), no publishing; publish to npm only after the UX is confirmed.
 - Publish with `pnpm -r publish --access public`; `workspace:*` is rewritten to concrete versions at publish time; first run `pnpm pack` to check the `files` allowlist (only `dist/`, `prompts/`, `data/`, README).
 - `@harnmem/core` and the adapters' peer dependencies are not bundled, avoiding duplicate instances; pi declares the core package as a peerDependency, provided by the host on the pi side.
 - Versioning: core and adapters use independent semver; `HARNMEM_API_VERSION` is exported from types.ts and validated by adapters on load.
@@ -132,7 +132,7 @@ The command surface is documented in `packages/cli/README.md`. Migration was ver
 - [x] pi adapter hardening fixes and e2e re-run
 - [x] CLI migration e2e: copies of source directories → dry-run → apply → second import adds 0 → rollback
 - [x] Cold-start path measured on a brand-new `~/.harnmem` home (no config, no prompt overrides)
-- [x] README quick start verified item by item (`pi install ./packages/harnmem-pi` in an isolated profile, `harnmem stats`)
+- [x] README quick start verified item by item (`pi install ./packages/pi-harnmem` in an isolated profile, `harnmem stats`)
 - [x] Data-safety review: `evals/` and `.tmp/` are not in the package; real memory directories are never modified (compare mtime)
 - [x] Version numbers and CHANGELOG
 - [ ] `npm pack` content listing + registry install validation (maintainer step, after the repository is public)

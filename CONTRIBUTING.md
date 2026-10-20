@@ -14,7 +14,7 @@ Please report security issues privately as described in [SECURITY.md](SECURITY.m
 | ---- | ------- | ---------- |
 | `packages/core` | `@harnmem/core` | Harness-agnostic memory engine: storage, indexing, retrieval, writing, consolidation, extraction, evaluation hooks. Zero runtime dependencies. |
 | `packages/cli` | `@harnmem/cli` | The `harnmem` command: inspect/manage the store and migrate legacy harness memories. Depends only on `@harnmem/core`. |
-| `packages/harnmem-pi` | `harnmem-pi` | pi coding-agent extension: context injection, memory tools, `/memory` command, session-end extraction. |
+| `packages/pi-harnmem` | `pi-harnmem` | pi coding-agent extension: context injection, memory tools, `/memory` command, session-end extraction. |
 | `evals` | - | Deterministic evaluation corpora (S1-S12), metrics, gate and ablation runner. |
 | `prompts` | - | Extraction/consolidation prompt assets deployed to `~/.harnmem/prompts/` on first run. |
 | `data` | - | Synonym tables and other data assets. |
@@ -112,7 +112,7 @@ first. An adapter should:
 1. Update `CHANGELOG.md`, bump versions in the affected `package.json` files.
 2. Commit `chore(release): vX.Y.Z`, tag `vX.Y.Z`, push the tag.
 3. The release workflow builds, tests, and publishes the packages
-   (`@harnmem/core`, `@harnmem/cli`, `harnmem-pi`) with npm provenance enabled.
+   (`@harnmem/core`, `@harnmem/cli`, `pi-harnmem`) with npm provenance enabled.
    Publishing requires membership in the `@harnmem` npm org and an `NPM_TOKEN`
    repository secret.
 
@@ -120,3 +120,5 @@ first. An adapter should:
 
 By contributing you agree that your contributions are licensed under the
 [MIT License](LICENSE).
+Adapter package naming follows the <harness>-harnmem convention (pi-harnmem, dsh-harnmem, opencode-harnmem, claude-harnmem), mirroring ecosystem naming such as pi-memory and dsh-auto-memory. Harness-neutral packages live under the @harnmem scope (@harnmem/core, @harnmem/cli, and a future @harnmem/mcp).
+

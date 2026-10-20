@@ -50,7 +50,7 @@ plus `settings.json` `"extensions": ["/abs/path.ts", "dir"]` and `"packages": [.
 ### 1.3 Package manifest (`docs/packages.md:116-173`)
 ```json
 {
-  "name": "harnmem-pi",
+  "name": "pi-harnmem",
   "keywords": ["pi-package"],
   "pi": {
     "extensions": ["./extensions"],       // globs + "!exclude" supported; paths relative to pkg root

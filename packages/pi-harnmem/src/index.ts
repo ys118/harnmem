@@ -1,5 +1,5 @@
 /**
- * harnmem-pi: long-term memory for the pi coding agent.
+ * pi-harnmem: long-term memory for the pi coding agent.
  *
  * Wiring (see docs/design/07-adapter-contract.md §4):
  *   session_start        open the engine, build the byte-stable hot index

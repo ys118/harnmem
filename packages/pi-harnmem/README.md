@@ -1,4 +1,4 @@
-# harnmem-pi
+# pi-harnmem
 
 Long-term, plain-file memory for [pi](https://github.com/earendil-works/pi) — the pi adapter for [harnmem](../../README.md).
 
@@ -18,7 +18,7 @@ pnpm -r build
 ### Install into pi (local path)
 
 ```bash
-pi install ./packages/harnmem-pi
+pi install ./packages/pi-harnmem
 # -l / --local installs into the current project's settings instead of user settings
 ```
 
@@ -27,14 +27,14 @@ Verified syntax against `pi install --help` (pi 1.3.0). The full install flow is
 ### Dev loading (no install)
 
 ```bash
-pi -e ./packages/harnmem-pi/dist/index.js
+pi -e ./packages/pi-harnmem/dist/index.js
 ```
 
 Verified end-to-end against a real pi 1.3.0 session: empty-store load, write, cross-session recall, byte-stable injection, read-only children.
 
 ### npm
 
-Not published yet (`pi install npm:harnmem-pi` is a v0.2 target).
+Not published yet (`pi install npm:pi-harnmem` is a v0.2 target).
 
 ## Quick start
 
@@ -151,7 +151,7 @@ Plain files are the source of truth: back up or sync `~/.harnmem` directly. The 
 
 ```bash
 pnpm --filter @harnmem/core build
-pnpm --filter harnmem-pi build     # tsc; 44 files emitted to dist/
+pnpm --filter pi-harnmem build     # tsc; 44 files emitted to dist/
 pnpm test                          # core test suite (19 tests)
 ```
 

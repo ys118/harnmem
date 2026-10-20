@@ -18,7 +18,7 @@ a memory written in one harness is available in another — no server, no vector
 database, no embedding model, and no runtime dependencies in the engine.
 
 - **Package:** `@harnmem/core` (engine), `@harnmem/cli` (`harnmem` command),
-  `harnmem-pi` (pi extension). Not published to npm yet; build from a checkout.
+  `pi-harnmem` (pi extension). Not published to npm yet; build from a checkout.
 - **License:** MIT.
 - **Status:** v0.1.0 — core, CLI/migration and the pi adapter are usable and
   tested end to end; DSH and Claude Code adapters are designed but not built.
@@ -79,10 +79,10 @@ pnpm test            # core test suite: node --test, 19 tests
 
 ```bash
 # Try it without installing: load the built extension in a one-shot pi session.
-pi -e ./packages/harnmem-pi/dist/index.js -p "Remember: I prefer pnpm over npm."
+pi -e ./packages/pi-harnmem/dist/index.js -p "Remember: I prefer pnpm over npm."
 
 # Install it as a persistent pi extension.
-pi install ./packages/harnmem-pi
+pi install ./packages/pi-harnmem
 ```
 
 The extension injects the hot index before each turn, registers the memory

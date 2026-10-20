@@ -25,7 +25,7 @@ body:
       options:
         - core engine (@harnmem/core)
         - CLI / migration (@harnmem/cli)
-        - pi extension (harnmem-pi)
+        - pi extension (pi-harnmem)
         - evals
         - documentation
         - other

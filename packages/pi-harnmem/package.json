@@ -1,5 +1,5 @@
 {
-  "name": "harnmem-pi",
+  "name": "pi-harnmem",
   "version": "0.1.0",
   "description": "HarnMem memory extension for the pi coding agent: byte-stable hot-index injection, memory tools, and session-end extraction.",
   "license": "MIT",
@@ -44,5 +44,15 @@
   "publishConfig": {
     "access": "public",
     "provenance": true
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ys118/harnmem.git",
+    "directory": "packages/pi-harnmem"
+  },
+  "homepage": "https://github.com/ys118/harnmem/tree/master/packages/pi-harnmem#readme",
+  "bugs": {
+    "url": "https://github.com/ys118/harnmem/issues"
+  },
+  "author": "HarnMem contributors"
 }

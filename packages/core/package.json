@@ -36,5 +36,15 @@
   "publishConfig": {
     "access": "public",
     "provenance": true
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ys118/harnmem.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/ys118/harnmem/tree/master/packages/core#readme",
+  "bugs": {
+    "url": "https://github.com/ys118/harnmem/issues"
+  },
+  "author": "HarnMem contributors"
 }

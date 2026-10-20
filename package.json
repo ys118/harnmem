@@ -20,5 +20,14 @@
   "devDependencies": {
     "@types/node": "^22.10.2",
     "typescript": "^5.7.2"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ys118/harnmem.git"
+  },
+  "homepage": "https://github.com/ys118/harnmem#readme",
+  "bugs": {
+    "url": "https://github.com/ys118/harnmem/issues"
+  },
+  "author": "HarnMem contributors"
 }

@@ -38,7 +38,7 @@ not implemented.
 - Extraction: end-of-session LLM extraction with a JSON schema, bounded
   timeout, dedupe against existing memories, confidence threshold, idempotent
   cursor, and prompt assets that can be overridden per home directory.
-- `harnmem-pi` (pi 1.3.0): byte-stable hot-index injection, five memory tools,
+- `pi-harnmem` (pi 1.3.0): byte-stable hot-index injection, five memory tools,
   `/memory` command, read-only subagents, session-end extraction, and journal
   logging. Verified end-to-end against a real pi installation.
 - `@harnmem/cli`: `harnmem stats/search/read/write/forget/restore/consolidate/

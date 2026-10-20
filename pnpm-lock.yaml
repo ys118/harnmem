@@ -23,7 +23,7 @@ importers:
 
   packages/core: {}
 
-  packages/harnmem-pi:
+  packages/pi-harnmem:
     dependencies:
       '@harnmem/core':
         specifier: workspace:*
