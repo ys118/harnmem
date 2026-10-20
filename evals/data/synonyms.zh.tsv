@@ -1,0 +1,31 @@
+# harnmem eval synonym rewrite rules (zh) — format: a <TAB> b  (bidirectional)
+# Used by the generator to produce "semantic paraphrase" queries that a pure
+# lexical retriever can only answer via synonym expansion (03 §3.4).
+部署	上线
+报错	错误
+异常	错误
+配置	设置
+插件	扩展
+重构	重写
+偏好	习惯
+审批	授权
+清理	删除
+归并	合并
+并发	并行
+磁盘	硬盘
+进程	程序
+脚本	命令
+目录	文件夹
+超时	逾时
+缓存	快取
+索引	索引表
+校验	验证
+回滚	退回
+灰度	金丝雀
+门禁	质量闸门
+里程碑	节点
+负责人	对接人
+阈值	门限
+权重	系数
+余额	额度
+记账	入账

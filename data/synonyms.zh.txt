@@ -1,0 +1,224 @@
+# HarnMem synonym table v1 (Chinese-first, English supplement)
+# Purpose: BM25 query expansion / index-side normalization / Chinese near-synonym recall. Zero-dependency plain text, loaded by the engine at startup.
+# Format: canonical<TAB>syn1,syn2,...   — exactly one ASCII TAB; the second column is comma-separated with no spaces around commas.
+# Rules:
+#   - canonical is unique across the file; synonyms within a row must not repeat, and must not equal the canonical.
+#   - English terms are lowercase; Chinese keeps common colloquial forms/abbreviations; no explanatory content.
+#   - Terms may contain spaces (e.g. rate limit, pull request); no spaces around commas.
+#   - Lines may cross-reference each other (e.g. deploy→release, release→deploy); expansion is one-hop and deduplicated, never transitive closure.
+#   - Used only for query expansion, never changes stored text; terms hit through expansion are down-weighted in scoring (see docs/design/03-retrieval.md).
+# Maintenance: add rows grouped by topic; after any change run the zh retrieval regression in evals (docs/design/05-evaluation.md).
+
+## Development workflow
+部署	上线,发布,rollout,deploy
+上线	部署,发布,release,ship
+发布	上线,发版,出包,release
+回滚	rollback,退回,恢复版本
+灰度	金丝雀,canary,灰度发布
+打包	构建,build,编译产物
+构建	打包,build,compile
+流水线	pipeline,CI,持续集成
+持续集成	CI,流水线
+持续交付	CD,持续部署
+环境	env,环境配置,environment
+生产环境	prod,线上,production
+预发环境	staging,预发布
+本地环境	local,本机
+压测	压力测试,benchmark
+验证	校验,validate,检查
+监控	monitor,告警观测
+告警	报警,alert,通知
+日志	log,运行日志,logs
+排查	定位,诊断,troubleshoot
+修复	fix,修补,改正
+故障	事故,incident,宕机
+限流	rate limit,流控
+熔断	circuit breaker
+降级	fallback,退化
+缓存	cache,缓存层
+队列	queue,消息队列
+定时任务	cron,定时器
+后台任务	worker,异步任务
+
+## Errors and debugging
+报错	错误,异常,error
+异常	报错,错误,exception
+错误	报错,异常,error
+崩溃	crash,闪退,挂了
+卡死	hang,无响应,死锁
+超时	timeout,逾时
+内存泄漏	memory leak,泄漏
+堆栈	stack,调用栈,traceback
+断点	breakpoint,调试点
+调试	debug,排查
+复现	重现,repro
+根因	root cause,根本原因
+绕开	workaround,规避,临时方案
+兜底	fallback,保底
+空指针	null,undefined,空引用
+越界	out of range,数组越界
+
+## Configuration and dependencies
+配置	设置,config,配置项
+环境变量	env,环境配置
+依赖	包,dependency,库
+安装	install,装,部署依赖
+升级	update,更新版本,bump
+降级版本	downgrade,回退版本
+版本号	version,ver
+锁文件	lockfile,lock
+镜像源	registry,源
+代理	proxy,代理服务器
+密钥	key,secret,凭证
+令牌	token,access token
+授权	auth,鉴权,认证
+登录	signin,login,登陆
+
+## Code refactoring
+重构	refactor,重写,整理结构
+重写	重构,rewrite
+抽取公共逻辑	抽公共,extract,提取
+解耦	decouple,拆分
+耦合	coupling,强依赖
+死代码	dead code,无用代码
+命名	naming,取名
+注释	comment,文档注释
+类型定义	type,interface,接口定义
+接口	API,impl
+补丁	patch,hotfix,热修
+回退提交	revert,撤销,撤销提交
+
+## Version control and collaboration
+提交	commit,提交代码,checkin
+推送	push,推到远端
+拉取	pull,拉代码
+合并	merge,合入
+分支	branch,feature分支
+冲突	conflict,代码冲突
+评审	review,code review,CR
+变更请求	PR,pull request,MR
+标签	tag,版本标签
+发布说明	changelog,变更日志
+问题单	issue,工单,ticket
+
+## Testing and quality
+测试	test,单测,用例
+单元测试	单测,unit test
+集成测试	联调,integration test
+端到端测试	e2e,端到端
+回归测试	回归,regression
+冒烟测试	smoke test,smoke
+覆盖率	coverage,覆盖
+断言	assert,校验
+基准测试	benchmark,基准
+用例	case,测试用例,spec
+静态检查	lint,格式检查
+类型检查	typecheck,类型校验
+门槛	门禁,gate,阈值
+
+## AI / LLM / memory
+提示词	prompt,系统提示,instruction
+上下文	context,上下文窗口,ctx
+令牌数	token数,tokens
+嵌入	embedding,向量化,embed
+向量	vector,向量库
+检索	recall,召回,search
+召回	检索,recall
+重排	rerank,重排序
+微调	finetune,微调训练
+推理	inference,推理调用
+幻觉	hallucination,编造
+记忆	memory,长期记忆,memories
+会话	session,对话会话,conversation
+抽取	extraction,提取,extract
+固化	consolidate,consolidation,整理
+去重	dedupe,dedup,去重复
+衰减	decay,降权
+归档	archive,封存
+摘要	summary,总结摘要
+评测	eval,评估,测评
+基准	benchmark,基线
+插件	plugin,扩展,addon
+钩子	hook,callback,生命周期钩子
+
+## A-shares / quant
+打板	涨停板,涨停追板,打板买入
+涨停	涨停板,limit up
+跌停	跌停板,limit down
+龙头	龙头股,领涨
+连板	连续涨停,连板股
+首板	首日涨停
+炸板	开板,炸板率
+封单	封板单,封单量
+换手	换手率,turnover
+量能	成交量,缩量,放量
+回测	backtest,回测框架
+选股	筛股,选股策略
+止盈	获利了结,take profit
+止损	割肉,stop loss
+仓位	持仓,position
+建仓	开仓,买入
+清仓	平仓,卖出全部
+复权	前复权,后复权,adjust
+分钟线	分钟K线,分时
+日线	日K,日K线
+券商	证券,broker
+交易日	trading day,开市日
+停牌	suspension,停牌日
+除权	除息,分红
+财报	业绩报告,定期报告
+估值	valuation,PE,PB
+情绪	市场情绪,sentiment
+
+## Documentation and communication
+文档	doc,说明文档
+规范	约定,convention,约定俗成
+决策	决定,decision
+原因	理由,why
+教训	经验,lesson
+坑	陷阱,pitfall,踩坑
+待办	TODO,待办事项
+注意事项	注意点,caveat
+示例	例子,sample,example
+路径	path,目录
+文件名	filename,文件名称
+
+## English
+agent	assistant,bot
+archive	cold storage
+backtest	backtesting
+baseline	bench,reference score
+branch	feature branch
+build	compile,bundle
+bug	defect,regression
+commit	checkin
+config	configuration,setting
+context	context window,ctx
+coverage	code coverage
+debug	diagnose,troubleshoot
+decay	aging,downweight
+dedupe	deduplicate,dedup
+deploy	deployment,release,ship
+dependency	dep,package,library
+embedding	embed,vectorize
+error	failure,exception,issue
+eval	evaluation,benchmark
+fix	patch,resolve
+hook	callback,lifecycle hook
+install	setup,provision
+limit up	limit-up,涨停
+lint	linter,static check
+memory	memories
+memory leak	leak
+plugin	extension,addon
+position	holding,exposure
+prompt	system prompt,instruction
+pull request	pr,merge request,mr
+refactor	rewrite,restructure
+retrieval	recall,search
+review	code review,cr
+rollback	revert,undo
+session	conversation,thread
+test	spec,suite
+token	tokens
+upgrade	update,bump

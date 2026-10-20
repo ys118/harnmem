@@ -1,0 +1,71 @@
+name: Bug report
+description: Report a defect in HarnMem (core, CLI, pi extension, docs or evals)
+title: "[bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please **do not include
+        secrets, credentials, or real personal memory content** in this issue.
+        Security problems belong in the private advisory flow described in
+        SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      description: Release tag or commit SHA
+      placeholder: v0.1.0 or 85e31c8
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - core engine (@harnmem/core)
+        - CLI / migration (@harnmem/cli)
+        - pi extension (harnmem-pi)
+        - evals
+        - documentation
+        - other
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node.js version, pnpm version, harness version (e.g. pi 1.3.0)
+      placeholder: Windows 11, Node 24.9.0, pnpm 10.33.2, pi 1.3.0
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Minimal, deterministic steps. Prefer a temporary home (`HARNMEM_HOME=<tmp>`) and synthetic memories.
+      placeholder: |
+        1. HARNMEM_HOME=/tmp/hm pnpm --filter @harnmem/core build
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include the error text. Redact paths containing your username.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output / logs
+      render: text
+    validations:
+      required: false

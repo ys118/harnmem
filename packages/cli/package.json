@@ -1,0 +1,39 @@
+{
+  "name": "@harnmem/cli",
+  "version": "0.1.0",
+  "description": "HarnMem command-line interface: memory CRUD, search, consolidation and idempotent migration importers (DSH, pi, ZCode, JSON).",
+  "license": "MIT",
+  "type": "module",
+  "keywords": [
+    "agent-memory",
+    "cli",
+    "memory",
+    "migration",
+    "harnmem"
+  ],
+  "bin": {
+    "harnmem": "./dist/main.js"
+  },
+  "main": "./dist/main.js",
+  "exports": {
+    ".": "./dist/main.js"
+  },
+  "files": [
+    "dist/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22.15"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@harnmem/core": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

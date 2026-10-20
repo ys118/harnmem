@@ -1,0 +1,37 @@
+name: Release
+
+# Publishes @harnmem/core, @harnmem/cli and harnmem-pi on a version tag.
+# Requirements before the first release:
+#   - the @harnmem npm org exists and the maintainer can publish to it;
+#   - repository secret NPM_TOKEN contains an automation token with publish rights.
+# Provenance is enabled via the id-token permission below.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r build
+      - run: pnpm -r typecheck
+      - run: pnpm test
+      - run: pnpm eval:gate
+      - name: Publish packages
+        run: pnpm -r publish --access public --no-git-checks --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
