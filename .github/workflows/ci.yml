@@ -49,5 +49,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @harnmem/core build
+      # Corpora are generated, not committed: generate once, then prove a
+      # second independent generation is byte-identical before running gates.
+      - run: node evals/gen/generate.mjs
       - run: node evals/gen/generate.mjs --check
       - run: pnpm eval:gate

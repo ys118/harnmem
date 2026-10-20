@@ -108,7 +108,8 @@ node packages/cli/dist/main.js import pi --apply
 ### Evaluation
 
 ```bash
-node evals/gen/generate.mjs --check   # generated corpora are reproducible
+node evals/gen/generate.mjs           # generate deterministic corpora
+node evals/gen/generate.mjs --check   # prove a second generation is byte-identical
 pnpm eval                             # all suites
 pnpm eval:gate                        # hard gates (perf gates are advisory)
 ```
