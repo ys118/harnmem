@@ -1,0 +1,53 @@
+/** Public surface of @harnmem/core. Harness adapters should import from here only. */
+export { HarnMem, type SessionStartInput } from "./harnmem.js";
+export type {
+  BudgetConfig,
+  ConsolidateOptions,
+  ConsolidationReport,
+  ContextBlock,
+  ContextReason,
+  HarnMemConfig,
+  ExtractResult,
+  ExtractStatus,
+  ForgetResult,
+  GovernanceConfig,
+  HarnessId,
+  ImportOptions,
+  ImportRecord,
+  ImportResult,
+  LlmFn,
+  LlmRequest,
+  LlmResponse,
+  MemoryCategory,
+  MemoryRecord,
+  MemoryScope,
+  MemorySource,
+  MemoryStatus,
+  MemoryType,
+  ReadOptions,
+  ReadResult,
+  RestoreResult,
+  RetrievalConfig,
+  SearchHit,
+  SearchOptions,
+  SearchResult,
+  ScoreParts,
+  SessionEndInput,
+  Stats,
+  TranscriptMessage,
+  WriteAction,
+  WriteConfig,
+  WriteInput,
+  WriteResult,
+} from "./types.js";
+export { HARNMEM_API_VERSION } from "./types.js";
+export { resolveHome, estimateTokens, newMemoryId } from "./util.js";
+export {
+  deployDefaultAssets,
+  findAssetRoot,
+  loadPromptAsset,
+  parsePromptAsset,
+  readAssetRaw,
+} from "./assets.js";
+export type { PromptAsset } from "./assets.js";
+export type { ProjectInfo } from "./project.js";

@@ -1,0 +1,16 @@
+{
+  "name": "pi-probe",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "HarnMem spike: minimal pi extension proving tool registration, event hooks and system-prompt injection.",
+  "keywords": ["pi-package"],
+  "pi": {
+    "extensions": ["./index.ts"]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  }
+}

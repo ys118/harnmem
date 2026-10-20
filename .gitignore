@@ -1,0 +1,26 @@
+# Dependencies and build output
+node_modules/
+dist/
+*.tsbuildinfo
+*.tgz
+.pnpm-store/
+
+# Local scratch state
+.cache/
+.tmp/
+coverage/
+.harnmem-test/
+spikes/**/tmp-home/
+
+# Logs and OS noise
+*.log
+.DS_Store
+Thumbs.db
+
+# Generated deterministically by evals/gen/generate.mjs (verify with `node evals/gen/generate.mjs --check`)
+evals/corpora/
+evals/results/logs/
+evals/results/*.json
+
+# Never commit a real memory home: it may contain personal data
+.harnmem/

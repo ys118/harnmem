@@ -1,0 +1,40 @@
+{
+  "name": "@harnmem/core",
+  "version": "0.1.0",
+  "description": "HarnMem memory engine: file-native, harness-agnostic, zero-runtime-dependency memory.",
+  "license": "MIT",
+  "type": "module",
+  "keywords": [
+    "agent-memory",
+    "memory",
+    "llm",
+    "coding-agents",
+    "file-native",
+    "local-first",
+    "bm25",
+    "markdown"
+  ],
+  "engines": {
+    "node": ">=22.15"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

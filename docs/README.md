@@ -1,0 +1,56 @@
+# Documentation
+
+The documentation is organized in four layers. If you are new, read the
+[user guide](user-guide.md) first, then [`design/00-overview.md`](design/00-overview.md).
+
+## User guide
+
+- [User guide](user-guide.md) — install, first run, configuration, tools,
+  `/memory` commands, migration, troubleshooting, privacy.
+
+## Design (design of record)
+
+| Doc | Contents |
+| --- | -------- |
+| [`design/00-overview.md`](design/00-overview.md) | Goals, non-goals, design principles, architecture at a glance |
+| [`design/01-architecture.md`](design/01-architecture.md) | Components, data flow, technology choices, package layout, concurrency and security |
+| [`design/02-data-model.md`](design/02-data-model.md) | Store layout, memory schema, scopes and project identity, format and migration mapping |
+| [`design/03-retrieval.md`](design/03-retrieval.md) | Index structure, CJK+English tokenization, BM25F and scoring, injection budget and KV-cache strategy |
+| [`design/04-write-and-lifecycle.md`](design/04-write-and-lifecycle.md) | Write path, extraction, dedupe/merge, supersede, decay/archival, audit |
+| [`design/05-evaluation.md`](design/05-evaluation.md) | Evaluation suites (S1-S12), metrics, gates, ablations, optional LLM judge |
+| [`design/06-implementation-plan.md`](design/06-implementation-plan.md) | Milestones, verified evidence, risks, release strategy |
+| [`design/07-adapter-contract.md`](design/07-adapter-contract.md) | Adapter contract, tool semantics, KV-cache rules, execution-surface split |
+| [`design/08-dsh-adapter.md`](design/08-dsh-adapter.md) | DeepSeek Harness adapter design (not implemented) |
+| [`design/09-claude-adapter.md`](design/09-claude-adapter.md) | Claude Code adapter design: zero-dependency MCP stdio server + hooks (not implemented) |
+
+## Research notes
+
+Background research that informed the design. These are notes, not normative
+specifications; the design docs above are the source of truth.
+
+| Doc | Contents |
+| --- | -------- |
+| [`research/reference-projects.md`](research/reference-projects.md) | mem0, Hindsight, OpenViking, opencode-mem, dsh-auto-memory, pi-memory, ZCode: adopt/adapt/reject |
+| [`research/memory-evaluation-and-algorithms.md`](research/memory-evaluation-and-algorithms.md) | Memory benchmarks (LoCoMo, LongMemEval, ...), scoring/decay/dedupe algorithms, SQLite/FTS5 feasibility |
+| [`research/pi-extension-api.md`](research/pi-extension-api.md) | The pi extension API, event payloads, context injection and KV-cache behavior |
+| [`research/dsh-plugin-and-migration.md`](research/dsh-plugin-and-migration.md) | DSH plugin architecture and a per-harness migration mapping |
+| [`research/dsh-impl-notes.md`](research/dsh-impl-notes.md) | DSH implementation notes: verified / inferred / unverified |
+| [`research/prompt-review.md`](research/prompt-review.md) | Rationale and failure modes for the extraction/consolidation prompts |
+
+## Operations and evaluation
+
+- [`../evals/README.md`](../evals/README.md) — deterministic evaluation harness,
+  suites, gates, ablations, and how to add a suite.
+- [`../packages/harnmem-pi/README.md`](../packages/harnmem-pi/README.md) — pi
+  extension install and verification.
+- [`../packages/cli/README.md`](../packages/cli/README.md) — CLI command
+  reference and migration guarantees.
+
+## Conventions
+
+- Docs are written in English. CJK text may appear only as a data example where
+  the point is language behavior (for example CJK tokenization).
+- Design docs carry a status line at the top. If implementation and design
+  disagree, open an issue rather than silently editing history.
+- Numbers quoted in design docs are reproducible from the commands listed in
+  [`design/05-evaluation.md`](design/05-evaluation.md) and `evals/README.md`.
