@@ -51,3 +51,11 @@ export {
 } from "./assets.js";
 export type { PromptAsset } from "./assets.js";
 export type { ProjectInfo } from "./project.js";
+export {
+  renderHotContextSync,
+  type SyncHotContextOptions,
+  type SyncHotContextResult,
+} from "./hot-context.js";
+export { layoutHotContext, renderContextText, CONTEXT_HEADER, CONTEXT_FOOTER } from "./retrieval.js";
+export type { HotContextLayout, HotContextOptions, HotDigest } from "./retrieval.js";
+

@@ -9,9 +9,9 @@
 One npm package = one cordis plugin + one profile layer (`cordis.patch.yml`):
 
 ```
-packages/harnmem-dsh/
-├── package.json          # name=harnmem-dsh, dsh.manifestVersion/dsh.bundle.patch + peerDependencies
-├── cordis.patch.yml      # bundle layer: one insert row, id=harnmem-dsh name=harnmem-dsh
+packages/dsh-harnmem/
+├── package.json          # name=dsh-harnmem, dsh.manifestVersion/dsh.bundle.patch + peerDependencies
+├── cordis.patch.yml      # bundle layer: one insert row, id=dsh-harnmem name=dsh-harnmem
 ├── tsconfig.json
 └── src/index.ts          # host adaptation only; all memory logic lives in @harnmem/core
 ```
@@ -20,7 +20,7 @@ packages/harnmem-dsh/
 
 ```jsonc
 {
-  "name": "harnmem-dsh",
+  "name": "dsh-harnmem",
   "version": "0.1.0",
   "type": "module",
   "main": "lib/index.js",
@@ -49,25 +49,25 @@ The bundle layer `cordis.patch.yml` (`[verified]` copied verbatim from dsh-auto-
 
 ```yaml
 - insert:
-    - id: harnmem-dsh
-      name: harnmem-dsh
+    - id: dsh-harnmem
+      name: dsh-harnmem
 ```
 
 Install/enable (`[verified]` via `dsh plugin --help`: the subcommand **forwards its arguments unchanged to pnpm in the profile directory**, and `--profile` initializes the profile on first use):
 
 ```bash
 # 1) local development (pnpm add <dir> creates a link, no registry change)
-dsh plugin --profile desktop add <repo>/packages/harnmem-dsh
+dsh plugin --profile desktop add <repo>/packages/dsh-harnmem
 # 2) after publishing (mind the profile pnpm's minimumReleaseAge: a fresh version may be rejected; add an exclude or wait for the window)
-dsh plugin --profile desktop add harnmem-dsh
-# 3) the profile's package.json must show the dependency + dsh.profile.bundles must append "harnmem-dsh"
+dsh plugin --profile desktop add dsh-harnmem
+# 3) the profile's package.json must show the dependency + dsh.profile.bundles must append "dsh-harnmem"
 # 4) user config override: the profile's cordis.patch.yml replaces the config table by id (schemastery merge, not a deep merge)
 ```
 
 ```yaml
 # ~/.dsh/profiles/desktop/cordis.patch.yml
-- id: harnmem-dsh
-  name: harnmem-dsh
+- id: dsh-harnmem
+  name: dsh-harnmem
   config:
     injectMaxTokens: 1200
     autoExtract: true
@@ -81,7 +81,7 @@ Profile composition order (`[verified]` from a `cordis.yml` comment): `dsh.profi
 
 ```ts
 import z from "@deepseek-ai/schemastery";
-export const name = "harnmem-dsh";
+export const name = "dsh-harnmem";
 export const inject = ["tools", "systemPrompt"];          // llm is an optional service: ctx.get("llm")
 export const Config = z.object({
   home: z.string().default(""),                            // empty = $HARNMEM_HOME > ~/.harnmem
@@ -146,6 +146,15 @@ In every other case the **bytes stay unchanged**; `ContextBlock.snapshotAt` goes
 Before returning `text`, template braces are neutralized (core already does this; the adapter must not post-process, or byte stability breaks); `fail closed`: on any exception return the previous snapshot and never throw.
 
 **Per-turn recall does not use `ctx.systemPrompt.context()`**: that is a durable user-role snapshot that gets materialized across steps, changes the prefix once written, and is replayed automatically after compaction — incompatible with the v1 design of "tools retrieve on demand". Recall always goes through `memory_search` tool results (tool results do not pollute the system prompt).
+
+### 4.1 Cold-start fallback (verified at runtime)
+
+The host assembles the prompt **before** `agent/pre-step` runs, while `agent/created` opens the engine asynchronously. On a fresh process the first assembly can therefore happen while the in-memory snapshot is still empty, which would silently skip injection for the first turn (observed in a local headless DSH run: review request had `injected=false` despite a non-empty store).
+
+Fix: when the snapshot is empty, the section callback falls back to `renderHotContextSync({home, cwd})` from `@harnmem/core`, which renders the same block synchronously from the persisted per-shard index JSON (`node:fs` reads cached by mtime/size) and the digest pages. The layout function is shared with `HarnMem.ensureContext()`, and a core test asserts byte equality between the two paths. Once attach finishes, the engine snapshot takes precedence again, so steady-state bytes and the dirty protocol are unchanged.
+
+The runtime check exercised the real desktop runtime (disposable profile, local mock OpenAI-compatible endpoint): session 1 called `memory_write` and persisted `<memory-id>`; a new process/session then saw `systemChars 2994, injected=true` and the audit log recorded reason `session_start` with the same id. The adapter test suite covers the race shape (section evaluated before attach settles).
+
 
 ## 5. Tool mapping
 
@@ -237,7 +246,7 @@ ctx.on("agent/disposed", ({ agent }) => {
     s.eng.sessionEnd({ sessionId: agent.session.id, cwd: hostOf(agent).cwd, messages: s.digest,
                        reason: "dispose" }).then((r) => auditExtract(agent, r)),
     new Promise((_, rej) => setTimeout(() => rej(new Error("sessionEnd timeout")), budget)),
-  ]).catch((e) => ctx.logger.warn(`[harnmem-dsh] sessionEnd: ${String(e)}`))
+  ]).catch((e) => ctx.logger.warn(`[dsh-harnmem] sessionEnd: ${String(e)}`))
     .finally(() => void s.eng.close());
 });
 ```
@@ -254,7 +263,7 @@ function makeLlmFn(ctx: Context, agent: Agent): LlmFn | null {
   return async (req) => {
     const assembler = new BlockAssembler();
     const messages = [createUserMessage({ content: [{ type: "text", text: `${req.system}\n\n${req.prompt}` }],
-                                          source: { kind: "harnmem-dsh" } })];
+                                          source: { kind: "dsh-harnmem" } })];
     for await (const chunk of llm.stream({ provider, model, messages,
         maxTokens: req.maxTokens ?? 2048, sessionId: agent.session.id, signal: req.signal })) assembler.push(chunk);
     if (assembler.finish.kind === "error") throw new Error("harnmem llm call failed");
@@ -321,7 +330,7 @@ Runtime and migration share the same gates (no separate rule set): exact duplica
 ## 10. Landing order
 
 1. core convergence (R1) → `pnpm --filter @harnmem/core build` passes;
-2. skeleton `packages/harnmem-dsh/{package.json,cordis.patch.yml,src/index.ts}` (the code in this document compiles);
+2. skeleton `packages/dsh-harnmem/{package.json,cordis.patch.yml,src/index.ts}` (the code in this document compiles);
 3. install the local package into a scratch profile and pass the first 3 items of §9;
 4. land the importer's dsh source first (richest format, most samples), then pi, then zcode/claude once samples exist;
 5. cross-check against the pi adapter: the same `memory_write` produces byte-identical files in both harnesses (apart from `source.harness`) — stronger than any documentation promise.

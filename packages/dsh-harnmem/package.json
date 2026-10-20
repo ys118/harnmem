@@ -1,0 +1,74 @@
+{
+  "name": "dsh-harnmem",
+  "version": "0.1.0",
+  "description": "HarnMem memory plugin for the DSH (DeepSeek Harness) agent: byte-stable hot-index injection, memory tools, and session-end extraction.",
+  "license": "MIT",
+  "type": "module",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "memory",
+    "harnmem",
+    "agents"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/",
+    "README.md",
+    "cordis.patch.yml"
+  ],
+  "engines": {
+    "node": ">=22.15"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@harnmem/core": "workspace:*",
+    "@deepseek-ai/schemastery": "^3.18.2"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.2 <5.0.0",
+    "@deepseek-ai/dsh-agent": ">=0.1.5-rc.2 <0.3.0",
+    "@deepseek-ai/dsh-atomic-write": ">=0.1.5-rc.2 <0.3.0",
+    "@deepseek-ai/dsh-home-paths": ">=0.1.5-rc.2 <0.3.0",
+    "@deepseek-ai/dsh-llm": ">=0.1.5-rc.2 <0.3.0",
+    "@deepseek-ai/dsh-session": ">=0.1.5-rc.2 <0.3.0",
+    "@deepseek-ai/dsh-system-prompt": ">=0.1.5-rc.2 <0.3.0",
+    "@deepseek-ai/dsh-tools": ">=0.1.5-rc.2 <0.3.0"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": { "optional": true },
+    "@deepseek-ai/dsh-agent": { "optional": true },
+    "@deepseek-ai/dsh-atomic-write": { "optional": true },
+    "@deepseek-ai/dsh-home-paths": { "optional": true },
+    "@deepseek-ai/dsh-llm": { "optional": true },
+    "@deepseek-ai/dsh-session": { "optional": true },
+    "@deepseek-ai/dsh-system-prompt": { "optional": true },
+    "@deepseek-ai/dsh-tools": { "optional": true }
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ys118/harnmem.git",
+    "directory": "packages/dsh-harnmem"
+  },
+  "homepage": "https://github.com/ys118/harnmem/tree/master/packages/dsh-harnmem#readme",
+  "bugs": {
+    "url": "https://github.com/ys118/harnmem/issues"
+  },
+  "author": "HarnMem contributors"
+}

@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `dsh-harnmem`: DSH adapter (cordis plugin) with byte-stable hot-index
+  injection through `systemPrompt.section`, the same five `memory_*` tools,
+  read-only subagents, end-of-session extraction bridged to the host LLM, and
+  bounded shutdown. Verified against the real desktop runtime with a disposable
+  profile and a local OpenAI-compatible mock endpoint (write in session 1,
+  recall by injection in a new process).
+- `@harnmem/core`: `renderHotContextSync()`, a synchronous cold-start renderer
+  over the persisted shard indexes. It is byte-identical to
+  `HarnMem.ensureContext()` and lets adapters inject memory on the very first
+  prompt before asynchronous session bootstrap completes.
 - Repository-wide English documentation and open-source project scaffolding
   (license, contribution guide, code of conduct, security policy, issue/PR
   templates, CI and release workflows).

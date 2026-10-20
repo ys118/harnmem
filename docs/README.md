@@ -20,7 +20,7 @@ The documentation is organized in four layers. If you are new, read the
 | [`design/05-evaluation.md`](design/05-evaluation.md) | Evaluation suites (S1-S12), metrics, gates, ablations, optional LLM judge |
 | [`design/06-implementation-plan.md`](design/06-implementation-plan.md) | Milestones, verified evidence, risks, release strategy |
 | [`design/07-adapter-contract.md`](design/07-adapter-contract.md) | Adapter contract, tool semantics, KV-cache rules, execution-surface split |
-| [`design/08-dsh-adapter.md`](design/08-dsh-adapter.md) | DeepSeek Harness adapter design (not implemented) |
+| [`design/08-dsh-adapter.md`](design/08-dsh-adapter.md) | DeepSeek Harness adapter: plugin shape, hooks, injection, cold-start fallback, tools |
 | [`design/09-claude-adapter.md`](design/09-claude-adapter.md) | Claude Code adapter design: zero-dependency MCP stdio server + hooks (not implemented) |
 
 ## Research notes
@@ -43,6 +43,8 @@ specifications; the design docs above are the source of truth.
   suites, gates, ablations, and how to add a suite.
 - [`../packages/pi-harnmem/README.md`](../packages/pi-harnmem/README.md) — pi
   extension install and verification.
+- [`../packages/dsh-harnmem/README.md`](../packages/dsh-harnmem/README.md) — DSH
+  plugin install and verification.
 - [`../packages/cli/README.md`](../packages/cli/README.md) — CLI command
   reference and migration guarantees.
 

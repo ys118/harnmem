@@ -14,7 +14,7 @@
 | M3 Evaluation | S1–S12 deterministic corpora, metrics, gates, A0–A5 ablations | ✅ done; all functional gates PASS (5 advisory items, see 05 §3.1) | `evals/README.md`, `evals/results/eval-report.md` |
 | M4 Governance | Mechanical dedupe/merge, bitemporal supersede, decay/archive/trash, capacity, audit | ✅ core done; LLM digest is an optional phase | `packages/core/src/{lifecycle,consolidate}.ts`, `prompts/consolidate-digest.md` |
 | M5 CLI + migration | `harnmem` commands, dsh/pi/zcode/json import, dry-run/ledger/rollback | ✅ done; verified end-to-end on copies of real directories (second import adds 0, rollback verified) | `packages/cli/` |
-| M6 DSH plugin | cordis plugin, systemPrompt.section injection, tools, end-of-session extraction | 🟡 design done (08), implementation not started (no runtime e2e environment) | `docs/design/08-dsh-adapter.md` |
+| M6 DSH plugin | cordis plugin, systemPrompt.section injection, tools, end-of-session extraction | ✅ implemented (`packages/dsh-harnmem`); runtime-verified with a disposable profile + local mock endpoint (injection, tool write, new-session recall) | `docs/design/08-dsh-adapter.md` |
 | M7 Claude Code | hooks + zero-dependency MCP stdio server | 🟡 design done (09, in the repo) | `docs/design/09-claude-adapter.md` |
 | M8 Release | npm packages/install docs/versioning/CI | 🟡 v0.1.0 usable locally + docs complete; `pi install ./packages/pi-harnmem` and npm publish not done | §5/§7 of this file |
 
@@ -26,6 +26,7 @@ harnmem/
 │   ├── core/          @harnmem/core: types/config/project/store/indexer/text/retrieval/
 │   │                  lifecycle/extract/consolidate/harnmem/frontmatter/util + test/
 │   ├── pi-harnmem/     pi extension: index/state/context/tools/command/format/journal/subagent/log
+│   ├── dsh-harnmem/    DSH cordis plugin: index/sessions/snapshot/digest/config/tools/llm/host/log
 │   └── cli/           harnmem CLI: main/args/commands/pipeline/importers/{dsh,pi,zcode,json}
 ├── evals/             gen/ (deterministic generator), data/ (lexicons/bilingual/synonyms), lib/ (metrics/store), run.mjs, gates.json
 ├── prompts/           extract.md / write-policy.md / consolidate-digest.md / README.md (loading contract)
@@ -83,6 +84,15 @@ Aggregate: **R@10 1.000, MRR 0.891, nDCG@10 0.911, P@1 0.833, zh-en gap 0**; all
 
 The command surface is documented in `packages/cli/README.md`. Migration was verified end-to-end on copies of real source directories (the real `~/.dsh/memory` and `~/.pi/agent/memory` were never modified). Core principles: dry-run by default, back up first, ledger-based idempotency, failures go into an unresolved bucket, and unknown projects are never silently placed in user scope. Measured: 28 records migrated from a DSH copy, second import added 0, rollback clean; 10 records auto-resolved from a pi copy with 22 landing in unresolved (expected behavior when project identity is irrecoverable; `--path-map` can resolve them).
 
+### 3.5 DSH adapter runtime check (2026-10-20 22:30)
+
+Verified against the real desktop runtime (disposable `DSH_HOME` profile) with a local OpenAI-compatible mock endpoint, so no external service and no real API key were involved:
+
+- `dsh plugin --profile probe add <repo>\packages\dsh-harnmem` loads the plugin; `probe --dump-config` lists `dsh-harnmem`, 5 tools register, and the adapter builds as a dependency-free ESM bundle (~62 kB).
+- Session 1: the scripted model called `memory_write`; the record landed in the temporary `HARNMEM_HOME` and the audit log recorded the write.
+- New process / new session: the injected block was present in the provider request (`systemChars 2994`, `injected=true`) and the audit recorded `reason=session_start` with the same memory id — this is the new cold-start fallback path (08 §4.1).
+- Subagent sessions are read-only, extraction is bounded at shutdown, and the fake-context suite (17 tests) covers registration, tools, dirty/rebuild, compaction, dispose and the cold-start race.
+
 ## 4. Implementation-phase plan (next-step order)
 
 1. ✅ **Core retrieval wrap-up**: adjacency lists, cross-shard two-hop diffusion, lex calibration, MMR pool cap; S9 R@10 1.000, warm p95 ~16 ms.
@@ -90,8 +100,9 @@ The command surface is documented in `packages/cli/README.md`. Migration was ver
 3. ✅ **pi adapter hardening**: tool schemas, abort signal, shutdown extraction race, `/memory` argument passthrough; 19/19 tests.
 4. ✅ **CLI/migration acceptance**: DSH/pi copy import, idempotent re-import, rollback.
 5. ✅ **Documentation consistency**: 02/03/04/05/07/README aligned; 08/09 adapter designs recorded.
-6. 🟡 **Release preparation**: build, tests and eval gate are green; the `pi install` path is verified. GitHub release and npm publishing are opt-in maintainer steps, not code work.
-7. **Later**: DSH plugin implementation (08), Claude Code MCP+hooks (09), cross-harness concurrent-write stress tests, ZCode migration samples, v0.2 performance work (import/p95/index_overhead).
+6. ✅ **DSH adapter**: implementation plus runtime verification (08 §4.1 cold-start fallback, 06 §3.5); fake-context suite 17/17.
+7. 🟡 **Release preparation**: build, tests and eval gate are green; `pi install` is verified and the repository is pushed. npm publishing is an opt-in maintainer step (scope + token).
+8. **Later**: Claude Code MCP+hooks (09), cross-harness concurrent-write stress tests, ZCode migration samples, v0.2 performance work (import/p95/index_overhead).
 
 ## 5. npm packaging and release strategy
 
@@ -102,7 +113,7 @@ The command surface is documented in `packages/cli/README.md`. Migration was ver
 | `@harnmem/core` | Engine + types + default prompts/data | ESM `dist/` + `.d.ts` | zero runtime dependencies |
 | `harnmem` | CLI (bin: `harnmem`) | ESM + bin shim | exact version of `@harnmem/core` |
 | `pi-harnmem` | pi extension | ESM; `package.json`'s `pi.extensions: ["dist/index.js"]`, `keywords:["pi-package"]` | peer: `@earendil-works/pi-coding-agent`, `pi-ai`, `typebox`; dep `@harnmem/core` |
-| `harnmem-dsh` / `mcp` (`@harnmem/mcp`, Claude Code hooks + MCP) | later adapters | same core/protocol form | same as above |
+| `dsh-harnmem` | DSH cordis plugin | ESM; `package.json` `dsh.manifestVersion:1` + `dsh.bundle.patch`; depends on `@harnmem/core` | zero runtime deps beyond core |
 
 - Phase 1: `pi install ./packages/pi-harnmem` (local path), no publishing; publish to npm only after the UX is confirmed.
 - Publish with `pnpm -r publish --access public`; `workspace:*` is rewritten to concrete versions at publish time; first run `pnpm pack` to check the `files` allowlist (only `dist/`, `prompts/`, `data/`, README).
@@ -120,7 +131,7 @@ The command surface is documented in `packages/cli/README.md`. Migration was ver
 | R3 | Auto-extraction latency/cost | Slower session shutdown | Root sessions only, master switch, 8–12s self-timeout, silent failure, cost fields in the audit |
 | R4 | KV-cache stability | Cache invalidation every turn, higher cost | Snapshot + byte stability + `snapshotDirty`; rebuild only on writes/day rollover; e2e verified identical sha256 |
 | R5 | Multi-harness concurrent writes (pi/DSH/CLI at once) | Index/record races | Atomic writes + `state/lock` + per-shard seq + usage overlay; single-writer preference; concurrency stress tests later |
-| R6 | DSH plugin API is source-inferred, no runtime e2e | Implementation rework | 08 labels verified/inferred/unverified + a 10-step manual test plan; validate with a minimal plugin first |
+| R6 | DSH plugin API is source-inferred | Implementation rework | Resolved 2026-10-20: adapter implemented and runtime-verified against the desktop runtime (see §3.5); cold-start race found and fixed in core (08 §4.1) |
 | R7 | ZCode migration has no real data | Low coverage | Implement against the mechanism doc + graceful skips + clear warnings; wait for user-provided samples |
 | R8 | pi `session_shutdown` has no timeout | Stuck on exit | Engine self-timeout (same ~8s policy as pi-memory) + AbortSignal |
 | R9 | Sensitive information written into memories | Privacy leak | Regex redaction before write, `sensitive` flag excluded from injection by default, audit |
@@ -130,6 +141,7 @@ The command surface is documented in `packages/cli/README.md`. Migration was ver
 
 - [x] `pnpm -r build` and `pnpm test` fully green (19/19); `node evals/run.mjs --gate` hard gates fully green
 - [x] pi adapter hardening fixes and e2e re-run
+- [x] DSH adapter runtime check: disposable profile, mock endpoint, write + new-session recall + cold-start fallback (17/17 adapter tests)
 - [x] CLI migration e2e: copies of source directories → dry-run → apply → second import adds 0 → rollback
 - [x] Cold-start path measured on a brand-new `~/.harnmem` home (no config, no prompt overrides)
 - [x] README quick start verified item by item (`pi install ./packages/pi-harnmem` in an isolated profile, `harnmem stats`)

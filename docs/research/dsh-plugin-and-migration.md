@@ -253,7 +253,7 @@ It deduplicates by "session injection-set signature" (nothing is recorded when `
 ### A5. DSH adapter code skeleton (map harnmem core's 6 hooks + 1 tool set onto DSH)
 
 ```ts
-// packages/harnmem-dsh/src/index.ts  —— host adaptation only; no memory logic (that lives in @harnmem/core)
+// packages/dsh-harnmem/src/index.ts  —— host adaptation only; no memory logic (that lives in @harnmem/core)
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import z from '@deepseek-ai/schemastery'
@@ -261,7 +261,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import { BlockAssembler, createUserMessage } from '@deepseek-ai/dsh-llm'
 import { createHarnMem, type HarnMem, type LlmFn } from '@harnmem/core'
 
-export const name = 'harnmem-dsh'
+export const name = 'dsh-harnmem'
 export const inject = ['tools', 'systemPrompt']          // host services; llm is optional (ctx.get, degrade on undefined)
 
 export const Config = z.object({
@@ -342,7 +342,7 @@ export function apply(ctx: Context, config: z.infer<typeof Config>) {
     if (depth > 0 || !config.autoExtract) return                       // subagents do not write memory
     const llm = makeLlmFn(ctx, agent)                                  // no host model → undefined; core degrades to mechanical governance
     void eng.dispose({ transcript: digests.get(agent.session.id) ?? [], llm })
-      .catch((e) => ctx.logger.warn(`[harnmem-dsh] dispose failed: ${String(e)}`))
+      .catch((e) => ctx.logger.warn(`[dsh-harnmem] dispose failed: ${String(e)}`))
     digests.delete(agent.session.id)
   })
   ctx.on('session/disposed', (session) => { engines.delete(session.id); digests.delete(session.id) })
@@ -352,7 +352,7 @@ export function apply(ctx: Context, config: z.infer<typeof Config>) {
 
   // Plugin unload: wait for in-flight extraction to land
   ctx.effect(function* () { yield async () => { await Promise.allSettled([...engines.values()].map((e) => e.flush())) } },
-             'harnmem-dsh flush')
+             'dsh-harnmem flush')
 }
 
 function makeLlmFn(ctx: Context, agent: Agent): LlmFn | undefined {
@@ -362,7 +362,7 @@ function makeLlmFn(ctx: Context, agent: Agent): LlmFn | undefined {
     const asm = new BlockAssembler()
     for await (const chunk of llm.stream({
       provider: agent.options.provider, model: agent.options.model,
-      messages: [createUserMessage({ content: [{ type: 'text', text: user }], source: { kind: 'harnmem-dsh' } })],
+      messages: [createUserMessage({ content: [{ type: 'text', text: user }], source: { kind: 'dsh-harnmem' } })],
       maxTokens: maxTokens ?? 2048, sessionId: agent.session.id, signal,
     })) asm.push(chunk)
     if (asm.finish.kind === 'error') throw new Error('harnmem llm call failed')

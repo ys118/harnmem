@@ -1,0 +1,9 @@
+# Bundle layer for dsh-harnmem.
+#
+# The `name` of an insert row must be the npm package name (the host loads the
+# plugin by that specifier from the profile's node_modules). Omitting `config`
+# means the plugin schema defaults apply; a profile-level cordis.patch.yml can
+# replace the config table by id afterwards.
+- insert:
+    - id: dsh-harnmem
+      name: dsh-harnmem

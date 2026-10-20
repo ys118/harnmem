@@ -18,10 +18,12 @@ a memory written in one harness is available in another — no server, no vector
 database, no embedding model, and no runtime dependencies in the engine.
 
 - **Package:** `@harnmem/core` (engine), `@harnmem/cli` (`harnmem` command),
-  `pi-harnmem` (pi extension). Not published to npm yet; build from a checkout.
+  `pi-harnmem` (pi extension), `dsh-harnmem` (DSH plugin). Not published to npm
+  yet; build from a checkout.
 - **License:** MIT.
-- **Status:** v0.1.0 — core, CLI/migration and the pi adapter are usable and
-  tested end to end; DSH and Claude Code adapters are designed but not built.
+- **Status:** v0.1.0 — core, CLI/migration, the pi adapter and the DSH adapter
+  are usable and tested end to end; the Claude Code adapter is designed but not
+  built.
 
 ## Why another memory plugin?
 
@@ -90,6 +92,19 @@ tools (`memory_write`, `memory_search`, `memory_read`, `memory_forget`,
 `memory_status`), adds `/memory`, and runs a bounded extraction at session end.
 Configuration lives in `~/.harnmem/config.json` (or `$HARNMEM_HOME/config.json`).
 
+### DSH adapter
+
+```bash
+pnpm --filter dsh-harnmem build
+dsh plugin --profile desktop add ./packages/dsh-harnmem
+```
+
+The plugin mounts as a cordis plugin: it injects the same hot index through
+`systemPrompt.section` (byte-stable, with a synchronous cold-start fallback),
+registers the same five tools, keeps subagent sessions read-only, and runs a
+bounded session-end extraction through the host LLM service. It requires DSH
+0.2.x and never opens a network connection of its own.
+
 ### CLI
 
 ```bash
@@ -120,13 +135,13 @@ pnpm eval:gate                        # hard gates (perf gates are advisory)
 flowchart LR
   subgraph Harnesses
     PI[pi extension]
-    DSH[DSH adapter - design]
+    DSH[DSH plugin]
     CC[Claude Code adapter - design]
   end
   CLI[harnmem CLI + migration]
   CORE["@harnmem/core<br/>store · retrieval · writing · lifecycle · extraction"]
   PI --> CORE
-  DSH -.-> CORE
+  DSH --> CORE
   CC -.-> CORE
   CLI --> CORE
   CORE --> STD[(~/.harnmem plain files)]
@@ -247,8 +262,8 @@ the roadmap. Details, per-suite numbers, ablations and gate definitions are in
 | Harness | Status | Notes |
 | --- | --- | --- |
 | pi 1.3.0 | **Supported** | Extension with injection, tools, `/memory`, session-end extraction; verified end to end |
+| DeepSeek Harness 0.2.1 | **Supported** (0.2.x) | Cordis plugin (`dsh-harnmem`); verified against the desktop runtime with a disposable profile and a local mock endpoint |
 | CLI (any harness) | **Supported** | `harnmem` commands read/write the same store |
-| DeepSeek Harness | Design | [`docs/design/08-dsh-adapter.md`](docs/design/08-dsh-adapter.md) |
 | Claude Code | Design | [`docs/design/09-claude-adapter.md`](docs/design/09-claude-adapter.md) (MCP stdio server + hooks) |
 | Other harnesses | Welcome | See the adapter contract and `CONTRIBUTING.md` |
 
@@ -266,7 +281,7 @@ Start with the [documentation index](docs/README.md). Highlights:
 
 ## Roadmap
 
-- Implement the DSH adapter and the Claude Code adapter (MCP stdio + hooks).
+- Implement the Claude Code adapter (MCP stdio + hooks).
 - Persist and incrementally update indexes so large stores warm up faster;
   reduce index size.
 - Publish the packages to npm and validate installs on Linux/macOS/Windows.

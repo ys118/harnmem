@@ -465,77 +465,129 @@ export class Retriever {
     const config = this.deps.config;
     const now = this.now();
     const budgetConfig = budgetOf(config);
-    const budget = budgetConfig.injectTokens;
-    const maxPinned = budgetConfig.maxPinned;
-    const hotEntries = budgetConfig.hotEntries;
-    const sections: string[] = [];
-    let tokens = 0;
-    const ids: string[] = [];
     const shards = this.shards();
 
     const indexes: ShardIndex[] = [];
     for (const shard of shards) indexes.push(await this.deps.index.get(shard));
-    const docs = indexes.flatMap((index) => index.docs).filter((doc) => doc.status === "active");
+    const docs = indexes.flatMap((index) => index.docs);
 
-    const contextScore = (doc: DocMeta): number => {
-      const anchor = doc.lastUsed || doc.updated || doc.created;
-      const rec = Math.pow(retrievalOf(config).decayPerHour, Math.max(0, (now - anchor) / HOUR));
-      const use = clamp(Math.log1p(doc.usedCount) / Math.log1p(20), 0, 1);
-      return 0.55 * (doc.importance / 10) + 0.2 * doc.confidence + 0.1 * rec + 0.1 * use + 0.05 * (doc.pinned ? 1 : 0);
-    };
-
-    const pinned = docs
-      .filter((doc) => doc.pinned)
-      .sort((a, b) => b.importance - a.importance || b.updated - a.updated || a.id.localeCompare(b.id))
-      .slice(0, maxPinned);
-    const pinnedIds = new Set(pinned.map((doc) => doc.id));
-
-    const lines: string[] = [];
-    for (const doc of pinned) {
-      const line = `- 📌 [${doc.type}] ${doc.title} — ${doc.description}`;
-      tokens += estimateTokens(line);
-      ids.push(doc.id);
-      lines.push(line);
-    }
-
-    const pool = docs
-      .filter((doc) => !pinnedIds.has(doc.id))
-      .sort((a, b) => contextScore(b) - contextScore(a) || b.updated - a.updated || a.id.localeCompare(b.id));
-    let added = 0;
-    for (const doc of pool) {
-      if (added >= Math.max(0, hotEntries - pinned.length)) break;
-      const line = `- [${doc.type}] ${doc.title} — ${doc.description}`;
-      const cost = estimateTokens(line);
-      if (tokens + cost > budget) break;
-      lines.push(line);
-      ids.push(doc.id);
-      tokens += cost;
-      added++;
-    }
-
-    const digestLines: string[] = [];
+    const digests: HotDigest[] = [];
     for (const shard of shards) {
       for (const digest of await this.deps.store.listDigests(shard)) {
-        const line = `- ${digest.title}: ${extractSnippet(digest.body, 160)}`;
-        const cost = estimateTokens(line);
-        if (tokens + cost > budget) break;
-        digestLines.push(line);
-        tokens += cost;
+        digests.push({ title: digest.title, body: digest.body });
       }
     }
 
-    if (lines.length === 0 && digestLines.length === 0) {
+    const layout = layoutHotContext(docs, digests, {
+      now,
+      budgetTokens: budgetConfig.injectTokens,
+      maxPinned: budgetConfig.maxPinned,
+      hotEntries: budgetConfig.hotEntries,
+      decayPerHour: retrievalOf(config).decayPerHour,
+    });
+    if (!layout.hasContent) {
       return { text: "", reason, snapshotAt: now, ids: [], tokensEstimate: 0 };
     }
-
-    if (lines.length > 0) sections.push(...lines);
-    if (digestLines.length > 0) sections.push("### Digests", ...digestLines);
-    const header = "## HarnMem memory (cross-harness; stable snapshot)";
-    const footer =
-      "<!-- SSOT: ~/.harnmem. Use memory_search for details; never invent memory ids. Snapshot refreshes on session start, after memory writes and at day rollover. -->";
-    const text = `${header}\n\n${sections.join("\n")}\n\n${footer}`;
-    return { text, reason, snapshotAt: now, ids, tokensEstimate: estimateTokens(text) };
+    const text = renderContextText(layout.sections);
+    return { text, reason, snapshotAt: now, ids: layout.ids, tokensEstimate: estimateTokens(text) };
   }
+}
+
+export const CONTEXT_HEADER = "## HarnMem memory (cross-harness; stable snapshot)";
+export const CONTEXT_FOOTER =
+  "<!-- SSOT: ~/.harnmem. Use memory_search for details; never invent memory ids. Snapshot refreshes on session start, after memory writes and at day rollover. -->";
+
+/** Digest page summary used by the injected hot index. */
+export interface HotDigest {
+  title: string;
+  body: string;
+}
+
+export interface HotContextOptions {
+  now: number;
+  budgetTokens: number;
+  maxPinned: number;
+  hotEntries: number;
+  decayPerHour: number;
+}
+
+export interface HotContextLayout {
+  sections: string[];
+  ids: string[];
+  tokensEstimate: number;
+  hasContent: boolean;
+}
+
+/**
+ * Deterministic hot-index layout shared by the async engine path and the
+ * synchronous cold-start fallback (see `hot-context.ts`). Pure function: given
+ * the same docs/digests/options it renders identical bytes, which keeps the
+ * injected block byte-stable across harness restarts.
+ */
+export function layoutHotContext(
+  docs: readonly DocMeta[],
+  digests: readonly HotDigest[],
+  options: HotContextOptions,
+): HotContextLayout {
+  const { now, budgetTokens, maxPinned, hotEntries, decayPerHour } = options;
+  const active = docs.filter((doc) => doc.status === "active");
+  const ids: string[] = [];
+  const lines: string[] = [];
+  let tokens = 0;
+
+  const contextScore = (doc: DocMeta): number => {
+    const anchor = doc.lastUsed || doc.updated || doc.created;
+    const rec = Math.pow(decayPerHour, Math.max(0, (now - anchor) / HOUR));
+    const use = clamp(Math.log1p(doc.usedCount) / Math.log1p(20), 0, 1);
+    return 0.55 * (doc.importance / 10) + 0.2 * doc.confidence + 0.1 * rec + 0.1 * use + 0.05 * (doc.pinned ? 1 : 0);
+  };
+
+  const pinned = active
+    .filter((doc) => doc.pinned)
+    .sort((a, b) => b.importance - a.importance || b.updated - a.updated || a.id.localeCompare(b.id))
+    .slice(0, maxPinned);
+  const pinnedIds = new Set(pinned.map((doc) => doc.id));
+
+  for (const doc of pinned) {
+    const line = `- 📌 [${doc.type}] ${doc.title} — ${doc.description}`;
+    tokens += estimateTokens(line);
+    ids.push(doc.id);
+    lines.push(line);
+  }
+
+  const pool = active
+    .filter((doc) => !pinnedIds.has(doc.id))
+    .sort((a, b) => contextScore(b) - contextScore(a) || b.updated - a.updated || a.id.localeCompare(b.id));
+  let added = 0;
+  for (const doc of pool) {
+    if (added >= Math.max(0, hotEntries - pinned.length)) break;
+    const line = `- [${doc.type}] ${doc.title} — ${doc.description}`;
+    const cost = estimateTokens(line);
+    if (tokens + cost > budgetTokens) break;
+    lines.push(line);
+    ids.push(doc.id);
+    tokens += cost;
+    added++;
+  }
+
+  const digestLines: string[] = [];
+  for (const digest of digests) {
+    const line = `- ${digest.title}: ${extractSnippet(digest.body, 160)}`;
+    const cost = estimateTokens(line);
+    if (tokens + cost > budgetTokens) break;
+    digestLines.push(line);
+    tokens += cost;
+  }
+
+  const sections: string[] = [];
+  if (lines.length > 0) sections.push(...lines);
+  if (digestLines.length > 0) sections.push("### Digests", ...digestLines);
+  return { sections, ids, tokensEstimate: tokens, hasContent: sections.length > 0 };
+}
+
+/** Render the exact injected block around a hot-index layout. */
+export function renderContextText(sections: readonly string[]): string {
+  return `${CONTEXT_HEADER}\n\n${sections.join("\n")}\n\n${CONTEXT_FOOTER}`;
 }
 
 function parseAsOfSafe(value: number | string, fallback: number): number {

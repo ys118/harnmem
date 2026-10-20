@@ -56,7 +56,7 @@ packages/core/src/
 
 `packages/cli`: the `harnmem` command (`stats`, `search`, `read`, `write`, `forget`, `restore`, `consolidate`, `rebuild`, `export`, `import`).
 `packages/pi-harnmem`: the pi extension entry (single-file TS or esbuild output); it only does hook mapping, tool-schema registration, host-LLM adaptation, and TUI status output.
-`packages/mcp` (`@harnmem/mcp`): MCP stdio server + Claude Code hooks bridge (design in 09); `packages/harnmem-dsh`: DSH plugin (design in 08). Both are later phases.
+`packages/mcp` (`@harnmem/mcp`): MCP stdio server + Claude Code hooks bridge (design in 09); `packages/dsh-harnmem`: DSH plugin (design in 08). Both are later phases.
 
 > Implementation status: core is not laid out per the tree above; it currently consists of 13 flat files under `packages/core/src/` (`harnmem.ts` / `store.ts` / `retrieval.ts` / `types.ts` / `frontmatter.ts` / `lifecycle.ts` / `indexer.ts` / `util.ts` / `text.ts` / `consolidate.ts` / `project.ts` / `extract.ts` / `config.ts`). This section is kept as a layering target; the source is authoritative.
 

@@ -109,7 +109,7 @@ Prerequisite: `dsh` (0.2.1-rc.2) is already installed on this machine. Use a **s
 9. Dispose: after `agent/disposed`, `sessionEnd` finishes within 8 s (a no-LLM profile returns `no_llm`); the plugin unload `ctx.effect` flush does not hang exit.
 10. Migration: run `migrate --dry-run` against `~/.dsh/memory` and `~/.pi/agent/memory` → manually review the plan table → `apply` → `verify` → re-run `dry-run` and expect 0 new records (idempotent); `--rollback` returns to the initial counts. ZCode/Claude sources await samples.
 
-Optional extra probe: after installation, `dsh plugin --profile harnmem-probe why harnmem-dsh` shows pnpm's real package path and peer resolution status; if the peers are not provided by the host but resolve inside the profile, re-align `exports`/`peerDependencies` with dsh-auto-memory.
+Optional extra probe: after installation, `dsh plugin --profile harnmem-probe why dsh-harnmem` shows pnpm's real package path and peer resolution status; if the peers are not provided by the host but resolve inside the profile, re-align `exports`/`peerDependencies` with dsh-auto-memory.
 
 ## 5. Do-not list
 
