@@ -187,6 +187,11 @@ Loading priority: the `<home>` copy → the repository/package default → the p
 | `memory_forget` | `id`, `hard` | Trash for 30 days by default |
 | `memory_status` | — | Store stats, index state, health checks |
 
+The `memory_` prefix is configurable (`toolPrefix` in `<agentDir>/harnmem.json`). If another
+extension already registers these tool names — pi-memory does — set `"toolPrefix": "harnmem_"`
+so HarnMem exposes `harnmem_write`, `harnmem_search`, `harnmem_read`, `harnmem_forget` and
+`harnmem_status` instead (`toolPrefix` is described in §4).
+
 - **`/memory` commands**: `status` / `search <q> [--limit N]` / `read <id> [--history]` / `forget <id> [--hard]` / `restore <id>` / `consolidate [--dry-run] [--mechanical]` / `help`.
 - **Subagents are read-only**: in child sessions `memory_write` returns `HarnMem is read-only` and never pollutes the main session.
 - **Logs**: `<home>/logs/pi.jsonl` (injection size/hash, tool calls, extraction results, errors).

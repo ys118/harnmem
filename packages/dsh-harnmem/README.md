@@ -11,7 +11,7 @@ The plugin is a thin adapter. Storage, retrieval, deduplication and lifecycle li
 
 ## What it does
 
-- **Injection** — one prompt section (`harnmem:hot-index`, order `4000`) renders the
+- **Injection** — one prompt section (`harnmem:hot-index`, order `4050`) renders the
   in-memory hot index. Text is identical across turns (provider prefix cache stays warm);
   it is rebuilt only at session start, compaction, after a `memory_write` in the same
   session, on a local-day rollover, and after manual consolidation. An empty store

@@ -16,12 +16,18 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { registerCommand } from "./command.js";
 import { sha256 } from "./context.js";
+import { resolveSettings } from "./config.js";
 import { Adapter } from "./state.js";
 import { registerTools } from "./tools.js";
 
 export default function harnmemExtension(pi: ExtensionAPI): void {
+  // Tool names are fixed at registration time, so resolve the (sync, file-based)
+  // config here; session_start later re-resolves with the session cwd.
+  // `toolPrefix` lets HarnMem coexist with extensions that already register the
+  // default `memory_*` names (for example pi-memory): set it to "harnmem_".
+  const toolPrefix = resolveSettings(process.cwd()).toolPrefix;
   const adapter = new Adapter();
-  registerTools(pi, adapter);
+  registerTools(pi, adapter, toolPrefix);
   registerCommand(pi, adapter);
 
   pi.on("session_start", async (event, ctx) => {

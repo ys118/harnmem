@@ -46,14 +46,14 @@ export function formatWrite(result: WriteResult): string {
       break;
   }
   if (result.warnings.length) lines.push(`warnings: ${result.warnings.join("; ")}`);
-  lines.push("Use memory_read with this id for the full record; memory_search to find related memories.");
+  lines.push("Use the memory read tool with this id for the full record; the memory search tool finds related memories.");
   return clip(lines.join("\n"));
 }
 
 export function formatSearch(result: SearchResult): string {
   if (result.abstained || result.results.length === 0) {
     return clip(
-      `no confident memories for "${result.query}" (abstained). Try different keywords, or memory_status to inspect the store.`,
+      `no confident memories for "${result.query}" (abstained). Try different keywords, or the memory status tool to inspect the store.`,
     );
   }
   const lines: string[] = [`${result.results.length}/${result.total} matches for "${result.query}":`];
@@ -69,7 +69,7 @@ export function formatSearch(result: SearchResult): string {
   if (result.debug) {
     lines.push(`debug: candidates=${result.debug.candidateCount} shards=${result.debug.shards.join(",")} elapsed=${result.debug.elapsedMs}ms`);
   }
-  lines.push("Call memory_read <id> to open a record.");
+  lines.push("Call the memory read tool with a hit id to open the record.");
   return clip(lines.join("\n"));
 }
 

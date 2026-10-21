@@ -25,10 +25,11 @@ async function engineOf(ctx: ExtensionToolContext, adapter: Adapter) {
   return eng;
 }
 
-export function registerTools(pi: ExtensionAPI, adapter: Adapter): void {
+export function registerTools(pi: ExtensionAPI, adapter: Adapter, toolPrefix = "memory_"): void {
+  const name = (suffix: string) => `${toolPrefix}${suffix}`;
   pi.registerTool(
     defineTool({
-      name: "memory_write",
+      name: name("write"),
       label: "Memory Write",
       description:
         "Store a durable memory (user preference, feedback/lesson, project fact, reference). " +
@@ -72,7 +73,7 @@ export function registerTools(pi: ExtensionAPI, adapter: Adapter): void {
           return { content: [{ type: "text" as const, text: formatWrite(result) }], details: { id: result.id, action: result.action } };
         } catch (err) {
           adapter.logger?.warn("tool.write.error", { error: errText(err) });
-          return { content: [{ type: "text" as const, text: `memory_write failed: ${errText(err)}` }], details: {}, isError: true };
+          return { content: [{ type: "text" as const, text: `${name("write")} failed: ${errText(err)}` }], details: {}, isError: true };
         }
       },
     }),
@@ -80,7 +81,7 @@ export function registerTools(pi: ExtensionAPI, adapter: Adapter): void {
 
   pi.registerTool(
     defineTool({
-      name: "memory_search",
+      name: name("search"),
       label: "Memory Search",
       description:
         "Search long-term memory by lexical/semantic-free BM25 over titles, descriptions, tags, entities and bodies. " +
@@ -120,7 +121,7 @@ export function registerTools(pi: ExtensionAPI, adapter: Adapter): void {
           return { content: [{ type: "text" as const, text: formatSearch(result) }], details: { total: result.total, abstained: result.abstained } };
         } catch (err) {
           adapter.logger?.warn("tool.search.error", { error: errText(err) });
-          return { content: [{ type: "text" as const, text: `memory_search failed: ${errText(err)}` }], details: {}, isError: true };
+          return { content: [{ type: "text" as const, text: `${name("search")} failed: ${errText(err)}` }], details: {}, isError: true };
         }
       },
     }),
@@ -128,7 +129,7 @@ export function registerTools(pi: ExtensionAPI, adapter: Adapter): void {
 
   pi.registerTool(
     defineTool({
-      name: "memory_read",
+      name: name("read"),
       label: "Memory Read",
       description: "Open one memory record by id (frontmatter summary + body + backlinks).",
       parameters: Type.Object({
@@ -153,7 +154,7 @@ export function registerTools(pi: ExtensionAPI, adapter: Adapter): void {
           };
         } catch (err) {
           adapter.logger?.warn("tool.read.error", { error: errText(err) });
-          return { content: [{ type: "text" as const, text: `memory_read failed: ${errText(err)}` }], details: {}, isError: true };
+          return { content: [{ type: "text" as const, text: `${name("read")} failed: ${errText(err)}` }], details: {}, isError: true };
         }
       },
     }),
@@ -161,7 +162,7 @@ export function registerTools(pi: ExtensionAPI, adapter: Adapter): void {
 
   pi.registerTool(
     defineTool({
-      name: "memory_forget",
+      name: name("forget"),
       label: "Memory Forget",
       description:
         "Forget a memory. Default moves it to trash (restorable); hard=true deletes permanently. " +
@@ -182,7 +183,7 @@ export function registerTools(pi: ExtensionAPI, adapter: Adapter): void {
           return { content: [{ type: "text" as const, text: formatForget(result) }], details: { ok: result.ok, mode: result.mode } };
         } catch (err) {
           adapter.logger?.warn("tool.forget.error", { error: errText(err) });
-          return { content: [{ type: "text" as const, text: `memory_forget failed: ${errText(err)}` }], details: {}, isError: true };
+          return { content: [{ type: "text" as const, text: `${name("forget")} failed: ${errText(err)}` }], details: {}, isError: true };
         }
       },
     }),
@@ -190,7 +191,7 @@ export function registerTools(pi: ExtensionAPI, adapter: Adapter): void {
 
   pi.registerTool(
     defineTool({
-      name: "memory_status",
+      name: name("status"),
       label: "Memory Status",
       description: "Show memory store health: shards, counts, capacities and pending events. Useful before large writes.",
       parameters: Type.Object({}),
@@ -205,7 +206,7 @@ export function registerTools(pi: ExtensionAPI, adapter: Adapter): void {
           return { content: [{ type: "text" as const, text: formatStats(stats) }], details: { version: stats.version } };
         } catch (err) {
           adapter.logger?.warn("tool.status.error", { error: errText(err) });
-          return { content: [{ type: "text" as const, text: `memory_status failed: ${errText(err)}` }], details: {}, isError: true };
+          return { content: [{ type: "text" as const, text: `${name("status")} failed: ${errText(err)}` }], details: {}, isError: true };
         }
       },
     }),

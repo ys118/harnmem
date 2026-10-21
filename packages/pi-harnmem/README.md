@@ -79,11 +79,18 @@ Settings are read (lowest → highest priority) from: built-in defaults → `<ho
     "timeoutMs": 60000
   },
   "log": "errors",          // off | errors | on  → <home>/logs/pi.jsonl
+  "toolPrefix": "memory_",  // model-facing tool prefix; use "harnmem_" when pi-memory is also installed
   "debug": false
 }
 ```
 
 Environment overrides: `HARNMEM_HOME`, `HARNMEM_DISABLED=1`, `HARNMEM_READONLY=1`, `HARNMEM_INJECT=1|0`, `HARNMEM_AUTO_EXTRACT=1`, `HARNMEM_DEBUG=1`.
+
+> **Coexisting with pi-memory.** Both extensions otherwise register the same tool names
+> (`memory_write`, `memory_search`, …), and pi silently keeps one of the duplicates. Set
+> `"toolPrefix": "harnmem_"` in `<agentDir>/harnmem.json` to expose `harnmem_write`,
+> `harnmem_search`, `harnmem_read`, `harnmem_forget`, `harnmem_status` instead. The
+> `/memory` command keeps its name (pi-memory ships no conflicting command).
 
 ## Tools (model-facing)
 
@@ -96,6 +103,8 @@ Environment overrides: `HARNMEM_HOME`, `HARNMEM_DISABLED=1`, `HARNMEM_READONLY=1
 | `memory_status` | — | Shards, index state, health, extraction counters |
 
 `memory_write` marks the snapshot dirty; every successful write refreshes the injected index in the next step.
+
+Tool names follow the `toolPrefix` setting (`memory_` by default, `harnmem_` in the recommended coexistence setup); the table above uses the default names.
 
 ## Commands (human-facing)
 

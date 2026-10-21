@@ -73,7 +73,10 @@ export async function apply(ctx: HostContext, config?: unknown): Promise<void> {
     if (systemPrompt) {
       systemPrompt.section({
         name: "harnmem:hot-index",
-        order: 4000,
+        // 4000 is dsh-auto-memory's section order; 4050 keeps the composed
+        // prompt deterministic when both plugins are installed (auto-memory
+        // first, then HarnMem's live hot index).
+        order: 4050,
         text: (context) => sessions.textFor(context?.agent),
       });
     } else {

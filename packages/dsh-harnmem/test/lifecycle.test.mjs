@@ -34,7 +34,7 @@ async function callTool(host, name, args, agent) {
   return definition.execute(args, { agent });
 }
 
-test("plugin exports: named only, stable inject and section at order 4000", () => {
+test("plugin exports: named only, stable inject and section at order 4050", () => {
   assert.equal(pluginName, "dsh-harnmem");
   assert.deepEqual(inject, ["systemPrompt", "tools"]);
 });

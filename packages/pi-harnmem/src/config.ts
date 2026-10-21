@@ -40,6 +40,13 @@ export interface PiHarnMemSettings {
   maxInjectTokens?: number;
   /** Override search result token budget (engine default 1200). */
   maxSearchTokens?: number;
+  /**
+   * Prefix for the registered tool names (default `memory_`, giving
+   * `memory_write`, `memory_search`, ...). Set another prefix such as
+   * `harnmem_` to run side by side with an extension that already owns the
+   * `memory_*` names (for example pi-memory).
+   */
+  toolPrefix?: string;
   log?: LogMode;
   debug?: boolean;
 }
@@ -51,6 +58,8 @@ export interface EffectiveSettings {
   readOnly: boolean;
   inject: boolean;
   autoExtract: boolean;
+  /** Prefix used for the registered tool names, e.g. `memory_` or `harnmem_`. */
+  toolPrefix: string;
   log: LogMode;
   debug: boolean;
   home: string;
@@ -65,9 +74,24 @@ const DEFAULTS = {
   readOnly: false,
   inject: true,
   autoExtract: false,
+  toolPrefix: "memory_",
   log: "errors" as LogMode,
   debug: false,
 };
+
+/**
+ * Tool names are ASCII identifiers, so a prefix must match
+ * /^[A-Za-z][A-Za-z0-9_]*$/; an empty prefix is allowed (tools named write/...).
+ * Invalid values fall back to the default instead of breaking registration.
+ */
+function normalizeToolPrefix(value: string | undefined, warnings: string[]): string {
+  if (value === undefined) return DEFAULTS.toolPrefix;
+  const trimmed = value.trim();
+  if (trimmed === "") return "";
+  if (/^[A-Za-z][A-Za-z0-9_]*$/.test(trimmed)) return trimmed;
+  warnings.push(`config: invalid toolPrefix "${value}" (want /^[A-Za-z][A-Za-z0-9_]*$/); using "${DEFAULTS.toolPrefix}"`);
+  return DEFAULTS.toolPrefix;
+}
 
 /** pi's own agent dir: honours PI_CODING_AGENT_DIR, else ~/.pi/agent. */
 export function resolveAgentDir(env: NodeJS.ProcessEnv = process.env): string {
@@ -177,6 +201,7 @@ export function resolveSettings(cwd: string, env: NodeJS.ProcessEnv = process.en
     const on = truthy(env.HARNMEM_INJECT);
     if (on !== undefined) envPatch.inject = on;
   }
+  if (env.HARNMEM_TOOL_PREFIX !== undefined) envPatch.toolPrefix = env.HARNMEM_TOOL_PREFIX;
   settings = mergeSettings(settings, envPatch);
 
   const home = env.HARNMEM_HOME && env.HARNMEM_HOME.trim() ? path.resolve(env.HARNMEM_HOME) : settings.home ? path.resolve(settings.home) : path.join(homedir(), ".harnmem");
@@ -189,6 +214,7 @@ export function resolveSettings(cwd: string, env: NodeJS.ProcessEnv = process.en
     readOnly: settings.readOnly ?? DEFAULTS.readOnly,
     inject: settings.inject ?? DEFAULTS.inject,
     autoExtract: settings.autoExtract ?? DEFAULTS.autoExtract,
+    toolPrefix: normalizeToolPrefix(settings.toolPrefix, warnings),
     log,
     debug,
     home,

@@ -131,7 +131,7 @@ interface Session {
 
 ctx.systemPrompt.section({
   name: "harnmem:hot-index",
-  order: 4000,                                  // after the AGENTS.md/CLAUDE.md instruction chain
+  order: 4050,                                  // after the AGENTS.md/CLAUDE.md chain and dsh-auto-memory's 4000 section
   text: (c) => {
     const s = c.agent && sessions.get(c.agent.session.id);
     return s ? s.snap.text : "";               // empty store → "" (zero tokens)

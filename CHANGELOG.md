@@ -23,6 +23,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (license, contribution guide, code of conduct, security policy, issue/PR
   templates, CI and release workflows).
 
+### Changed
+
+- `pi-harnmem`: new `toolPrefix` setting (default `memory_`) lets the adapter
+  expose `harnmem_write`, `harnmem_search`, `harnmem_read`, `harnmem_forget` and
+  `harnmem_status` instead, so it can run side by side with pi-memory, which
+  registers the same `memory_*` tool names.
+- `dsh-harnmem`: prompt section order is now 4050 (was 4000, which collides with
+  dsh-auto-memory's section), making the composed prompt deterministic when both
+  plugins are installed.
+
 ## [0.1.0] - 2026-10-20
 
 First public, pi-first release. The memory data model, retrieval engine and
