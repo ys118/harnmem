@@ -120,7 +120,9 @@ Ordered by impact; **do not silently skip these**.
    above. A normal `dsh plugin add dsh-harnmem` install needs the npm release (N7).
 5. **Coexistence cost**: with both memory plugins installed, two snapshots are
    injected (auto-memory's project index + HarnMem's hot index, ~1.2 K tokens
-   each). Decide the target configuration in N3.
+   each). The `harnmem_*` prefix removed the functional collision; the token
+   cost remains. N3 decided (b) — keep both during the trial, then disable
+   `dsh-auto-memory`/`pi-memory` after N4.
 6. **pi adapter default `autoExtract: false`** vs DSH adapter default `true` —
    intentional in the trial, but the product default should be decided in N13.
 7. **ZCode importer is unverified** (no `~/.zcode` data on this machine);
@@ -147,6 +149,15 @@ Check boxes as items land, and update this file when the status changes.
   ```
   Record: injection bytes per session (audit `bytes`), token overhead, whether
   any memory was captured and whether any recall was actually useful.
+  *Desktop N1 (2026-10-23 21:33, after restarting the bundled app):* the real
+  `~/.harnmem/logs/dsh.jsonl` appeared with `plugin.apply` (defaults
+  `toolPrefix:"harnmem_"`, `log:"on"`, `llmTimeoutMs:20000`),
+  `tools.registered {count:5, of:5, prefix:"harnmem_"}`, `session.started
+  (bytes:301, ids:1)`. A `harnmem_write` from the desktop agent produced a
+  `write` audit event plus a `memory_write` injection refresh (457 B / 104
+  tokens, 2 ids) and a project memory file; `harnmem_search`/`harnmem_read`
+  round-trip. **Still to observe:** `session.end` when a desktop session
+  closes, and the 2–3 day usefulness verdict.
   *Acceptance:* a short trial note in this file (append under §5) with numbers
   and a verdict on usefulness.
 
@@ -175,13 +186,17 @@ Check boxes as items land, and update this file when the status changes.
   more memory. Core 22/22 and adapter 25/25 tests are green.
   *Acceptance:* met in the real runtime; desktop GUI confirmation remains in N1.
 
-- [ ] **N3. Decide the coexistence policy.**
-  Options: (a) keep both memory plugins long-term (redundant tokens, safest
-  migration), (b) migrate legacy memories, then disable `dsh-auto-memory` and
-  `pi-memory` and use HarnMem alone, (c) keep them for harness-specific
-  behavior and disable HarnMem injection per harness.
-  *Recommendation:* (b) after N4, because two SSOTs drift. Write the decision
-  here and apply the config changes.
+- [x] **N3. Decide the coexistence policy. — decided 2026-10-23: option (b).**
+  Options were: (a) keep both memory plugins long-term (redundant tokens,
+  safest migration), (b) migrate legacy memories, then disable
+  `dsh-auto-memory` and `pi-memory` and use HarnMem alone, (c) keep them for
+  harness-specific behavior and disable HarnMem injection per harness.
+  **Decision:** adopt (b). The `harnmem_*` prefix plus prompt order 4050 removed
+  the functional collision, so the two plugins can coexist during the trial;
+  but two SSOTs drift and cost ~2.4 K injected tokens per session, so after N4
+  imports and verifies the legacy stores, disable `dsh-auto-memory` (DSH) and
+  `pi-memory` (pi). *Execution deferred to N4 completion; apply the config
+  changes then.*
 
 ### Phase B — one store, real data
 
@@ -291,7 +306,22 @@ Check boxes as items land, and update this file when the status changes.
 | 2026-10-23 | Dispose budget 20 s (was 8 s) and dispose handlers return their promise | Measured extraction 10.8–14.1 s on `deepseek-v4-flash`; the 8 s race closed the engine before every write. `session/disposed` is not awaited by the host and the unload path fails in ms, so shutdown still cannot hang |
 | 2026-10-23 | Digest eviction drops the oldest **non-user** entry first | The 200-event ring evicted a session's first prompts before extraction, forcing `too_few_messages` |
 | 2026-10-23 | Extraction LLM access uses a local chunk protocol bridge, not `@deepseek-ai/dsh-llm` imports | A `link:`-installed plugin resolves bare specifiers from its own directory; the failing dynamic import was swallowed as `status:"done", added:0` |
-| — | **Pending:** npm publishing, repo visibility, coexistence policy (N3), Claude adapter timing | Need user decision / release step |
+| 2026-10-23 | Coexistence policy: option (b) — trial keeps both plugins; after N4 disable `dsh-auto-memory`/`pi-memory` | Prefix + order 4050 fixed the functional collision, but two SSOTs drift and cost ~2.4 K injected tokens; single-store migration is the product direction |
+| — | **Pending:** npm publishing, repo visibility, Claude adapter timing | Need release step |
+
+### Trial notes (N1)
+
+- **2026-10-23 21:33 — desktop GUI, real `~/.harnmem`.** After restarting the
+  bundled app, `logs/dsh.jsonl` shows `plugin.apply` with the trial defaults
+  (`toolPrefix:"harnmem_"`, `log:"on"`, `llmTimeoutMs:20000`),
+  `tools.registered {count:5, of:5, prefix:"harnmem_"}` and `session.started`
+  (`bytes:301`, `ids:1`, the pi-written pnpm preference). One `harnmem_write`
+  stored a project memory and refreshed the live snapshot (457 B / 104 tokens /
+  2 ids), with the matching `write` event in `audit.jsonl`. Quit-time
+  `session.end` is still unobserved on desktop.
+- **2026-10-23 — disposable ACP profile** (installed DSH 0.2.1-rc.2): 3 user
+  turns → `session.end status=done added:3`; next session injected
+  719 B / 170 tokens; three memory files written.
 
 ## 6. Verification runbook
 
