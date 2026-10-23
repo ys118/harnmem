@@ -156,8 +156,14 @@ Check boxes as items land, and update this file when the status changes.
   (bytes:301, ids:1)`. A `harnmem_write` from the desktop agent produced a
   `write` audit event plus a `memory_write` injection refresh (457 B / 104
   tokens, 2 ids) and a project memory file; `harnmem_search`/`harnmem_read`
-  round-trip. **Still to observe:** `session.end` when a desktop session
-  closes, and the 2–3 day usefulness verdict.
+  round-trip. **Quit-path gap (2026-10-23):** `logs/dsh.jsonl` has zero
+  `session.end` lines and `audit.jsonl` zero `"kind":"extract"` events for the
+  whole day, yet the 21:33:15 quit appended all 13 open session transcripts at
+  once (`sessions/20261023/*.jsonl`, mtime `13:33:15.16–.20Z`; this session's
+  200-line transcript is one of them) — the dispose chain ran, but extraction
+  did not finish or log before the host exited. The 21:52:46 restart left no
+  dispose trace at all (hard quit). See trial notes. **Still to observe:**
+  `session.end` on a desktop quit, and the 2–3 day usefulness verdict.
   *Acceptance:* a short trial note in this file (append under §5) with numbers
   and a verdict on usefulness.
 
@@ -317,8 +323,15 @@ Check boxes as items land, and update this file when the status changes.
   `tools.registered {count:5, of:5, prefix:"harnmem_"}` and `session.started`
   (`bytes:301`, `ids:1`, the pi-written pnpm preference). One `harnmem_write`
   stored a project memory and refreshed the live snapshot (457 B / 104 tokens /
-  2 ids), with the matching `write` event in `audit.jsonl`. Quit-time
-  `session.end` is still unobserved on desktop.
+  2 ids), with the matching `write` event in `audit.jsonl`. **Quit path:** the
+  21:33:15 quit appended all 13 open session transcripts at once
+  (`sessions/20261023/*.jsonl`, mtime `13:33:15.16–.20Z`; this session's 200-line
+  transcript included) — dispose ran — but `dsh.jsonl` recorded no
+  `session.end` and `audit.jsonl` no `"kind":"extract"`, so extraction never
+  completed before the host exited. The 21:52:46 restart left no dispose trace
+  at all (hard quit). Remaining product gap: quit-time extraction; candidate
+  mitigations for N13 — turn/idle-triggered extraction, resumable
+  pending-extraction on next boot, or a documented limitation.
 - **2026-10-23 — disposable ACP profile** (installed DSH 0.2.1-rc.2): 3 user
   turns → `session.end status=done added:3`; next session injected
   719 B / 170 tokens; three memory files written.
