@@ -643,7 +643,24 @@ export class HarnMem {
 
   // ------------------------------------------------------------------ extract
 
+  /**
+   * Public extraction entry point. Every attempt — including every skip — is
+   * persisted to `state/audit.jsonl` as `kind: "extract"` (ROADMAP N13), so a
+   * silent no-op is impossible to miss when debugging an adapter.
+   */
   async sessionEnd(input: SessionEndInput): Promise<ExtractResult> {
+    let result: ExtractResult;
+    try {
+      result = await this.sessionEndRecorded(input);
+    } catch (error) {
+      this.session.extractFailures++;
+      result = { status: "failed", added: [], superseded: [], skipped: 0, error: (error as Error).message };
+    }
+    await this.auditExtract(input, result);
+    return result;
+  }
+
+  private async sessionEndRecorded(input: SessionEndInput): Promise<ExtractResult> {
     try {
       const messages = (input.messages ?? []).filter((message) => message.text && message.text.trim());
       if (messages.length > 0) {
@@ -728,6 +745,32 @@ export class HarnMem {
 
     function skip(reason: string): ExtractResult {
       return { status: "skipped", added: [], superseded: [], skipped: 0, skipReason: reason };
+    }
+  }
+
+  /**
+   * Persist one `extract` audit line per session-end attempt. Audit writes are
+   * advisory: a failure here must never surface as an extraction failure.
+   */
+  private async auditExtract(input: SessionEndInput, result: ExtractResult): Promise<void> {
+    const messages = input.messages ?? [];
+    try {
+      await this.store.audit({
+        ts: this.now(),
+        kind: "extract",
+        harness: this.config.harness,
+        session: input.sessionId ?? this.session.id,
+        status: result.status,
+        ...(result.skipReason ? { reason: result.skipReason } : {}),
+        ...(result.error ? { error: result.error } : {}),
+        added: result.added.length,
+        superseded: result.superseded.length,
+        skipped: result.skipped,
+        messages: messages.length,
+        userMessages: messages.filter((message) => message.role === "user").length,
+      });
+    } catch {
+      // audit is advisory
     }
   }
 

@@ -1,7 +1,12 @@
 /**
- * The five `memory_*` tools (08 §5). Every tool is a thin wrapper over the core
- * engine —no retrieval logic lives in this package. Registration failures
+ * The five model-facing tools (08 §5). Every tool is a thin wrapper over the
+ * core engine — no retrieval logic lives in this package. Registration failures
  * degrade the adapter to "injection only" (the plugin must never break a turn).
+ *
+ * Names carry a configurable prefix (default `harnmem_`) because the bare
+ * `memory_*` names collide with `dsh-auto-memory`, which registers first and
+ * silently wins: the model then writes into auto-memory instead of HarnMem
+ * (docs/research/dsh-write-silence-2026-10-23.md §2.1).
  */
 
 import type { ContextBlock, MemoryType, SearchOptions, SearchResult, WriteInput } from "@harnmem/core";
@@ -50,7 +55,7 @@ function formatTimestamp(value: unknown): string {
 }
 
 /** 03 §5.4 compact result payload, rendered as one JSON string. */
-export function renderSearch(result: SearchResult): string {
+export function renderSearch(result: SearchResult, readTool = "harnmem_read"): string {
   const payload = {
     query: result.query,
     total: result.total,
@@ -66,7 +71,7 @@ export function renderSearch(result: SearchResult): string {
       ...(hit.historical ? { historical: true } : {}),
       updated: formatTimestamp(hit.updated),
     })),
-    hint: "需要全文用 memory_read(id)",
+    hint: `需要全文用 ${readTool}(id)`,
   };
   if (result.abstained) return JSON.stringify({ query: result.query, total: 0, abstained: true, hint: "no memory is confident enough; fall back to normal reasoning" });
   return JSON.stringify(payload);
@@ -88,7 +93,13 @@ function renderWrite(id: string, action: string, superseded?: string[]): string 
   }
 }
 
-function renderRecord(record: Record<string, unknown>, backlinks: string[], historyCount: number, historical: boolean): string {
+function renderRecord(
+  record: Record<string, unknown>,
+  backlinks: string[],
+  historyCount: number,
+  historical: boolean,
+  readTool = "harnmem_read",
+): string {
   const lines: string[] = [];
   const title = asString(record["title"]) ?? "?";
   const header = `[${String(record["type"])}${record["category"] ? `/${String(record["category"])}` : ""}] ${title} (${String(record["id"])})`;
@@ -114,7 +125,7 @@ function renderRecord(record: Record<string, unknown>, backlinks: string[], hist
     lines.push("", content);
   }
   if (backlinks.length > 0) lines.push("", `backlinks: ${backlinks.join(", ")}`);
-  if (historyCount > 0) lines.push(`history: ${historyCount} older version(s); call memory_read(id, include_history=true)`);
+  if (historyCount > 0) lines.push(`history: ${historyCount} older version(s); call ${readTool}(id, include_history=true)`);
   return lines.join("\n");
 }
 
@@ -138,6 +149,17 @@ export interface ToolDeps {
   ctx: HostContext;
   sessions: SessionManager;
   log: Logger;
+  /** Prefix for the five tool names (default `harnmem_`; see config.ts). */
+  toolPrefix: string;
+}
+
+/** Tool suffixes in registration order; the prefix comes from user config. */
+export const TOOL_SUFFIXES = ["write", "search", "read", "forget", "status"] as const;
+export type ToolSuffix = (typeof TOOL_SUFFIXES)[number];
+
+/** Concrete tool names for one prefix. */
+export function toolNames(prefix: string): string[] {
+  return TOOL_SUFFIXES.map((suffix) => `${prefix}${suffix}`);
 }
 
 /** Resolve the session for a tool call, booting it if the host skipped `agent/created`. */
@@ -194,6 +216,9 @@ export async function registerTools(deps: ToolDeps): Promise<boolean> {
     }
   };
 
+  /** Concrete name of one tool for this install (prefix comes from settings). */
+  const t = (suffix: ToolSuffix): string => `${deps.toolPrefix}${suffix}`;
+
   /**
    * Every tool returns one plain string. The host's `defineTool` (0.2.x) requires
    * `output.render` to build the tool card, so declare a string schema plus a
@@ -209,10 +234,9 @@ export async function registerTools(deps: ToolDeps): Promise<boolean> {
 
   const definitions: ToolDefinition[] = [
     define({
-      name: "memory_write",
+      name: t("write"),
       output: stringOutput,
-      description:
-        "Store one durable memory (preference, lesson, decision, project fact). Returns one line with the id and action.",
+      description: `Store one durable HarnMem memory (preference, lesson, decision, project fact). Returns one line with the id and action. Use ${t("search")} to look for existing ids.`,
       parameters: {
         type: { type: "string", enum: MEMORY_TYPES, required: true, description: "user|feedback|project|reference" },
         category: { type: "string" },
@@ -229,13 +253,13 @@ export async function registerTools(deps: ToolDeps): Promise<boolean> {
       } satisfies Params,
       async execute(args, exec) {
         const { state, engine } = await engineFor(deps, exec);
-        if (!engine) return unavailable("memory_write");
+        if (!engine) return unavailable(t("write"));
         const title = asString(args["title"]);
         const description = asString(args["description"]);
         const content = asString(args["content"]);
         const type = asString(args["type"]) as MemoryType | undefined;
         if (!type || !MEMORY_TYPES.includes(type) || !title || !description || !content) {
-          return "memory_write: type/title/description/content are required; nothing was stored";
+          return `${t("write")}: type/title/description/content are required; nothing was stored`;
         }
         const scope = asString(args["scope"]);
         const input: WriteInput = {
@@ -258,14 +282,15 @@ export async function registerTools(deps: ToolDeps): Promise<boolean> {
           if (state) await deps.sessions.afterModelWrite(state);
           return renderWrite(result.id, result.action, result.superseded);
         } catch (err) {
-          return `memory_write failed: ${errorMessage(err)}`;
+          return `${t("write")} failed: ${errorMessage(err)}`;
         }
       },
     }),
     define({
-      name: "memory_search",
+      name: t("search"),
       output: stringOutput,
-      description: "Search persistent memory (user + current project). Returns id/type/scope/title/description.",
+      description:
+        "Search persistent HarnMem memory (user + current project). Returns id/type/scope/title/description.",
       parameters: {
         query: { type: "string", required: true, description: "natural-language query; Chinese is matched by bigram" },
         limit: { type: "number" },
@@ -277,9 +302,9 @@ export async function registerTools(deps: ToolDeps): Promise<boolean> {
       } satisfies Params,
       async execute(args, exec) {
         const { engine } = await engineFor(deps, exec);
-        if (!engine) return unavailable("memory_search");
+        if (!engine) return unavailable(t("search"));
         const query = asString(args["query"]);
-        if (!query) return "memory_search: query is required";
+        if (!query) return `${t("search")}: query is required`;
         const scopeValue = asString(args["scope"]);
         const options: SearchOptions = {
           query,
@@ -291,16 +316,16 @@ export async function registerTools(deps: ToolDeps): Promise<boolean> {
           ...(asBoolean(args["debug"]) ? { debug: true } : {}),
         };
         try {
-          return renderSearch(await engine.search(options));
+          return renderSearch(await engine.search(options), t("read"));
         } catch (err) {
-          return `memory_search failed: ${errorMessage(err)}`;
+          return `${t("search")} failed: ${errorMessage(err)}`;
         }
       },
     }),
     define({
-      name: "memory_read",
+      name: t("read"),
       output: stringOutput,
-      description: "Read one memory in full by id, including backlinks and optionally older versions.",
+      description: "Read one HarnMem memory in full by id, including backlinks and optionally older versions.",
       parameters: {
         id: { type: "string", required: true },
         as_of: { type: "string" },
@@ -308,9 +333,9 @@ export async function registerTools(deps: ToolDeps): Promise<boolean> {
       } satisfies Params,
       async execute(args, exec) {
         const { engine } = await engineFor(deps, exec);
-        if (!engine) return unavailable("memory_read");
+        if (!engine) return unavailable(t("read"));
         const id = asString(args["id"]);
-        if (!id) return "memory_read: id is required";
+        if (!id) return `${t("read")}: id is required`;
         const asOf = asString(args["as_of"]);
         const includeHistory = asBoolean(args["include_history"]) ?? false;
         try {
@@ -325,26 +350,27 @@ export async function registerTools(deps: ToolDeps): Promise<boolean> {
             result.backlinks,
             result.history?.length ?? 0,
             Boolean(asOf),
+            t("read"),
           );
         } catch (err) {
-          return `memory_read failed: ${errorMessage(err)}`;
+          return `${t("read")} failed: ${errorMessage(err)}`;
         }
       },
     }),
     define({
-      name: "memory_forget",
+      name: t("forget"),
       output: stringOutput,
       description:
-        "Forget a memory. Default moves it to trash for 30 days; hard=true deletes physically and cannot be undone.",
+        "Forget a HarnMem memory. Default moves it to trash for 30 days; hard=true deletes physically and cannot be undone.",
       parameters: {
         id: { type: "string", required: true },
         hard: { type: "boolean" },
       } satisfies Params,
       async execute(args, exec) {
         const { state, engine } = await engineFor(deps, exec);
-        if (!engine) return unavailable("memory_forget");
+        if (!engine) return unavailable(t("forget"));
         const id = asString(args["id"]);
-        if (!id) return "memory_forget: id is required";
+        if (!id) return `${t("forget")}: id is required`;
         const hard = asBoolean(args["hard"]) ?? false;
         try {
           const result = await engine.forget(id, hard ? { hard: true } : undefined);
@@ -352,24 +378,24 @@ export async function registerTools(deps: ToolDeps): Promise<boolean> {
           if (state) await deps.sessions.afterModelWrite(state);
           return hard
             ? `deleted ${id} (hard delete; audit keeps only id/time/reason)`
-            : `moved ${id} to trash (30-day grace; memory_restore is not exposed as a tool)`;
+            : `moved ${id} to trash (30-day grace; restore is not exposed as a tool)`;
         } catch (err) {
-          return `memory_forget failed: ${errorMessage(err)}`;
+          return `${t("forget")} failed: ${errorMessage(err)}`;
         }
       },
     }),
     define({
-      name: "memory_status",
+      name: t("status"),
       output: stringOutput,
-      description: "Show memory store health: counts, index freshness, duplicates, last consolidation.",
+      description: "Show HarnMem store health: counts, index freshness, duplicates, last consolidation.",
       parameters: {} satisfies Params,
       async execute(_args, exec) {
         const { engine } = await engineFor(deps, exec);
-        if (!engine) return unavailable("memory_status");
+        if (!engine) return unavailable(t("status"));
         try {
           return renderStatus(await engine.stats());
         } catch (err) {
-          return `memory_status failed: ${errorMessage(err)}`;
+          return `${t("status")} failed: ${errorMessage(err)}`;
         }
       },
     }),
@@ -389,11 +415,8 @@ export async function registerTools(deps: ToolDeps): Promise<boolean> {
       deps.log.warn("tool.registerFailed", { tool: definition.name, error: errorMessage(err) });
     }
   }
-  deps.log.debug("tools.registered", { count: registered, of: definitions.length });
+  deps.log.debug("tools.registered", { count: registered, of: definitions.length, prefix: deps.toolPrefix });
   return registered === definitions.length;
 }
-
-/** Exposed for tests: the tool list is deterministic. */
-export const TOOL_NAMES = ["memory_write", "memory_search", "memory_read", "memory_forget", "memory_status"] as const;
 
 export type { ContextBlock };

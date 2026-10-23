@@ -4,7 +4,7 @@
  */
 
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
@@ -45,11 +45,11 @@ test("empty store injects an empty string (zero tokens)", async () => {
   assert.equal(host.sectionText(agent), "");
 });
 
-test("memory_write is visible on the next step and stays byte-identical afterwards", async () => {
+test("harnmem_write is visible on the next step and stays byte-identical afterwards", async () => {
   const { host, agent } = await boot();
   const written = await callTool(
     host,
-    "memory_write",
+    "harnmem_write",
     {
       type: "project",
       title: "检索方案：纯 JS BM25F",
@@ -73,11 +73,11 @@ test("memory_write is visible on the next step and stays byte-identical afterwar
   assert.equal(host.sectionText(agent), first);
 });
 
-test("memory_search returns compact JSON and matches a Chinese query", async () => {
+test("harnmem_search returns compact JSON and matches a Chinese query", async () => {
   const { host, agent } = await boot();
   await callTool(
     host,
-    "memory_write",
+    "harnmem_write",
     {
       type: "project",
       title: "决策：检索使用纯 JS",
@@ -86,7 +86,7 @@ test("memory_search returns compact JSON and matches a Chinese query", async () 
     },
     agent,
   );
-  const raw = await callTool(host, "memory_search", { query: "检索", limit: 5 }, agent);
+  const raw = await callTool(host, "harnmem_search", { query: "检索", limit: 5 }, agent);
   const payload = JSON.parse(raw);
   assert.equal(payload.query, "检索");
   assert.ok(payload.results.length >= 1);
@@ -94,9 +94,9 @@ test("memory_search returns compact JSON and matches a Chinese query", async () 
   assert.ok(raw.includes("hint"));
 });
 
-test("memory_status reports the store health", async () => {
+test("harnmem_status reports the store health", async () => {
   const { host, agent } = await boot();
-  const text = await callTool(host, "memory_status", {}, agent);
+  const text = await callTool(host, "harnmem_status", {}, agent);
   assert.match(text, /harnmem 1/);
   assert.match(text, /index seq=/);
 });
@@ -112,13 +112,13 @@ test("child agents are read-only: no writes, no extraction", async () => {
   const { host, agent } = await boot({ agentOptions: { depth: 1 } });
   const result = await callTool(
     host,
-    "memory_write",
+    "harnmem_write",
     { type: "project", title: "child write", description: "must fail", content: "must fail" },
     agent,
   );
   assert.match(result, /read-only/i);
   // Read paths still work.
-  const search = await callTool(host, "memory_search", { query: "anything" }, agent);
+  const search = await callTool(host, "harnmem_search", { query: "anything" }, agent);
   assert.ok(JSON.parse(search).total === 0);
 });
 
@@ -171,7 +171,7 @@ test("cold start: persisted memory is injected before the async attach settles",
   const first = await boot();
   await callTool(
     first.host,
-    "memory_write",
+    "harnmem_write",
     {
       type: "user",
       title: "Codename",
@@ -200,5 +200,47 @@ test("cold start: persisted memory is injected before the async attach settles",
   // Once the snapshot is primed the engine path serves the same block.
   assert.ok(host2.sectionText(agent2).includes("Codename"));
   await host2.emit("agent/disposed", { agent: agent2 });
+});
+
+test("default prefix harnmem_ keeps the bare memory_* names free for dsh-auto-memory", async () => {
+  const { host } = await boot();
+  assert.deepEqual(
+    host.tools.map((definition) => definition.name),
+    ["harnmem_write", "harnmem_search", "harnmem_read", "harnmem_forget", "harnmem_status"],
+  );
+});
+
+test("toolPrefix is configurable and normalised to end with an underscore", async () => {
+  const { host } = await boot({ config: { toolPrefix: "hm" } });
+  assert.equal(host.tool("hm_write").name, "hm_write");
+  assert.throws(() => host.tool("harnmem_write"), /not registered/);
+});
+
+test("dispose is idempotent across agent/disposed and session/disposed", async () => {
+  const { host, agent } = await boot();
+  await Promise.all([
+    host.emit("agent/disposed", { agent }),
+    host.emit("session/disposed", { id: agent.session.id }),
+  ]);
+  assert.equal(host.logsWith("session.end").length, 1);
+});
+
+test("dsh.jsonl file log records plugin.apply and the extraction outcome", async () => {
+  const { home, host, agent } = await boot();
+  await host.emit("agent/disposed", { agent });
+  await waitForLog(host, "session.end");
+  for (const cleanup of host.effectCleanups()) await cleanup();
+  const raw = await readFile(join(home, "logs", "dsh.jsonl"), "utf8");
+  assert.match(raw, /"msg":"plugin\.apply"/);
+  assert.match(raw, /"msg":"session\.end"/);
+  assert.match(raw, /"status":"no_llm"/);
+});
+
+test('log: "off" creates no file sink', async () => {
+  const { home, host, agent } = await boot({ config: { log: "off" } });
+  await host.emit("agent/disposed", { agent });
+  await waitForLog(host, "session.end");
+  for (const cleanup of host.effectCleanups()) await cleanup();
+  await assert.rejects(readFile(join(home, "logs", "dsh.jsonl"), "utf8"), /ENOENT/);
 });
 

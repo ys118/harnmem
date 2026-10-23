@@ -3,8 +3,9 @@
  *
  * The adapter accumulates `session/event` payloads instead of replaying all
  * session events at dispose: user/assistant texts and tool names only, bounded
- * to 200 entries and 2 KB per entry. Core enforces the extraction gates
- * (minimum user messages, digest size).
+ * to 200 entries and 2 KB per entry. Eviction removes non-user entries first,
+ * so real user prompts are never lost to tool-call noise (N2). Core enforces
+ * the extraction gates (minimum user messages, digest size).
  */
 
 import type { TranscriptMessage } from "@harnmem/core";
@@ -93,7 +94,14 @@ export class TranscriptDigest {
 
   add(item: DigestItem): void {
     if (!item.text.trim()) return;
-    if (this.items.length >= MAX_DIGEST_ENTRIES) this.items.shift();
+    if (this.items.length >= MAX_DIGEST_ENTRIES) {
+      // Evict the oldest entry that is NOT a real user prompt, so prompts
+      // survive the ring: in a tool-heavy DSH session one tool event per call
+      // would otherwise push every user message out of the 200-entry window and
+      // extraction would always skip with `too_few_messages` (N2).
+      const evictable = this.items.findIndex((entry) => entry.role !== "user");
+      this.items.splice(evictable >= 0 ? evictable : 0, 1);
+    }
     this.items.push({ ...item, text: truncate(item.text, MAX_ENTRY_CHARS) });
   }
 

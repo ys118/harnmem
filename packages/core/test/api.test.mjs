@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
@@ -139,7 +139,7 @@ test("importRecords materializes explicit ids and timestamps", async () => {
 });
 
 test("auto extraction adds memories once per session and skips when model wrote", async () => {
-  const { eng } = await fresh({
+  const { eng, home } = await fresh({
     autoExtract: true,
     llm: async () => ({
       text: JSON.stringify({
@@ -171,9 +171,25 @@ test("auto extraction adds memories once per session and skips when model wrote"
   const search = await eng.search({ query: "deployment approach", limit: 3 });
   assert.ok(search.results.some((h) => h.title === "Extracted decision"));
 
+  // The outcome (including every skip gate) is auditable for diagnostics.
+  async function extractAudit() {
+    const lines = (await readFile(join(home, "state", "audit.jsonl"), "utf8")).trim().split("\n");
+    return lines.map((line) => JSON.parse(line)).filter((entry) => entry.kind === "extract");
+  }
+  const firstAudit = await extractAudit();
+  assert.equal(firstAudit.length, 1);
+  assert.equal(firstAudit[0].status, "done");
+  assert.equal(firstAudit[0].added, 1);
+  assert.equal(firstAudit[0].messages, 3);
+  assert.equal(firstAudit[0].userMessages, 2);
+
   const second = await eng.sessionEnd({ sessionId: "s1", messages });
   assert.equal(second.status, "skipped");
   assert.equal(second.skipReason, "already_extracted");
+  const secondAudit = await extractAudit();
+  assert.equal(secondAudit.length, 2);
+  assert.equal(secondAudit[1].status, "skipped");
+  assert.equal(secondAudit[1].reason, "already_extracted");
 
   // A model that already wrote a memory in-session suppresses background extraction.
   const other = await fresh({

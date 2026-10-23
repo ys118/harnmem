@@ -9,9 +9,10 @@
 
 import { Config, resolveSettings } from "./config.js";
 import type { HostAgent, HostContext, UnknownRecord } from "./host.js";
-import { Logger } from "./log.js";
+import { createLogger, logFilePath } from "./log.js";
 import { SessionManager } from "./sessions.js";
-import { registerTools } from "./tools.js";
+import { errorMessage } from "./snapshot.js";
+import { TOOL_SUFFIXES, registerTools } from "./tools.js";
 
 export const name = "dsh-harnmem";
 
@@ -56,8 +57,18 @@ function extractSessionId(payload: unknown): string | undefined {
 
 export async function apply(ctx: HostContext, config?: unknown): Promise<void> {
   const settings = resolveSettings(config);
-  const log = new Logger(ctx.logger);
-  const sessions = new SessionManager(ctx, settings);
+  // The file sink is the DSH counterpart of pi's ~/.harnmem/logs/pi.jsonl: it
+  // makes extraction outcomes and registration failures observable (N2).
+  const logFile = settings.log === "off" ? undefined : logFilePath(settings.home);
+  const log = createLogger(
+    {
+      ...(logFile ? { file: logFile } : {}),
+      enabled: settings.log !== "off",
+      level: settings.log === "on" ? "debug" : "error",
+    },
+    ctx.logger,
+  );
+  const sessions = new SessionManager(ctx, settings, log);
   log.debug("plugin.apply", {
     home: settings.home,
     injectMaxTokens: settings.injectMaxTokens,
@@ -65,6 +76,9 @@ export async function apply(ctx: HostContext, config?: unknown): Promise<void> {
     autoExtract: settings.autoExtract,
     projectScope: settings.projectScope,
     llmTimeoutMs: settings.llmTimeoutMs,
+    toolPrefix: settings.toolPrefix,
+    log: settings.log,
+    logFile: logFile ?? null,
   });
 
   // --- injection section (08 §4): synchronous, in-memory, byte-stable -------
@@ -152,8 +166,10 @@ export async function apply(ctx: HostContext, config?: unknown): Promise<void> {
     const agent = extractAgent(args[0]);
     const state = agent ? sessions.forAgent(agent) : undefined;
     if (!state) return;
-    void sessions.dispose(state, "dispose").catch((err: unknown) => {
-      log.warn("session.disposeFailed", { error: err instanceof Error ? err.message : String(err) });
+    // Return the promise: hosts that await event handlers then wait for the
+    // bounded extraction instead of racing process teardown (N2, 08 §3.4).
+    return sessions.dispose(state, "agent_disposed").catch((err: unknown) => {
+      log.warn("session.disposeFailed", { error: errorMessage(err) });
     });
   });
 
@@ -161,26 +177,32 @@ export async function apply(ctx: HostContext, config?: unknown): Promise<void> {
     const sessionId = extractSessionId(args[0]);
     const state = sessionId ? sessions.get(sessionId) : undefined;
     if (!state) return;
-    void sessions.dispose(state, "session_disposed").catch((err: unknown) => {
-      log.warn("session.disposeFailed", { error: err instanceof Error ? err.message : String(err) });
+    return sessions.dispose(state, "session_disposed").catch((err: unknown) => {
+      log.warn("session.disposeFailed", { error: errorMessage(err) });
     });
   });
 
   // --- tools (08 §5): failure degrades to injection-only --------------------
   try {
-    await registerTools({ ctx, sessions, log });
+    await registerTools({ ctx, sessions, log, toolPrefix: settings.toolPrefix });
   } catch (err) {
-    log.warn("tools.setupFailed", { error: err instanceof Error ? err.message : String(err) });
+    log.warn("tools.setupFailed", { error: errorMessage(err) });
   }
 
-  // --- unload cleanup: never leave engines open -----------------------------
+  // --- unload cleanup: never leave engines open, never lose queued log lines -
   try {
     ctx.effect?.(function* cleanup() {
-      yield () => sessions.closeAll();
+      yield async () => {
+        try {
+          await sessions.closeAll();
+        } finally {
+          await log.flush();
+        }
+      };
     });
   } catch (err) {
-    log.warn("effect.registerFailed", { error: err instanceof Error ? err.message : String(err) });
+    log.warn("effect.registerFailed", { error: errorMessage(err) });
   }
 
-  log.debug("plugin.ready", { tools: 5 });
+  log.debug("plugin.ready", { tools: TOOL_SUFFIXES.length, toolPrefix: settings.toolPrefix });
 }

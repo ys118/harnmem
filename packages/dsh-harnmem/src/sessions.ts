@@ -45,6 +45,8 @@ export interface AgentSession {
   turns: number;
   startedAt: number;
   closed: boolean;
+  /** In-flight dispose; concurrent callers (agent + session events) share it. */
+  ending: Promise<void> | null;
 }
 
 export class SessionManager {
@@ -53,6 +55,7 @@ export class SessionManager {
   constructor(
     private readonly ctx: HostContext,
     private readonly settings: EffectiveSettings,
+    private readonly log: Logger,
   ) {}
 
   get(sessionId: string): AgentSession | undefined {
@@ -99,7 +102,7 @@ export class SessionManager {
       if (reason === "resume") await existing.snapshot.refresh("resume", this.settings.llmTimeoutMs);
       return existing;
     }
-    const log = new Logger(this.ctx.logger);
+    const log = this.log;
     const sessionId = agent.session.id;
     const cwd = agent.session.header?.cwd ?? process.cwd();
     const readOnly = isChildAgent(agent);
@@ -123,6 +126,7 @@ export class SessionManager {
       turns: 0,
       startedAt: Date.now(),
       closed: false,
+      ending: null,
     };
     this.states.set(sessionId, state);
     log.debug("session.created", { sessionId, cwd, readOnly, llm: llm?.label ?? null });
@@ -161,7 +165,7 @@ export class SessionManager {
       readOnly: state.readOnly,
       llm: state.llm?.fn ?? null,
       budget: { injectTokens: state.settings.injectMaxTokens, hotEntries: state.settings.hotEntries },
-      write: { autoExtract: state.settings.autoExtract },
+      write: { autoExtract: state.settings.autoExtract, llmTimeoutMs: state.settings.llmTimeoutMs },
       governance: { consolidateEveryWrites: state.settings.consolidateEveryWrites },
       log: (level: string, message: string, data?: unknown) => {
         if (level === "warn" || level === "error") state.log.warn(message, data);
@@ -241,8 +245,20 @@ export class SessionManager {
     await state.snapshot.ensureFresh("memory_write", this.settings.llmTimeoutMs);
   }
 
-  /** `agent/disposed` — bounded extraction then close. Idempotent. */
+  /**
+   * `agent/disposed` — bounded extraction then close. Idempotent: the host may
+   * fire both `agent/disposed` and `session/disposed` (or a reload may race a
+   * dispose), and a second run must join the first instead of double-extracting.
+   */
   async dispose(state: AgentSession, reason: string = "agent_disposed"): Promise<void> {
+    if (state.ending) return state.ending;
+    state.ending = this.runDispose(state, reason).finally(() => {
+      state.ending = null;
+    });
+    return state.ending;
+  }
+
+  private async runDispose(state: AgentSession, reason: string): Promise<void> {
     if (state.closed) return;
     state.closed = true;
     const engine = state.engine;
@@ -261,16 +277,27 @@ export class SessionManager {
           }),
           timeout,
         ]);
+        const digest = { digestEntries: state.digest.size, userMessages: state.digest.userMessages() };
         if (result === "timeout") {
-          state.log.warn("session.endTimeout", { sessionId: state.sessionId, ms: state.settings.llmTimeoutMs });
+          state.log.warn("session.endTimeout", {
+            sessionId: state.sessionId,
+            ms: state.settings.llmTimeoutMs,
+            ...digest,
+          });
         } else {
-          state.log.debug("session.end", {
+          // info (not debug): extraction outcomes must survive `log: "errors"`
+          // and the default host sink levels — this line is the runbook's proof.
+          state.log.info("session.end", {
             sessionId: state.sessionId,
             status: result.status,
-            added: result.added,
-            superseded: result.superseded,
+            added: result.added.length,
+            superseded: result.superseded.length,
             skipped: result.skipped,
-            reason: result.skipReason ?? reason,
+            skipReason: result.skipReason ?? null,
+            ...digest,
+            turns: state.turns,
+            elapsedMs: Date.now() - state.startedAt,
+            reason,
           });
         }
       } catch (err) {
@@ -290,7 +317,11 @@ export class SessionManager {
   async closeAll(): Promise<void> {
     const states = [...this.states.values()];
     for (const state of states) {
-      await this.dispose(state, "plugin_unload");
+      try {
+        await this.dispose(state, "plugin_unload");
+      } catch (err) {
+        this.log.warn("session.closeAllFailed", { sessionId: state.sessionId, error: errorMessage(err) });
+      }
     }
   }
 }

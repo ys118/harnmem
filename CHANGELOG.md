@@ -10,11 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `dsh-harnmem`: DSH adapter (cordis plugin) with byte-stable hot-index
-  injection through `systemPrompt.section`, the same five `memory_*` tools,
-  read-only subagents, end-of-session extraction bridged to the host LLM, and
-  bounded shutdown. Verified against the real desktop runtime with a disposable
-  profile and a local OpenAI-compatible mock endpoint (write in session 1,
-  recall by injection in a new process).
+  injection through `systemPrompt.section`, the same five tools (default
+  `harnmem_*` prefix), read-only subagents, end-of-session extraction bridged to
+  the host LLM, and bounded shutdown. Verified against the real desktop runtime
+  with a disposable profile and a local OpenAI-compatible mock endpoint (write
+  in session 1, recall by injection in a new process).
+- `dsh-harnmem`: file logger writing `~/.harnmem/logs/dsh.jsonl` (JSON lines,
+  bounded chained sink, flushed on unload) and a `log: "off" | "errors" | "on"`
+  setting; `on` is the trial default.
+- `@harnmem/core`: `kind:"extract"` audit events for every session-end outcome
+  (`status`, `reason`, `added`/`superseded`/`skipped`,
+  `messages`/`userMessages`), closing the observability gap in N13.
 - `@harnmem/core`: `renderHotContextSync()`, a synchronous cold-start renderer
   over the persisted shard indexes. It is byte-identical to
   `HarnMem.ensureContext()` and lets adapters inject memory on the very first
@@ -34,6 +40,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `dsh-harnmem`: prompt section order is now 4050 (was 4000, which collides with
   dsh-auto-memory's section), making the composed prompt deterministic when both
   plugins are installed.
+- `dsh-harnmem`: default `toolPrefix` is `harnmem_` (the adapter previously
+  registered bare `memory_*` names that `dsh-auto-memory` already owned),
+  `llmTimeoutMs` default is 20 s (measured extraction 10.8–14.1 s), the digest
+  evicts the oldest non-user entry first so early prompts survive tool noise,
+  and the extraction LLM call uses a local chunk-protocol bridge instead of a
+  `@deepseek-ai/dsh-llm` import that cannot resolve from a linked install.
+
+### Fixed
+
+- `dsh-harnmem`: write-side silence (docs/research/dsh-write-silence-2026-10-23.md).
+  Five independent blockers made every write path fail with no diagnostic:
+  shadowed tool names, a 200-event digest that evicted early user prompts, a
+  fire-and-forget dispose handler, an 8 s budget racing a ~11 s extraction, and
+  a swallowed host-module import that turned LLM failures into
+  `status:"done", added:0`. Repro'd end-to-end on the installed DSH 0.2.1-rc.2:
+  three user turns now produce `extract added:3` in `audit.jsonl`, three memory
+  files, and injection of those memories (719 B / 170 tokens) in the next
+  session.
 
 ## [0.1.0] - 2026-10-20
 

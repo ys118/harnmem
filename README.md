@@ -101,9 +101,15 @@ dsh plugin --profile desktop add ./packages/dsh-harnmem
 
 The plugin mounts as a cordis plugin: it injects the same hot index through
 `systemPrompt.section` (byte-stable, with a synchronous cold-start fallback),
-registers the same five tools, keeps subagent sessions read-only, and runs a
-bounded session-end extraction through the host LLM service. It requires DSH
-0.2.x and never opens a network connection of its own.
+registers five tools prefixed `harnmem_` (`harnmem_write`, `harnmem_search`,
+`harnmem_read`, `harnmem_forget`, `harnmem_status`; the bare `memory_*` names
+belong to `dsh-auto-memory`, which DSH keeps when both plugins are installed),
+keeps subagent sessions read-only, and runs a bounded session-end extraction
+through the host LLM service. Lifecycle and extraction decisions are written to
+`~/.harnmem/logs/dsh.jsonl` (`log: "on"` is the trial default), and every
+extraction outcome is emitted as a `kind:"extract"` event in
+`~/.harnmem/state/audit.jsonl`. It requires DSH 0.2.x and never opens a network
+connection of its own.
 
 ### CLI
 

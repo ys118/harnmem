@@ -89,7 +89,7 @@ export const Config = z.object({
   hotEntries: z.number().default(24),
   autoExtract: z.boolean().default(true),                  // → write.autoExtract
   projectScope: z.boolean().default(true),
-  llmTimeoutMs: z.number().default(8000),                  // dispose extraction budget (hard cap)
+  llmTimeoutMs: z.number().default(20000),                // dispose extraction budget (hard cap; measured 10.8–14.1 s)
   consolidateEveryWrites: z.number().default(25),
 });
 export function apply(ctx: Context, config: z.infer<typeof Config>): void { ... }
@@ -109,8 +109,8 @@ export function apply(ctx: Context, config: z.infer<typeof Config>): void { ... 
 | `session/event` `(session,event)` | `[verified]` asar; `session.md:1111-1127` | ① Collect digest by `event.type` (`user/message`, `assistant/message`, `tool/call`) ② `compaction/end` → dirty + rebuild ③ `turn/end` → lightweight cursor | Never write custom session events (R4) |
 | `compaction/*` | `[verified]` asar has `compaction/summary`; `compaction.md:13-19` | Event-driven: `compaction/end` → `ensureContext("compaction")` | **No need** to call the `ctx.compaction` service (correction to the 07 §5 sketch; the seam is an optional capability, see `compaction.md:130`) |
 | `turn/end` | `[verified]` asar | Digest turn counter; at threshold, background `consolidate({mechanicalOnly:true})` | No LLM call, no blocking |
-| `agent/disposed` `[{agent}]` | `[verified]` asar; checkout `runtime-types.ts:213` | `sessionEnd({sessionId,cwd,messages:digest,reason})` (8s race) → `close()` | Skip child agents (§5); on failure only `ctx.logger.warn` |
-| `session/disposed` `(session)` | `[verified]` asar | Clean up the Map (leak prevention; `sessionEnd` no longer waits at this point) | Cleanup only |
+| `agent/disposed` `[{agent}]` | `[verified]` asar; checkout `runtime-types.ts:213` | `sessionEnd({sessionId,cwd,messages:digest,reason})` (bounded race, 20 s default) → `close()`; handler returns the promise | Skip child agents (§5); on failure only `ctx.logger.warn` |
+| `session/disposed` `(session)` | `[verified]` asar | Clean up the Map (leak prevention; `sessionEnd` no longer waits at this point) | Cleanup only; return the dispose promise |
 | Plugin unload | `[verified]` auto-memory `lib/index.js:1875` | `ctx.effect(function*(){ yield async () => Promise.allSettled([...engines].map(e=>e.close())) })` | Wait for in-flight extraction to land |
 
 `ctx.systemPrompt.section({name,order,text})` `[verified]`: `text` may be `(c)=>string`, re-evaluated every step, executed synchronously; `order` ascending (autoload's memory section uses 4000). `ctx.tools.register(def)` `[verified]`; every event registration uses `ctx.on(event, handler)`.
@@ -158,7 +158,7 @@ The runtime check exercised the real desktop runtime (disposable profile, local 
 
 ## 5. Tool mapping
 
-No retrieval logic lives in the package; all 5 tools are thin wrappers (parameter names identical to 07 §3, `memory_*` prefix so model habits stay consistent across harnesses):
+No retrieval logic lives in the package; all 5 tools are thin wrappers (parameter names identical to 07 §3; names carry a configurable prefix — `harnmem_` by default, `harnmem_write/search/read/forget/status`, because `dsh-auto-memory` registers the bare `memory_*` names and DSH keeps the first registrant):
 
 | Tool | Params → core | Implementation notes |
 |---|---|---|
@@ -275,7 +275,7 @@ function makeLlmFn(ctx: Context, agent: Agent): LlmFn | null {
 }
 ```
 
-`[inferred]` `BlockAssembler`/`createUserMessage` come from `@deepseek-ai/dsh-llm` (evidenced by auto-memory's imports); the success variant of `finish.kind` was not confirmed in source → fall back to "throw when `blocks()` is empty" (R5). Whether `temperature/reasoningEffort` are passed through is handled as optional `LlmRequest` fields; not passing them does not affect correctness.
+`[runtime-verified 2026-10-23]` the shipped bridge does **not** import `@deepseek-ai/dsh-llm` (a `link:`-installed plugin cannot resolve a host-internal bare specifier; the swallowed failure produced `status:"done", added:0`). It reproduces the two wire shapes locally: a frozen user message `{id, role:"user", content:[{type:"text",text}], source:{kind:"dsh-harnmem"}}` and the chunk stream (`text-delta` appends text, `reasoning-delta` counts hidden reasoning, `finish` carries `reason.kind` ∈ `stop`/`error`/`aborted`). `reasoningEffort` is validated against the model's advertised efforts: unsupported values fail the attempt with `code:"UNSUPPORTED_REASONING_EFFORT"`, so the bridge tries `none` → `minimal` → `low` → default and logs `llm.reasoningUnsupported`. `deepseek-v4-flash` supports only `low`+; reasoning still consumed 5,926 chars for a 2,100-char JSON answer, so the extraction call uses a 4,096-token floor and a 20 s budget (§11).
 
 ## 7. Migration importer (`harnmem import`, idempotent/rollbackable)
 
@@ -317,15 +317,15 @@ Runtime and migration share the same gates (no separate rule set): exact duplica
 
 ## 9. Acceptance checklist (DSH-specific, layered on 07 §8)
 
-- [ ] Empty store: the section returns `""`, the provider payload has no empty segment; tools register successfully
-- [ ] Write one record (`memory_write`) → visible in the injection on the **next step** (dirty→pre-step rebuild), and bytes stay unchanged for the rest of the session
-- [ ] systemPrompt bytes identical across two turns (assert by printing a hash); they change exactly once after day rollover/compaction
-- [ ] `memory_search` hits a Chinese query (bigram + synonyms work)
-- [ ] After `agent/disposed`, `sessionEnd` finishes within 8s; shutdown does not hang (the race-timeout path has a test)
-- [ ] Child agent (delegationDepth>0) is read-only: 0 writes, 0 extractions, no Map residue after disposal
-- [ ] Profile without an LLM: tool writes work, `sessionEnd` returns `{status:"no_llm"}`
-- [ ] Resume session: the injection snapshot is rebuilt and the engine is not created twice
-- [ ] After migration, old memories are searchable via `memory_search`, and re-running migrate adds 0 new records (idempotent)
+- [x] Empty store: the section returns `""`, the provider payload has no empty segment; tools register successfully
+- [x] Write one record (`harnmem_write`) → visible in the injection on the **next step** (dirty→pre-step rebuild), and bytes stay unchanged for the rest of the session
+- [x] systemPrompt bytes identical across two turns (assert by printing a hash); they change exactly once after day rollover/compaction
+- [x] `harnmem_search` hits a Chinese query (bigram + synonyms work)
+- [x] After `agent/disposed`, `sessionEnd` finishes within the 20 s budget and writes memories; shutdown does not hang (the race-timeout path has a test; a real extraction measured 10.8–14.1 s)
+- [x] Child agent (delegationDepth>0) is read-only: 0 writes, 0 extractions, no Map residue after disposal
+- [x] Profile without an LLM: tool writes work, `sessionEnd` returns `{status:"no_llm"}`
+- [x] Resume session: the injection snapshot is rebuilt and the engine is not created twice
+- [ ] After migration, old memories are searchable via `harnmem_search`, and re-running migrate adds 0 new records (idempotent)
 
 ## 10. Landing order
 
@@ -333,4 +333,16 @@ Runtime and migration share the same gates (no separate rule set): exact duplica
 2. skeleton `packages/dsh-harnmem/{package.json,cordis.patch.yml,src/index.ts}` (the code in this document compiles);
 3. install the local package into a scratch profile and pass the first 3 items of §9;
 4. land the importer's dsh source first (richest format, most samples), then pi, then zcode/claude once samples exist;
-5. cross-check against the pi adapter: the same `memory_write` produces byte-identical files in both harnesses (apart from `source.harness`) — stronger than any documentation promise.
+5. cross-check against the pi adapter: the same `harnmem_write` produces byte-identical files in both harnesses (apart from `source.harness`) — stronger than any documentation promise.
+
+## 11. Implementation delta (2026-10-23)
+
+Everything below landed while closing N2; the sections above describe the intended contract, this list records where the shipped code deliberately differs and why (evidence: `docs/research/dsh-write-silence-2026-10-23.md`).
+
+1. **Tool names are prefixed** (`toolPrefix`, default `harnmem_`, env `HARNMEM_TOOL_PREFIX`). §5's bare `memory_*` names collide with `dsh-auto-memory`, which wins registration; the write path was dead because `memory_write` was one of the two collisions. Suffixes stay `write/search/read/forget/status`; hint strings in search/read results use the configured prefix.
+2. **A real file logger exists** (`~/.harnmem/logs/dsh.jsonl`, JSON lines, `log: "on"|"errors"|"off"`, env `HARNMEM_LOG`). The design only used `ctx.logger`, so every gate was invisible. The sink is a bounded chained append (same shape as `pi-harnmem`), flushed in the unload effect; `log: "on"` is the trial default, `errors` the quiet production setting.
+3. **Core writes `kind:"extract"` audit events** for every `sessionEnd` outcome (status/reason/added/superseded/skipped/messages/userMessages), not just success — this is N13's instrumentation.
+4. **Digest eviction preserves user prompts.** At `MAX_DIGEST_ENTRIES` the ring drops the oldest `role !== "user"` entry first (oldest prompt only when every entry is a prompt), so `minUserMessages: 3` can still be satisfied by a session whose first prompts fell out of the 200-event window. Core still appends `messages.slice(-200)` to the transcript before gating.
+5. **Dispose is awaited, deduped and bounded.** `agent/disposed` / `session/disposed` handlers return their promise; a per-session `ending` promise makes concurrent disposal idempotent; the race budget is 20 s (measured extraction 10.8–14.1 s); the unload effect awaits `closeAll()` then `log.flush()`. The host does not await `session/disposed` (verified: the ACP `session/close` response arrives before extraction finishes), so the budget only delays background work; at process unload provider adapters are already gone and the call fails in ms.
+6. **The extraction LLM call is a local protocol bridge** (§6): no host-internal imports, reasoning-effort fallback, 4,096-token floor. Real run: `llm.response` 2,100 chars with 5,926 reasoning chars → `session.end status=done added=3`.
+7. **End-to-end verification** used a disposable ACP profile bootstrapped from the shipped `acp` template and installed with `dsh plugin add <path>`; it booted the same DSH 0.2.1-rc.2 runtime. Three user turns → `audit.jsonl` `extract added:3` + three `write` events + memory files; the next session injected the memories (719 B / 170 tokens) and extracted one more. The desktop GUI repeat is folded into N1.

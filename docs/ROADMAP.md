@@ -60,12 +60,26 @@ Last updated: **2026-10-23** (after the first real-trial period).
   Publishing `@harnmem/core` first fixes it (N7).
 - Injection section order is **4050** (`dsh-auto-memory` uses 4000), so when both
   plugins are installed the order is deterministic: auto-memory, then HarnMem.
-- Adapter defaults (no explicit config yet): `injectMaxTokens: 1200`,
-  `hotEntries: 24`, `autoExtract: true`, `llmTimeoutMs: 8000`, `log: errors`.
-  Consequently `~/.harnmem/logs/dsh.jsonl` does not exist until something is
-  logged; set `config: { log: "on" }` when investigating (N2).
+- Adapter defaults (schema; the profile has no explicit config): `injectMaxTokens:
+  1200`, `hotEntries: 24`, `autoExtract: true`, `projectScope: true`,
+  `llmTimeoutMs: 20000`, `log: "on"` during the trial, `toolPrefix: "harnmem_"`.
+  The five tools are therefore `harnmem_write/search/read/forget/status`; the
+  bare `memory_write`/`memory_read` names belong to `dsh-auto-memory` (the first
+  registrant wins in DSH, N2 incidentally proved that with tools 3/5 only).
+- Logs: `~/.harnmem/logs/dsh.jsonl` (JSON lines; `log: "errors"` is the quieter
+  setting, `HARNMEM_LOG` overrides). It records `plugin.apply`,
+  `session.created`, `session.end` (status/added/skipReason/digest size),
+  `session.endTimeout`, and the extraction LLM bridge (`llm.call`,
+  `llm.response`, `llm.callFailed`).
+- `llmTimeoutMs: 20000` bounds the dispose race. A real extraction (3 memories,
+  ~2.1 KB JSON) measured 10.8–14.1 s on `deepseek-v4-flash` (reasoning tokens
+  included), so the old 8 s budget cut **every** real extraction off — the
+  timeout was one of the reasons desktop never wrote a memory (N2,
+  2026-10-23). At process unload the provider adapters are already gone, so the
+  call fails in milliseconds and shutdown does not hang.
 - Session journals: `~/.harnmem/sessions/<yyyymmdd>/dsh_<sessionId>.jsonl`
-  (one 139 KB journal from 2026-10-22 so far).
+  (one 139 KB journal from 2026-10-22; the 2026-10-23 verification runs added
+  short journals with 6 messages each).
 
 ### Disable or remove (without touching the data)
 
@@ -83,11 +97,17 @@ Last updated: **2026-10-23** (after the first real-trial period).
 
 Ordered by impact; **do not silently skip these**.
 
-1. **Extraction is unproven in the real DSH runtime.** Core extraction gates are
-   `no_llm`, `model_wrote`, `too_few_messages`, `already_extracted`, `readOnly`,
-   `autoExtract=false`; none of them is currently visible in logs unless you
-   enable `log: "on"`. We know injection works; we do **not** yet know whether
-   end-of-session extraction fires in desktop and what it returns (N2).
+1. **Extraction is proven in a real DSH runtime (resolved 2026-10-23).** A
+   disposable ACP profile booting the installed DSH 0.2.1-rc.2 ran 3 real user
+   turns, `agent/disposed` fired, the digest held 6 entries / 3 user messages,
+   `session.end` reported `status=done added=3`, `audit.jsonl` gained
+   `kind:"extract" status:"done" added:3`, three memory files were written, and
+   the next session injected them (719 B / 170 tokens). The old failure chain is
+   described in `docs/research/dsh-write-silence-2026-10-23.md`; each link is
+   fixed here (tool prefix, file log, audit extract event, digest prompt
+   preservation, 20 s dispose budget, local LLM protocol bridge, awaited
+   dispose). **Remaining:** repeat once in the desktop GUI profile during N1;
+   decide the product default for `autoExtract` in N13.
 2. **10k-store performance is v0.2 work**: one-off import ~11–12 s; first query
    per shard 0.5–1.4 s (JSON parse); on-disk index ~2.9× the canonical `.md`
    store (47× if the denominator is body text only); warm search p95 ~16–22 ms.
@@ -130,19 +150,30 @@ Check boxes as items land, and update this file when the status changes.
   *Acceptance:* a short trial note in this file (append under §5) with numbers
   and a verdict on usefulness.
 
-- [ ] **N2. Verify DSH end-of-session extraction.**
-  Turn on adapter logging, restart the DSH app, hold a session with **≥3 real
-  user messages** and without an explicit `memory_write`, then inspect.
-  1. In `~/.dsh/profiles/desktop/cordis.patch.yml`, add a config entry (or edit
-     the existing one) so `dsh-harnmem` gets `config: { log: "on" }`.
-  2. Restart the DSH app (the plugin only loads at startup).
-  3. After the session ends: check `~/.harnmem/logs/dsh.jsonl`,
-     `~/.harnmem/state/audit.jsonl`, and `stats.extraction.skipReasons`.
-  4. If extraction is skipped, log the skip reason in the adapter (currently
-     only `ExtractResult.status` is returned, not logged) and fix gating if the
-     gate is wrong; if it runs and returns nothing, note `noop` and move on.
-  *Acceptance:* the extraction path is either proven end-to-end (new memory
-  appears, `added ≥ 1`) or has an explicit, logged skip reason. Update §3.1.
+- [x] **N2. Verify DSH end-of-session extraction.** *(2026-10-23, verified —
+  see the evidence below; the desktop GUI repeat is folded into N1.)*
+  The investigation (`docs/research/dsh-write-silence-2026-10-23.md`) found
+  **five** independent silent blockers, not three: (1) `memory_write` /
+  `memory_read` were shadowed by `dsh-auto-memory`; (2) the digest ring evicted
+  early user prompts before the 200-event window filled, so
+  `too_few_messages` skipped; (3) `agent/disposed` was fire-and-forget and the
+  process usually died first; (4) even when it fired, the 8 s budget raced a
+  ~11 s extraction and closed the engine; (5) the extraction LLM bridge used a
+  dynamic `import("@deepseek-ai/dsh-llm")` that cannot resolve from a linked
+  package, and core silently turned that into `status:"done", added:0`.
+  Fixed in this commit: `harnmem_*` tool prefix, `~/.harnmem/logs/dsh.jsonl`
+  file log (`log: "on"` default), `kind:"extract"` audit events (N13),
+  user-prompt-preserving digest eviction, 20 s dispose budget, local LLM
+  protocol bridge with reasoning-effort fallback, dispose handlers return their
+  promise, and awaited unload cleanup.
+  *Verification:* a disposable ACP profile booting the installed DSH 0.2.1-rc.2
+  ran 3 real user turns and closed the session; `dsh.jsonl` logged
+  `llm.response` (2100 chars, 5926 reasoning chars) then
+  `session.end status=done added=3`; `audit.jsonl` recorded 3 `write` events and
+  one `extract` event (`added:3`); three memory files appeared; a second session
+  on the same store injected them (`bytes:719`, `tokens:170`) and extracted one
+  more memory. Core 22/22 and adapter 25/25 tests are green.
+  *Acceptance:* met in the real runtime; desktop GUI confirmation remains in N1.
 
 - [ ] **N3. Decide the coexistence policy.**
   Options: (a) keep both memory plugins long-term (redundant tokens, safest
@@ -236,10 +267,11 @@ Check boxes as items land, and update this file when the status changes.
 - [ ] **N12. Operations:** `harnmem doctor` (integrity, orphan links, stale
   indexes, merge the `state/usage.json` overlay into frontmatter), backup and
   export/import for a single file, optional pre-commit hook.
-- [ ] **N13. Extraction quality:** add `audit.jsonl` events for extraction
-  results (`kind: "extract"`, status, reason, added/superseded), decide the
-  product default for `autoExtract` per harness, and sample-audit extraction
-  precision with the LLM-judge protocol in
+- [ ] **N13. Extraction quality.** *(2026-10-23: first two parts landed —
+  `audit.jsonl` now records `kind:"extract"` with status/reason/added/
+  superseded/skipped/messages/userMessages, and `session.end` logs the same in
+  `dsh.jsonl`.)* Remaining: decide the product default for `autoExtract` per
+  harness and sample-audit extraction precision with the LLM-judge protocol in
   [`design/05-evaluation.md`](design/05-evaluation.md).
 - [ ] **N14. Documentation:** migration guide (dsh/pi/ZCode → HarnMem),
   FAQ, adapter-authoring guide, refreshed README numbers.
@@ -254,6 +286,11 @@ Check boxes as items land, and update this file when the status changes.
 | 2026-10-20 | Adapter naming `<harness>-harnmem`; host-agnostic packages under `@harnmem/*` | Discoverability + ecosystem convention (`pi-memory`, `dsh-auto-memory`) |
 | 2026-10-21 | DSH prompt section order 4050 (not 4000) | 4000 collides with `dsh-auto-memory`; deterministic composite prompt |
 | 2026-10-21 | `toolPrefix` (default `memory_`, trial `harnmem_`) | pi silently keeps one of two duplicate tool names |
+| 2026-10-23 | Likewise `dsh-harnmem` defaults to `toolPrefix: "harnmem_"` | Real DSH run: `dsh-auto-memory` owns `memory_write`/`memory_read`; the prefixed names are the only ones that can never be shadowed |
+| 2026-10-23 | DSH adapter writes `~/.harnmem/logs/dsh.jsonl` and defaults `log: "on"` during the trial | The silent-write incident was undiagnosable: no file log, no skip reasons, no extraction audit events |
+| 2026-10-23 | Dispose budget 20 s (was 8 s) and dispose handlers return their promise | Measured extraction 10.8–14.1 s on `deepseek-v4-flash`; the 8 s race closed the engine before every write. `session/disposed` is not awaited by the host and the unload path fails in ms, so shutdown still cannot hang |
+| 2026-10-23 | Digest eviction drops the oldest **non-user** entry first | The 200-event ring evicted a session's first prompts before extraction, forcing `too_few_messages` |
+| 2026-10-23 | Extraction LLM access uses a local chunk protocol bridge, not `@deepseek-ai/dsh-llm` imports | A `link:`-installed plugin resolves bare specifiers from its own directory; the failing dynamic import was swallowed as `status:"done", added:0` |
 | — | **Pending:** npm publishing, repo visibility, coexistence policy (N3), Claude adapter timing | Need user decision / release step |
 
 ## 6. Verification runbook
@@ -262,7 +299,8 @@ Check boxes as items land, and update this file when the status changes.
 # from <repo>
 pnpm -r build
 pnpm -r typecheck
-pnpm test                                   # 22/22
+pnpm test                                   # core 22/22
+node --test packages/dsh-harnmem/test/*.test.mjs   # adapter 25/25
 node evals/gen/generate.mjs --check         # 36 files byte-identical
 node evals/run.mjs --engine core --gate     # functional PASS; 5 advisory
 
@@ -270,6 +308,7 @@ node evals/run.mjs --engine core --gate     # functional PASS; 5 advisory
 node packages/cli/dist/main.js stats
 node packages/cli/dist/main.js search "some query" --json
 Get-Content C:\Users\<user>\.harnmem\state\audit.jsonl -Tail 5
+Get-Content C:\Users\<user>\.harnmem\logs\dsh.jsonl -Tail 20
 ```
 
 **Guardrails when continuing** (do not regress):
