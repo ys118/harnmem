@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repository-wide English documentation and open-source project scaffolding
   (license, contribution guide, code of conduct, security policy, issue/PR
   templates, CI and release workflows).
+- `docs/ROADMAP.md`: live status (trial evidence, known issues) and the ordered
+  next steps with acceptance criteria and a verification runbook.
 
 ### Changed
 

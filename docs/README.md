@@ -7,6 +7,8 @@ The documentation is organized in four layers. If you are new, read the
 
 - [User guide](user-guide.md) — install, first run, configuration, tools,
   `/memory` commands, migration, troubleshooting, privacy.
+- [Roadmap and current status](ROADMAP.md) — what is done, what is running,
+  known issues, and the ordered next steps (start here to continue development).
 
 ## Design (design of record)
 

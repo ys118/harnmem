@@ -1,6 +1,7 @@
 # 06 · Implementation plan, verification evidence, and release strategy
 
 > Status snapshot: evening of 2026-10-20 (Asia/Shanghai). This file records "how far we have come, how it is verified, what is next, and how to release".
+> **For live status and the ordered next steps, see [`../ROADMAP.md`](../ROADMAP.md); this file is the engineering milestone record.**
 > Design references: `00-overview.md` (goals/principles), `01-architecture.md` (components and data flows), `02-data-model.md` (SSOT layout), `03-retrieval.md` (retrieval), `04-write-and-lifecycle.md` (writes/governance), `05-evaluation.md` (evaluation gates), `07-adapter-contract.md` (adapter contract), `08-dsh-adapter.md` (DSH design), `09-claude-adapter.md` (Claude Code design).
 > Research sources: `../research/pi-extension-api.md`, `../research/reference-projects.md`, `../research/memory-evaluation-and-algorithms.md`, `../research/dsh-plugin-and-migration.md`.
 

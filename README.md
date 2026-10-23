@@ -281,6 +281,9 @@ Start with the [documentation index](docs/README.md). Highlights:
 
 ## Roadmap
 
+See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the current status (verified
+numbers, the running trial, known issues) and the ordered next steps.
+
 - Implement the Claude Code adapter (MCP stdio + hooks).
 - Persist and incrementally update indexes so large stores warm up faster;
   reduce index size.
