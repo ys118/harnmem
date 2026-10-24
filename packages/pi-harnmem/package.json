@@ -1,6 +1,6 @@
 {
   "name": "pi-harnmem",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "HarnMem memory extension for the pi coding agent: byte-stable hot-index injection, memory tools, and session-end extraction.",
   "license": "MIT",
   "type": "module",

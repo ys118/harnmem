@@ -21,7 +21,7 @@ packages/dsh-harnmem/
 ```jsonc
 {
   "name": "dsh-harnmem",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "main": "lib/index.js",
   "engines": { "node": "^22.19.0 || >=24.0.0" },   // same as the host; zstd needs >=22.15
@@ -36,7 +36,7 @@ packages/dsh-harnmem/
     "@deepseek-ai/dsh-tools": ">=0.1.5-rc.2 <0.3.0",
     "@deepseek-ai/schemastery": "^3.18.2"
   },
-  "dependencies": { "@harnmem/core": "0.1.0" },
+  "dependencies": { "@harnmem/core": "0.2.0" },
   "dsh": { "manifestVersion": 1, "bundle": { "patch": "./cordis.patch.yml" } }
 }
 ```

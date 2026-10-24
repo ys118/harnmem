@@ -6,7 +6,7 @@
 > One user, one machine, one memory store — shared by every coding agent you use.
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)
-![Status: v0.1.0](https://img.shields.io/badge/status-v0.1.0-blue.svg)
+![Status: v0.2.0](https://img.shields.io/badge/status-v0.2.0-blue.svg)
 ![Runtime deps: 0](https://img.shields.io/badge/runtime%20deps-0-brightgreen.svg)
 ![Node](https://img.shields.io/badge/node-%E2%89%A522.15-blue.svg)
 
@@ -21,7 +21,7 @@ database, no embedding model, and no runtime dependencies in the engine.
   `pi-harnmem` (pi extension), `dsh-harnmem` (DSH plugin). Not published to npm
   yet; build from a checkout.
 - **License:** MIT.
-- **Status:** v0.1.0 — core, CLI/migration, the pi adapter and the DSH adapter
+- **Status:** v0.2.0 — core, CLI/migration, the pi adapter and the DSH adapter
   are usable and tested end to end; the Claude Code adapter is designed but not
   built.
 
