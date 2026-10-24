@@ -248,6 +248,15 @@ Check boxes as items land, and update this file when the status changes.
   stores stay on disk as read-only archives (`~/.dsh/memory`,
   `~/.pi/agent/memory`); the leftover profile `node_modules` copy of
   `dsh-auto-memory` is pruned by the next `dsh plugin` install.
+  *Verified 2026-10-24 15:07 (desktop restart):* `dsh.jsonl` shows
+  `plugin.apply` → `tools.registered {count:5, of:5, prefix:"harnmem_"}` →
+  `session.started {bytes:5835, ids:24}`, with no `registerFailed` and no
+  warnings. `~/.dsh/memory/audit.jsonl` (auto-memory's own injection audit)
+  stayed frozen at 12:01 — it recorded nothing after the restart, so the plugin
+  is not loaded. Single-store runtime confirmed: user 14 / <project-a> 23 /
+  downloads 4 / harnmem 10, index fresh, 0 duplicate candidates, 0 orphans.
+  Old chat sessions may keep the tool list they were created with; open a new
+  session to see the `harnmem_*` tools.
 
 ### Phase B — one store, real data
 
