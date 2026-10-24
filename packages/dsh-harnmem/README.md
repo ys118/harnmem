@@ -27,7 +27,7 @@ The plugin is a thin adapter. Storage, retrieval, deduplication and lifecycle li
   `session/event` (≤200 entries, ≤2 KB each; eviction drops the oldest non-user entry
   first, so early user prompts survive tool noise) and handed to `sessionEnd` when the agent
   is disposed. The dispose handlers return their promise, de-duplicate concurrent disposal,
-  and bound the extraction race at `llmTimeoutMs` (20 s). Extraction runs `autoExtract` gates
+  and bound the extraction race at `llmTimeoutMs` (60 s). Extraction runs `autoExtract` gates
   in core; without a host LLM the result is `no_llm` and nothing is written.
 - **Quit path / resume catch-up** — the host tears the provider adapters down before
   `plugin_unload`, so no LLM call can run at quit. The session journal is durable: on
@@ -69,7 +69,7 @@ Config can be set in that patch row, or overridden per profile in
 | `autoExtract` | `true` | Run session-end extraction when a host LLM is available |
 | `minUserMessages` | `3` | User prompts required before extraction (also gates the resume catch-up) |
 | `projectScope` | `true` | Attribute project-scope memories to the session cwd project |
-| `llmTimeoutMs` | `20000` | Bound for the dispose extraction race (never blocks shutdown; measured extraction 10.8–14.1 s) |
+| `llmTimeoutMs` | `60000` | Bound for extraction (never blocks shutdown; measured 10.8–14.1 s headless, 33.3 s desktop catch-up) |
 | `consolidateEveryWrites` | `25` | Mechanical consolidation interval (0 disables) |
 | `toolPrefix` | `harnmem_` | Prefix for the five model-facing tools (env `HARNMEM_TOOL_PREFIX`) |
 | `log` | `on` | File log mode: `off` / `errors` / `on` (env `HARNMEM_LOG`); writes `~/.harnmem/logs/dsh.jsonl` |

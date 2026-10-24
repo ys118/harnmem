@@ -62,7 +62,7 @@ Last updated: **2026-10-23** (after the first real-trial period).
   plugins are installed the order is deterministic: auto-memory, then HarnMem.
 - Adapter defaults (schema; the profile has no explicit config): `injectMaxTokens:
   1200`, `hotEntries: 24`, `autoExtract: true`, `projectScope: true`,
-  `llmTimeoutMs: 20000`, `minUserMessages: 3`, `log: "on"` during the trial,
+  `llmTimeoutMs: 60000`, `minUserMessages: 3`, `log: "on"` during the trial,
   `toolPrefix: "harnmem_"`.
   The five tools are therefore `harnmem_write/search/read/forget/status`; the
   bare `memory_write`/`memory_read` names belong to `dsh-auto-memory` (the first
@@ -72,11 +72,14 @@ Last updated: **2026-10-23** (after the first real-trial period).
   `session.created`, `session.end` (status/added/skipReason/digest size),
   `session.endTimeout`, and the extraction LLM bridge (`llm.call`,
   `llm.response`, `llm.callFailed`).
-- `llmTimeoutMs: 20000` bounds the dispose race. A real extraction (3 memories,
+- `llmTimeoutMs: 60000` bounds extraction. A real extraction (3 memories,
   ~2.1 KB JSON) measured 10.8–14.1 s on `deepseek-v4-flash` (reasoning tokens
   included), so the old 8 s budget cut **every** real extraction off — the
   timeout was one of the reasons desktop never wrote a memory (N2,
-  2026-10-23). At process unload the provider adapters are already gone, so the
+  2026-10-23). The attach-time catch-up on the desktop host then measured
+  33.3 s for a 6,000-char digest on `<provider>/<model>` and
+  tripped the 20 s budget (trial note 2026-10-24 11:23), so the default moved
+  to 60 s. At process unload the provider adapters are already gone, so the
   call fails in milliseconds and shutdown does not hang.
 - **Quit-time extraction is deferred, not lost (2026-10-24).** The host tears
   the provider adapters down before `plugin_unload`, so no LLM call can run at
@@ -117,7 +120,7 @@ Ordered by impact; **do not silently skip these**.
    the next session injected them (719 B / 170 tokens). The old failure chain is
    described in `docs/research/dsh-write-silence-2026-10-23.md`; each link is
    fixed here (tool prefix, file log, audit extract event, digest prompt
-   preservation, 20 s dispose budget, local LLM protocol bridge, awaited
+   preservation, 60 s extraction budget, local LLM protocol bridge, awaited
    dispose). The desktop GUI write path is verified (2026-10-23, trial note
    below); the **quit path is closed 2026-10-24 by deferred catch-up**: the host
    disposes the provider adapters before `plugin_unload` (observed
@@ -209,7 +212,7 @@ Check boxes as items land, and update this file when the status changes.
   package, and core silently turned that into `status:"done", added:0`.
   Fixed in this commit: `harnmem_*` tool prefix, `~/.harnmem/logs/dsh.jsonl`
   file log (`log: "on"` default), `kind:"extract"` audit events (N13),
-  user-prompt-preserving digest eviction, 20 s dispose budget, local LLM
+  user-prompt-preserving digest eviction, 60 s extraction budget, local LLM
   protocol bridge with reasoning-effort fallback, dispose handlers return their
   promise, and awaited unload cleanup.
   *Verification:* a disposable ACP profile booting the installed DSH 0.2.1-rc.2
@@ -345,6 +348,7 @@ Check boxes as items land, and update this file when the status changes.
 | 2026-10-24 | Quit-time extraction becomes a **deferred catch-up at the next open of the same session** (`sessionEnd(reason:"resume_catchup")` after seeding the digest from the durable journal) | The host tears the provider adapters down before `plugin_unload`, so no LLM call can run at quit (`code:"NO_ADAPTER"` in ms); the journal survives and the desktop app resumes the last session on launch, so the memories land while the LLM is alive. Verified in the headless real runtime |
 | 2026-10-24 | Cross-process extraction idempotency uses the `extract` audit events as a `messages` watermark, not the in-memory flag | The in-memory `extracted` flag dies with the process: a failed/partial extraction would either double-write after each restart or never cover newer turns. Only turns beyond the recorded count re-trigger; core skips `already_extracted` |
 | 2026-10-24 | Extraction failures are visible: LLM errors bubble to `status:"failed"` and short digests skip as `digest_too_small` | `runExtraction` used to swallow both as an empty result, so a dead bridge logged `done added:0` — exactly the silence the trial is meant to remove |
+| 2026-10-24 | Extraction budget 20 s → 60 s | Desktop-GUI catch-up of a 6,000-char digest on `<provider>/<model>` took 33.3 s and logged `extract.catchup {status:"failed", error:"extraction timed out after 20000ms"}`; the catch-up runs in the background and never blocks a turn, so a larger budget only helps, and a `failed` row does not advance the watermark so the next open retries |
 | 2026-10-24 | Journal readers tolerate a leading UTF-8 BOM | PowerShell 5.1 `Set-Content -Encoding utf8` prepends a BOM; the first line was silently dropped, hydration lost one user prompt (5 entries/2 users instead of 6/3) and the catch-up gate did not fire |
 | — | **Pending:** npm publishing, repo visibility, Claude adapter timing | Need release step |
 
@@ -397,6 +401,22 @@ Check boxes as items land, and update this file when the status changes.
   below `minUserMessages`; to watch catch-up in the GUI, open a session whose
   journal has ≥3 users (e.g. `<session-id>` or `<session-id>`, four each) or accumulate
   three prompts before quitting.
+
+- **2026-10-24 11:23 — desktop GUI restarted onto the catch-up build.** The
+  quit of the old instance (11:22:52) logged five `session.end` lines (dispose
+  ran; all `too_few_messages`) — the quit moment itself still cannot call a
+  model, as designed. On launch the app hydrated and started the catch-up:
+  `digest.hydrated {entries:200, userMessages:3}` for this session
+  (`<session-id>`; the 200-event digest of the quit plus today's prompts, including
+  the user-preserving eviction) and `llm.call` fired immediately. The call took
+  33.3 s on `<provider>/<model>` (1,645 chars + 5,582 reasoning
+  chars) and crossed the 20 s budget, so it logged `extract.catchup
+  {status:"failed", error:"extraction timed out after 20000ms"}` — visible, not a
+  silent `done added:0` — and the watermark stayed put, so the next open retries.
+  A small session (`<session-id>`, 12 entries / 5 users) finished in 14.3 s:
+  `extract.catchup {status:"done", added:1}`, the first desktop-GUI catch-up
+  write. Follow-up: the default budget is now 60 s (decision log); one more
+  restart loads it and should land this session's extraction.
 
 ## 6. Verification runbook
 

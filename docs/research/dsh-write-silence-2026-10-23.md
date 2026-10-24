@@ -186,7 +186,7 @@ All three channels were repaired and the extraction path was proven end-to-end i
 | 2 | No file logger / no `log` setting (§5) | `~/.harnmem/logs/dsh.jsonl` JSON-line sink (chained, bounded, flushed on unload), `log: "on"|"errors"|"off"`, `HARNMEM_LOG`; `log: "on"` is the trial default |
 | 3 | No `extract` audit events (N13) | core writes `kind:"extract"` for every outcome (status/reason/added/superseded/skipped/messages/userMessages) |
 | 4 | 200-event ring evicts early user prompts → `too_few_messages` (§0.2) | digest eviction drops the oldest **non-user** entry first; prompts survive tool noise |
-| 5 | Dispose fire-and-forget, 8 s budget vs ~11 s extraction (§0.3) | `agent/disposed`/`session/disposed` handlers return their promise; per-session in-flight dedupe; budget 20 s; unload effect awaits `closeAll()` + `log.flush()` |
+| 5 | Dispose fire-and-forget, 8 s budget vs ~11 s extraction (§0.3) | `agent/disposed`/`session/disposed` handlers return their promise; per-session in-flight dedupe; budget 60 s (20 s was still short for a 33.3 s desktop catch-up, §11); unload effect awaits `closeAll()` + `log.flush()` |
 | 6 | Extraction LLM bridge (not visible in the report) | `dynamic import("@deepseek-ai/dsh-llm")` cannot resolve from a `link:` install and core swallowed the failure as `status:"done", added:0`; replaced with a local protocol bridge (frozen user message + `text-delta`/`reasoning-delta`/`finish` chunks) with reasoning-effort fallback and a 4,096-token floor |
 
 **Verification (real runtime, `HARNMEM_HOME` = scratch home):** session 1, 3 user turns → `dsh.jsonl` `llm.response` 2,100 chars (5,926 reasoning chars) → `session.end status=done added=3`, `elapsedMs=14149`; `audit.jsonl` = 1 `inject` + 3 `write` + 1 `extract added:3`; 3 memory files on disk. Session 2 on the same store → `inject bytes:719 tokens:170` with the 3 ids, then `extract added:1`. Core 22/22 tests, adapter 25/25 tests, `pnpm -r typecheck` green.
@@ -232,6 +232,19 @@ A shorter preceding run exited before the background LLM call returned (the
 CLI does not keep the process alive for it), which is CLI-only — the desktop
 app process persists.
 
+**Verification in the desktop GUI (2026-10-24 11:23):** after restarting the
+bundled app onto the catch-up build, the quit-time disposition was visible (five
+`session.end` lines, all `too_few_messages` — the quit moment still cannot reach
+a model), and the resumed session hydrated its digest from the journal
+(`digest.hydrated {entries:200, userMessages:3}`) and started the catch-up
+automatically. The 20 s budget was too tight for a reasoning model
+(`llm.response` required 33.3 s for 1,645 chars + 5,582 reasoning chars), so the
+run logged `extract.catchup {status:"failed", error:"extraction timed out after
+20000ms"}` — visible and retried on the next open — while a smaller session
+(`12 entries / 5 users`) completed in 14.3 s with `extract.catchup
+{status:"done", added:1}`. The default budget is now 60 s.
+
 **Residual:** sessions that are never reopened are not extracted (the journal is
 kept; a turn/idle-triggered extraction would close this and is an N13 option).
-The desktop restart cycle itself still has to be observed live in N1.
+The desktop restart cycle was observed live (2026-10-24 11:23); one more restart
+loads the 60 s budget so the large resumed session can finish.
