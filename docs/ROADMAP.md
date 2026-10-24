@@ -9,13 +9,13 @@ Last updated: **2026-10-23** (after the first real-trial period).
 
 | Item | State |
 | --- | --- |
-| Repository | `github.com/ys118/harnmem` (private), branch `master`, CI green at `0256a1e` |
-| Latest release | `v0.1.0` tag on `3203871` (pi-first release; **predates** the DSH adapter) |
-| Commits after `v0.1.0` | `54ff3e4`, `81cec2b`, `4d23ec2`, `539e56a` (DSH adapter + cold-start fix), `0256a1e` (coexistence fixes) |
-| Packages (all `0.1.0`, unpublished) | `@harnmem/core`, `@harnmem/cli`, `pi-harnmem`, `dsh-harnmem` |
-| Core tests | 22/22 pass (`pnpm test`) |
+| Repository | `github.com/ys118/harnmem` (private), branch `master`, CI green on `19c7e2d` |
+| Latest release | `v0.2.0` tag on `19c7e2d` (DSH adapter + write-silence fix + resume catch-up + single-store migration) |
+| Commits after `v0.1.0` | `3203871..19c7e2d` — DSH adapter and cold-start fix, toolPrefix/order coexistence, the DSH write-silence fix, resume catch-up, and the N4/N5 single-store migration |
+| Packages (all `0.2.0`, unpublished) | `@harnmem/core`, `@harnmem/cli`, `pi-harnmem`, `dsh-harnmem` |
+| Core tests | 29/29 pass (`node --test packages/core/test/*.test.mjs`); adapter 28/28 (`pnpm --filter dsh-harnmem test`) |
 | Evaluation | functional gates PASS; macro R@10 1.000, MRR 0.891, nDCG@10 0.911; 5 advisory perf gates (see §3) |
-| Real trial | running since 2026-10-21: pi (with `pi-memory`) and DSH desktop (with `dsh-auto-memory`) both installed side by side |
+| Real trial | running since 2026-10-21; since 2026-10-24 it is a single store: N4/N5 migrated the legacy memories and N3 disabled `dsh-auto-memory` (desktop profile) and `pi-memory` (pi), effective on the next start of each harness |
 | Environment | Windows 11, Node 24.9.0, pnpm 10.33.2, pi 1.3.0, DeepSeek Harness 0.2.1-rc.2 |
 
 **Live trial evidence** (`C:\Users\<user>\.harnmem`):
@@ -312,12 +312,21 @@ Check boxes as items land, and update this file when the status changes.
 
 ### Phase C — release v0.2.0
 
-- [ ] **N6. Bump and tag.**
+- [x] **N6. Bump and tag.**
   Version `0.2.0` in all four packages, `CHANGELOG.md` entry ("DSH adapter,
   cold-start injection, toolPrefix coexistence, section order"), commit, push,
   tag `v0.2.0`, confirm CI and the release workflow (publish still expected to
   fail without npm credentials).
   *Acceptance:* tag on a green commit; `git log v0.1.0..v0.2.0` tells the story.
+  *Done 2026-10-24:* bumped all four packages to `0.2.0` and dated
+  `CHANGELOG.md` as `[0.2.0] - 2026-10-24` (commit `19c7e2d`), tagged
+  `v0.2.0` and pushed `master` + the tag. CI run
+  [40060992327](https://github.com/ys118/harnmem/actions/runs/40060992327) is
+  green; the tag-triggered Release run
+  [40060996150](https://github.com/ys118/harnmem/actions/runs/40060996150)
+  passed install/build/typecheck/test/eval and failed only at "Publish
+  packages" with `ENEEDAUTH` (no `NPM_TOKEN` secret / `@harnmem` npm org
+  yet) — exactly the expected N7 blocker.
 
 - [ ] **N7. Publish to npm (publish order matters).**
   ```powershell
