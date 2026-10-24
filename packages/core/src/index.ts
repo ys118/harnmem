@@ -58,4 +58,24 @@ export {
 } from "./hot-context.js";
 export { layoutHotContext, renderContextText, CONTEXT_HEADER, CONTEXT_FOOTER } from "./retrieval.js";
 export type { HotContextLayout, HotContextOptions, HotDigest } from "./retrieval.js";
+export { MemoryInspector, openInspector } from "./inspect.js";
+export type {
+  InspectContext,
+  InspectContextOptions,
+  InspectFileError,
+  InspectIndexOptions,
+  InspectIndexStatus,
+  InspectIndexText,
+  InspectIssue,
+  InspectList,
+  InspectListOptions,
+  InspectMemory,
+  InspectOverview,
+  InspectOverviewOptions,
+  InspectProject,
+  InspectReadOptions,
+  InspectRow,
+  InspectShard,
+  MemoryInspectorOptions,
+} from "./inspect.js";
 
