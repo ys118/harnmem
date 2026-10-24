@@ -1,7 +1,7 @@
 {
   "name": "dsh-harnmem",
   "version": "0.2.0",
-  "description": "HarnMem memory plugin for the DSH (DeepSeek Harness) agent: byte-stable hot-index injection, memory tools, and session-end extraction.",
+  "description": "HarnMem memory plugin for the DSH (DeepSeek Harness) agent: byte-stable hot-index injection, memory tools, session-end extraction, and a read-only memory browser panel.",
   "license": "MIT",
   "type": "module",
   "keywords": [
@@ -14,6 +14,16 @@
   ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./client": {
+      "default": "./dist/client.js"
+    },
+    "./package.json": "./package.json"
+  },
   "files": [
     "dist/",
     "README.md",
@@ -23,13 +33,26 @@
     "node": ">=22.15"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && tsdown -c tsdown.config.ts",
+    "build:client": "tsdown -c tsdown.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@harnmem/core": "workspace:*",
-    "@deepseek-ai/schemastery": "^3.18.2"
+    "@deepseek-ai/schemastery": "^3.18.2",
+    "@harnmem/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-client-locale": "^0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-ui-layout": "^0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-ui-primitives": "^0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-ui-sidebar": "^0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-ui-slots": "^0.1.5-rc.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "react": "^19.3.0",
+    "react-dom": "19.3.1",
+    "tsdown": "^0.22.2"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.2 <5.0.0",
@@ -71,6 +94,14 @@
     "manifestVersion": 1,
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ]
     }
   },
   "publishConfig": {

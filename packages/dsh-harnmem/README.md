@@ -91,6 +91,64 @@ YAML-subset frontmatter, a rebuildable index, an audit log, and a migration ledg
 server, no database, no network calls from the core — the only network path is the host
 LLM bridge used for session-end extraction.
 
+## Memory browser panel
+
+The DSH web GUI (the desktop app renders the same GUI) shows a **Memory** icon in the left
+sidebar (`sidebar.panellist`, id `harnmem`, order 60). It opens a read-only browser for the
+store: no new config keys, no new runtime dependency, and nothing to install beyond the
+plugin itself.
+
+| View | What it shows |
+|---|---|
+| Overview | Store home and current project, totals (records, active, superseded, archived, pinned, bytes, tokens, shards, projects, trash), the injection-budget meter, health issues (over budget, duplicate candidates, orphans, last consolidation), index freshness, per-shard table, registered and unregistered projects, and extraction status (pending/failed). |
+| Memories | Shard selector (all / user / each project), type and status filters, and a local search over title, description, preview, tags and id. Rows carry type/status/pinned badges, importance, size and relative update time. Inactive records stay visible for inspection; only active ones take part in injection. |
+| Detail | Opens from a row (a drill-in, not a fifth tab): every frontmatter field, the rendered Markdown body, tags/entities/links/backlinks, the supersede (`history`) chain, and the raw file with frontmatter. Links, backlinks and history rows are clickable. |
+| Index | The verbatim `MEMORY.md` hot-index text per shard (or every shard part separated by `<!-- harnmem shard: … -->`), with byte count and generation time. |
+| Injection preview | Re-renders the injected block through `renderHotContextSync()` — the same core function the adapter uses, so the text matches what the model receives byte for byte — with the token estimate against the budget, the injected ids and the shard list. |
+
+The panel is **read-only**: there is no write, delete, pin or forget action. Writes remain
+with the model tools (`harnmem_write`, …) and the `harnmem` CLI, where the audit trail
+lives. The host side reads the store directly through `MemoryInspector` (`@harnmem/core`):
+it never opens the memory engine, never calls `HarnMem.open()`, never writes to disk and
+never calls an LLM, so it cannot race the adapter's own engine or mutate `projects.json`.
+
+### Host routes
+
+Six JSON endpoints under `/api/harnmem/`, all `GET`, registered through the host
+`connection` service (on a host without `connection.fetch` — headless ACP, test trees — the
+panel is silently absent and the plugin still loads):
+
+| Route | Query | Returns |
+|---|---|---|
+| `/api/harnmem/overview.get` | `cwd` (optional) | `InspectOverview` |
+| `/api/harnmem/memories.list` | `shard=<all\|user\|projectId>`, `includeInactive=0\|1` | `InspectList` |
+| `/api/harnmem/memory.read` | `id`, `history=1` (optional) | `InspectMemory` or `null` |
+| `/api/harnmem/context.preview` | `cwd`, `budgetTokens`, `hotEntries` (optional) | `InspectContext` |
+| `/api/harnmem/index.read` | `shard` (optional) | `InspectIndexText` |
+| `/api/harnmem/projects.list` | — | `InspectProject[]` |
+
+Every response uses the `{ok:true,data}` / `{ok:false,error}` envelope with
+`cache-control: no-store`; bad parameters return `400`, non-GET methods `405`, internal
+failures `500`. The browser bundle (`dist/client.js`) is built by `tsdown` into the
+`window.__ModuleLoader__.load({ id: "dsh-harnmem", … })` format and is declared through
+`exports["./client"]`; its only runtime requirement is React.
+
+### Refresh and troubleshooting
+
+- Views fetch when they open; the panel's refresh button (or a page reload) re-fetches.
+  There is no background polling, so a memory written by a tool call shows up after one
+  refresh.
+- After changing plugin code, rebuild (`pnpm --filter dsh-harnmem build`, i.e. `tsc` +
+  `tsdown`) and restart DSH — plugin code is loaded at startup. A page refresh alone only
+  re-fetches data and cannot pick up new code.
+- No icon? Confirm the profile runs the DSH web GUI (headless hosts skip the browser half
+  by design) and that the host half applied: `~/.harnmem/logs/dsh.jsonl` should contain
+  `plugin.apply` and `panel.api.ready` (with `routes: 6`, or `panel.api.unavailable` when
+  the connection service is absent), and devtools should show `/api/harnmem/overview.get`
+  returning 200 — a 404 means an older host build is loaded.
+- Empty panel? `~/.harnmem` may not exist yet: the overview reports an `empty_home` issue
+  and every list stays empty until the first memory is written.
+
 ## Security
 
 - No credentials, tokens or cookies should be stored; core redacts obvious secrets before

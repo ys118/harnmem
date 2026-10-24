@@ -79,6 +79,16 @@ export interface HostContext {
   tools?: ToolsService;
   /** Cordis effect API: used to close engines when the plugin unloads. */
   effect?(factory: () => Generator<() => Promise<unknown>>): unknown;
+  /**
+   * Cordis dynamic injection: invokes `callback` with a scoped context once all
+   * `deps` services are available. Needed for services whose provider applies
+   * asynchronously (the DSH `connection` service only exposes `fetch` after the
+   * web host booted), and deliberately preferred over listing such a service in
+   * the plugin-level `inject` array — that would block mounting entirely when
+   * the service does not exist (headless profile, unit tests). If the dep never
+   * appears, the callback simply never runs; that is the desired no-op.
+   */
+  inject?(deps: string[], callback: (scope: HostContext) => void): unknown;
 }
 
 /** Second argument of a tool's `execute(args, exec)`. */

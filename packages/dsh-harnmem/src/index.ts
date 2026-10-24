@@ -10,6 +10,7 @@
 import { Config, resolveSettings } from "./config.js";
 import type { HostAgent, HostContext, UnknownRecord } from "./host.js";
 import { createLogger, logFilePath } from "./log.js";
+import { registerPanelApi } from "./panel-api.js";
 import { SessionManager } from "./sessions.js";
 import { errorMessage } from "./snapshot.js";
 import { TOOL_SUFFIXES, registerTools } from "./tools.js";
@@ -189,10 +190,22 @@ export async function apply(ctx: HostContext, config?: unknown): Promise<void> {
     log.warn("tools.setupFailed", { error: errorMessage(err) });
   }
 
+  // --- panel API (read-only): installs now, or when `connection` shows up ----
+  // Registered after the tools so a failed tool bootstrap never hides the panel,
+  // and before the cleanup effect so its dispose joins the same unload path.
+  // `connection` may mount asynchronously; panel-api waits for it via ctx.inject
+  // and stays a silent no-op in hosts that never provide it.
+  const disposePanelApi = registerPanelApi({ ctx, sessions, log, settings });
+
   // --- unload cleanup: never leave engines open, never lose queued log lines -
   try {
     ctx.effect?.(function* cleanup() {
       yield async () => {
+        try {
+          await disposePanelApi();
+        } catch (err) {
+          log.warn("panel.api.disposeFailed", { error: errorMessage(err) });
+        }
         try {
           await sessions.closeAll();
         } finally {

@@ -92,6 +92,16 @@ Last updated: **2026-10-23** (after the first real-trial period).
   `messages` up to the recorded count, only newer turns trigger another run, and
   `already_extracted`/`digest_too_small` are explicit skip reasons while LLM
   failures surface as `failed` (never a silent `done added:0`).
+- **Read-only memory browser panel (2026-10-24).** The DSH web GUI — the desktop
+  app included — shows a "Memory" icon in the left sidebar (`sidebar.panellist`,
+  id `harnmem`, order 60) that opens the store without touching it: Overview,
+  Memories, Detail, Index and Injection-preview views backed by six read-only
+  `GET /api/harnmem/*` routes over `MemoryInspector` in `@harnmem/core`. No new
+  config keys and no new dependencies; writes still belong to the model tools and
+  the CLI. Verified on a scratch web runtime against the real store (4 shards /
+  54 records, all six routes 200; injection preview = 24 ids, ~1,183 tokens).
+  Details: [`design/08-dsh-adapter.md`](design/08-dsh-adapter.md) §12 and the
+  "Memory browser panel" section of `packages/dsh-harnmem/README.md`.
 - Session journals: `~/.harnmem/sessions/<yyyymmdd>/dsh_<sessionId>.jsonl`
   (one 139 KB journal from 2026-10-22; the 2026-10-23 verification runs added
   short journals with 6 messages each).

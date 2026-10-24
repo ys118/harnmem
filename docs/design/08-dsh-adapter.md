@@ -373,3 +373,95 @@ Everything below landed while closing N2; the sections above describe the intend
 8. **The digest is hydrated from the durable journal and quit-time extraction is a catch-up at the next open** (§6). The host tears the provider adapters down before `plugin_unload`, so no LLM call can run at quit (`code:"NO_ADAPTER"` in ms). On attach the adapter seeds the digest with `readSessionJournal()` and, once `userMessages >= minUserMessages`, schedules `sessionEnd(reason:"resume_catchup")` while the LLM is alive (the desktop app resumes the last session on launch); `dispose()` joins that promise. Headless real runtime: 6 entries/3 users hydrated → `extract.catchup status=done added=1`, audit `extract added:1`, memory file written.
 9. **Core extraction is idempotent across processes and its failures are visible.** The `messages` count of the last `done` `extract` audit event is the watermark (`already_extracted`), LLM errors propagate to `status:"failed"`, and short digests skip as `digest_too_small`; the journal readers tolerate a leading UTF-8 BOM (PowerShell 5.1 `Set-Content -Encoding utf8` prepended one and silently dropped the first entry).
 10. **Adapter config gained `minUserMessages`** (default 3), passed to core's write config, and `session.end` records `elapsedMs` (extraction duration) separately from `sessionAgeMs`.
+
+## 12. Memory browser panel (2026-10-24)
+
+By 2026-10-24 the store, injection, extraction and the five tools were all verified, but the only ways to observe them were the model (`harnmem_*` tools), the CLI (`harnmem status` / `search`), and `~/.harnmem/logs/dsh.jsonl`. A human could not see which shards exist, what would be injected in the current project, whether the index is stale, or whether a project shard is silently missing from injection. This section documents the read-only browser added to the DSH web GUI (the desktop app renders the same GUI): a **Memory** icon in the left sidebar opens a panel over five views.
+
+### 12.1 Scope and non-goals
+
+- v1 is strictly **read-only**. No write, delete, pin, forget or config action; the write path stays in the model tools and the CLI, where the audit trail exists.
+- The panel reads the files under `~/.harnmem` through `MemoryInspector`, **not** the adapter's in-process engine. It has to work in a host that has no session, no LLM and no engine, and it must not race the adapter's engine (single-writer discipline for the store).
+- No new config keys (the panel is always on), no new dependencies (the client requires React plus the host client packages already declared as optional peers), and no separate npm package — it ships inside `dsh-harnmem`.
+- Explicit non-goals for v1: in-panel writes, server-side search, and audit/trash/migration views (see 12.9).
+
+### 12.2 Three layers
+
+```
+@harnmem/core        packages/core/src/inspect.ts          MemoryInspector — read-only file access
+        ↓ in-process method calls
+dsh-harnmem host     packages/dsh-harnmem/src/panel-api.ts six GET routes under /api/harnmem/
+        ↓ same-origin HTTP, JSON envelope
+dsh-harnmem client   packages/dsh-harnmem/src/client/**    React panel (browser bundle)
+```
+
+- **core** — `MemoryInspector.open({ home, cacheTtlMs })` resolves `home` as option > `HARNMEM_HOME` > `~/.harnmem` and constructs a store handle only: no `Store.init()`, no `HarnMem.open()`, no disk writes, no LLM. Records come from `memories/<shard>/*.md` frontmatter (authoritative); `index/<shard>.json` is read only for size/staleness, and its `docTerms`/`postings` never leave the host. Parsed shards are cached for 250 ms by default and `projects.json` for 1000 ms.
+- **host** — `panel-api.ts` opens the inspector lazily on first request with `cacheTtlMs: 0`, so a record written earlier in the same process by `harnmem_write` is visible immediately. Per request it resolves the project from the explicit `cwd` query or, when absent, the most recently active session (running session first, then turns, then `updatedAt`) — the same heuristic the client uses. Errors are mapped to the envelope instead of escaping the route.
+- **client** — `face.ts` is the fetch wrapper (same-origin `/api/harnmem/<route>`, auto `cwd` from the active session, envelope parsing, `MemoryApiError`); components render explicit loading / empty / error states and the panel root has an error boundary so a component crash shows an error message instead of a white screen.
+
+### 12.3 Slot contract
+
+Two registrations make one panel:
+
+| Slot | Registration | Meaning |
+|---|---|---|
+| `sidebar.panellist` | `id: "harnmem"`, `order: 60`, `label: () => t("panel")` ("记忆" / "Memory"), locale NS `harnmem` | the icon row in the left sidebar |
+| `main` | keyed slot, `key: "harnmem"`, locale NS `harnmem`, `inject: () => ({ face })` | the panel body opened by that row |
+
+`key === id` is a hard contract: the sidebar row opens the `main` entry whose key equals the row id, and a mismatch does not throw — the row simply opens nothing. The client plugin exports `name: "dsh-harnmem"` and `inject: ["slots", "locale", "sessions"]`; the zh and en dictionaries keep identical key sets.
+
+### 12.4 Views
+
+| View | Content |
+|---|---|
+| Overview | Store home and current project; totals (records, active, superseded, archived, pinned, bytes, tokens, shards, projects, trash, digests); injection-budget meter and hot-entry stats; health issues (over budget, duplicate candidates, orphans, last consolidation); index status (manifest, `state/seq.json`, stale flag); by-type and by-harness counts; per-shard table; registered and unregistered projects; extraction pending/failed. |
+| Memories | Shard selector (all / user / each project), type and status filters, local text search over title/description/preview/tags/id, and rows with type/status/pinned badges, importance, size and relative update time. Inactive records are always included in this view (`includeInactive=1`) so archived and superseded memories remain inspectable; only active records feed injection. |
+| Detail | A drill-in from a row rather than a separate tab: full frontmatter, rendered Markdown body, tags/entities/links/backlinks, the supersede chain (`history`), and the raw file plus frontmatter JSON. Links, backlinks and history rows navigate to other records. |
+| Index | The verbatim `MEMORY.md` hot-index text per shard — or every shard part separated by `<!-- harnmem shard: <name> -->` — with byte count and generation time. |
+| Injection preview | The block currently injected, rendered by `renderHotContextSync()` (the very function the adapter's snapshot uses), with token estimate vs budget, injected ids and the shard list. |
+
+The top bar has four tabs (Overview, Memories, Index, Injection); Detail is a drill-in from a memory row, so the five views fit without losing the list context. In v1 the injection preview has no parameter form — it uses the adapter's configured `injectMaxTokens` / `hotEntries` defaults; the route accepts `budgetTokens` / `hotEntries` overrides for diagnostics.
+
+### 12.5 Host routes
+
+All routes are `GET`, registered through the host `connection` service with `requestBody: "buffered"` and the full path (including `/api`):
+
+| Route | Query | Returns |
+|---|---|---|
+| `/api/harnmem/overview.get` | `cwd` (optional) | `InspectOverview` |
+| `/api/harnmem/memories.list` | `shard=<all\|user\|projectId>`, `includeInactive=0\|1` | `InspectList` |
+| `/api/harnmem/memory.read` | `id` (required), `history=1` (optional) | `InspectMemory` or `null` |
+| `/api/harnmem/context.preview` | `cwd`, `budgetTokens`, `hotEntries` (optional) | `InspectContext` |
+| `/api/harnmem/index.read` | `shard` (optional) | `InspectIndexText` |
+| `/api/harnmem/projects.list` | — | `InspectProject[]` |
+
+Common conventions: every response is a `{ok:true,data}` / `{ok:false,error}` JSON envelope with `cache-control: no-store`; non-GET methods return `405`, malformed parameters `400` (positive integers, `0|1` flags, missing `id`), and internal failures `500` with the message only (stack stays in the log as `panel.api.failed`). Routes never throw past the handler.
+
+The plugin deliberately does **not** put `connection` in its static `inject` list: headless ACP hosts and test trees do not have that service, and a static inject would make the whole plugin wait or fail. It takes the fast path `ctx.get("connection")` and, when the service is not there yet (the web server applies asynchronously), installs the routes later through a dynamic `ctx.inject(["connection"], …)`. Installation is idempotent; dispose unregisters all six routes and closes the lazily opened inspector. The panel uses no `ctx.webServer` and claims no prefix outside `/api/harnmem/`; log events are `panel.api.ready` (route count, prefix, home), `panel.api.unavailable`, `panel.api.failed`, `panel.api.routeFailed` and `panel.api.disposeFailed`.
+
+### 12.6 Build and packaging
+
+- `src/client/**` compiles separately (`tsconfig.client.json`, JSX, DOM lib) and `tsdown.config.ts` bundles it into `dist/client.js` in the `window.__ModuleLoader__.load({ id: "dsh-harnmem", factory: (require) => { … } })` shape. Only React and the host client packages stay external; there are no Node builtins and no `@harnmem/core` import in the browser bundle (the client mirrors the response types by hand in `src/client/types.ts`).
+- `package.json` declares `exports["./client"]` pointing at `dist/client.js` and `dsh.client = { platform: "web", inject: ["@deepseek-ai/dsh-client-locale", "@deepseek-ai/dsh-client-ui-layout", "@deepseek-ai/dsh-client-ui-sidebar"] }`. The host build stays `tsc -p tsconfig.json && tsdown -c tsdown.config.ts` (`pnpm --filter dsh-harnmem build`).
+- There is no new entry point for users: the panel ships inside the `dsh-harnmem` package, so installing or upgrading the plugin is enough.
+
+### 12.7 Read-only and security constraints
+
+- Host routes are GET-only; the panel exposes no write surface at all. Writes remain in the model tools and the CLI, where the core audit log records them.
+- The browser receives summaries and file text only. The search index's `docTerms`/`postings` never cross the API (they are large and the panel does not need them), and the injection preview is the same block the model already sees, so the panel adds no disclosure path.
+- No credentials, no LLM call and no network egress: the only traffic is same-origin `/api/harnmem/*`.
+- The inspector never writes: it does not register a project in `projects.json` (a read must not mark a project as used), does not call `Store.init()`, does not rebuild the index and does not emit audit events. That is what lets the panel run next to the adapter without contention.
+- Rollback is uninstall-level: no config keys and no store schema changes were added; removing or downgrading the plugin removes the panel.
+
+### 12.8 Verification (2026-10-24)
+
+- Unit/integration: `@harnmem/core` 37/37 and `dsh-harnmem` 45/45 tests pass at the time of the panel API landing, including the new `test/panel-api.test.mjs` (route registration, envelope and error codes, 405 for non-GET, the read-only byte-stable home assertion, and both the no-`connection` and late-`connection` paths). The UI half adds its own `test/client-bundle.test.mjs` on top.
+- Real store on a scratch DSH web runtime: `~/.harnmem` with 4 shards and 54 records — all six routes returned 200; `context.preview` hit shards `user,harnmem-438dc3c76d` with 24 ids and about 1,183 tokens.
+- Incidental fixes the panel needed: `resolveProjectId` now prefers the recorded project id when several ids share one path in `projects.json` (otherwise the project shard was silently dropped from injection), and `loadProjects()` no longer shares `EMPTY_PROJECTS` across homes (cross-home pollution).
+
+### 12.9 Follow-ups (not implemented)
+
+- In-panel writes (archive, pin, edit, forget) for phase 2. They need a single-writer path — route through the adapter's engine or take an explicit lock — and must reuse core's audit events rather than writing files directly.
+- Server-side search/filtering once a store grows past a few thousand records; today the client filters the loaded list locally.
+- An audit/diagnostics view covering `audit.jsonl` `extract` events, `trash/`, the migration ledger and `state/seq.json` — useful to explain "why is this memory not injected".
+- Optional UI controls for the injection preview: the route already accepts `budgetTokens`/`hotEntries`, but the v1 UI always uses the configured defaults.
