@@ -51,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plugins are installed.
 - `dsh-harnmem`: default `toolPrefix` is `harnmem_` (the adapter previously
   registered bare `memory_*` names that `dsh-auto-memory` already owned),
-  `llmTimeoutMs` default is 20 s (measured extraction 10.8–14.1 s), the digest
+  `llmTimeoutMs` default is 60 s (measured desktop catch-up 33–37 s), the digest
   evicts the oldest non-user entry first so early prompts survive tool noise,
   and the extraction LLM call uses a local chunk-protocol bridge instead of a
   `@deepseek-ai/dsh-llm` import that cannot resolve from a linked install.
@@ -77,6 +77,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `status:"done", added:0`; they are now `digest_too_small` / `failed`. Journal
   readers tolerate a leading UTF-8 BOM so hydration cannot silently lose the first
   prompt.
+- `@harnmem/cli`: `import` pre-assigns memory ids and remaps legacy
+  `[[wiki links]]` from source slugs to those ids, so migrated records no longer
+  land as orphan links (the N4 rehearsal surfaced 22 orphans on a scratch home;
+  the real dsh run resolved 21 links and dropped 0 targets outside the batch).
+  The ROADMAP records the N4/N5 evidence (backups, `import verify`, idempotent
+  second runs, scratch-home rollback, merged-store scope checks).
 
 ## [0.1.0] - 2026-10-20
 

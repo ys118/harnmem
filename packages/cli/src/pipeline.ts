@@ -17,7 +17,7 @@ import { existsSync } from "node:fs";
 import { copyFile, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { basename, join, relative } from "node:path";
 
-import type { HarnMem, HarnessId } from "@harnmem/core";
+import { newMemoryId, type HarnMem, type HarnessId, type ImportRecord } from "@harnmem/core";
 
 import {
   buildImportedIndex,
@@ -304,6 +304,81 @@ export async function runImport(eng: HarnMem | null, home: string, options: Impo
     return false;
   });
   skipped += titleSkipped;
+
+  // Legacy wiki links name source files/slugs, not memory ids. Pre-assign the
+  // ids for this run, remap every link to its target's id, and drop targets
+  // that are not part of this batch: the merged store must not gain orphan
+  // links (ROADMAP N4/N5). `mem_*` links are already ids and stay untouched.
+  const assignedIds = importable.map(
+    (item) => item.record.id ?? newMemoryId(item.record.created ?? Date.now()),
+  );
+  const byName = new Map<string, string>();
+  const globalNames = new Map<string, string | null>();
+  const linkNames = (record: ImportRecord, originPath: string): string[] => {
+    const names: string[] = [];
+    const legacy = (record.extra as { legacy?: { name?: unknown; originalId?: unknown } } | undefined)
+      ?.legacy;
+    const migrated = (record.source as { migratedFrom?: { originalId?: unknown } } | undefined)
+      ?.migratedFrom;
+    for (const candidate of [legacy?.name, legacy?.originalId, migrated?.originalId]) {
+      if (typeof candidate === "string" && candidate.trim() !== "") names.push(candidate);
+    }
+    const stem = basename(originPath).replace(/\.md$/i, "");
+    if (stem) names.push(stem);
+    return names;
+  };
+  const normalized = (name: string): string => name.trim().toLowerCase();
+  for (let i = 0; i < importable.length; i++) {
+    const item = importable[i];
+    if (!item) continue;
+    const record = item.record;
+    const scope = record.scope ?? "project";
+    const project = record.project ?? "";
+    for (const name of linkNames(record, item.originPath)) {
+      const key = normalized(name);
+      byName.set(`${scope}|${project}|${key}`, assignedIds[i] as string);
+      const seen = globalNames.get(key);
+      globalNames.set(
+        key,
+        seen === undefined ? (assignedIds[i] as string) : seen === assignedIds[i] ? seen : null,
+      );
+    }
+  }
+  const resolveLink = (record: ImportRecord, link: string): string | undefined => {
+    if (normalized(link).startsWith("mem_")) return link;
+    const scope = record.scope ?? "project";
+    const project = record.project ?? "";
+    return (
+      byName.get(`${scope}|${project}|${normalized(link)}`) ??
+      globalNames.get(normalized(link)) ??
+      undefined
+    );
+  };
+  let resolvedLinks = 0;
+  let droppedLinks = 0;
+  for (let i = 0; i < importable.length; i++) {
+    const item = importable[i];
+    if (!item) continue;
+    const record = item.record;
+    record.id = assignedIds[i];
+    if (!record.links || record.links.length === 0) continue;
+    const next: string[] = [];
+    for (const link of record.links) {
+      const id = resolveLink(record, link);
+      if (!id) {
+        droppedLinks += 1;
+        continue;
+      }
+      if (!next.includes(id)) next.push(id);
+      resolvedLinks += 1;
+    }
+    record.links = next;
+  }
+  if (resolvedLinks > 0 || droppedLinks > 0) {
+    warnings.push(
+      `legacy wiki links: ${resolvedLinks} resolved to imported ids, ${droppedLinks} dropped (target outside this batch)`,
+    );
+  }
 
   const counts: LedgerCounts = {
     discovered: discovery.items.length,

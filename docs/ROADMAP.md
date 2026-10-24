@@ -239,7 +239,7 @@ Check boxes as items land, and update this file when the status changes.
 
 ### Phase B — one store, real data
 
-- [ ] **N4. Migrate the existing legacy stores into `~/.harnmem`.**
+- [x] **N4. Migrate the existing legacy stores into `~/.harnmem`.**
   Dry-run first; imports back up the source and are idempotent.
   ```powershell
   # DSH auto-memory (~/.dsh/memory) + pi-memory (~/.pi/agent/memory)
@@ -259,12 +259,44 @@ Check boxes as items land, and update this file when the status changes.
   `import verify` passes, rollback (`import rollback <runId>`) works on a
   scratch home.
 
-- [ ] **N5. Validate the merged store.**
+  *Done (2026-10-24).* Real apply on `C:\Users\<user>\.harnmem`: `import dsh`
+  imported 30 records (21 project / 5 feedback / 2 reference / 2 user; by
+  project: <project-a>-<project-id> 23, <project-b>-<project-id> 4,
+  harnmem-438dc3c76d 1, user 2) and `import pi` imported 10 user-scope
+  records, leaving 22 pi `daily/` blocks unresolved (content inspection showed
+  cross-project tooling notes, so forcing `--project` would misattribute
+  them). Each run backed up the source under
+  `~/.harnmem/state/backups/<runId>/`; `import verify
+  mig-20261024T035400Z-xu092w` and `...-ek35re` reported 30/30 and 10/10 ids
+  present with sources unchanged, and second runs imported 0. Rollback was
+  rehearsed on a scratch copy of the home first (30 + 10 ids forgotten, 0
+  missing, baseline counts restored). The rehearsal also exposed orphaned
+  `[[wiki links]]`: imported records carried source slugs as links, so
+  `import` now pre-assigns ids and remaps links to them
+  (`packages/cli/src/pipeline.ts`); the real dsh run resolved 21 links and
+  dropped 0 targets outside the batch. Historical duplicate project rows
+  (path-key vs git-key identities for the same repos) are left to the future
+  doctor/normalize step.
+
+- [x] **N5. Validate the merged store.**
   Run `harnmem stats`, a handful of real queries per project, check scopes
   (user vs project) and duplicates; add a `tagmap.json` only if the pi tag
   vocabulary needs mapping.
   *Acceptance:* no cross-project leaks, no duplicate candidates, search results
   judged useful by hand.
+
+  *Done (2026-10-24).* `harnmem stats` after the import: user 14 / harnmem 9 /
+  <project-a> 23 / downloads 4 active records, index rebuilt, 0 orphans.
+  Scope spot checks: from `<repo>`, `search pnpm` returns only
+  user-scope + harnmem hits (no foreign-project leak); `search data/` returns
+  one user-scope global memory (legitimately visible everywhere);
+  `--project <project-a>-<project-id> search promotion-rules` returns 12
+  project hits; `--project <project-b>-<project-id> search windows` returns its
+  own records. The single pre-existing duplicate candidate (two near-identical
+  user memories about answer language and conclusion-first style, created by
+  the N2 catch-up test) was moved to trash
+  (`<memory-id>`, restorable with `harnmem restore`);
+  duplicate candidates went 1 -> 0. No `tagmap.json` was needed.
 
 ### Phase C — release v0.2.0
 
