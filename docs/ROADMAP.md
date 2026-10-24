@@ -185,8 +185,14 @@ Check boxes as items land, and update this file when the status changes.
   once (`sessions/20261023/*.jsonl`, mtime `13:33:15.16–.20Z`; this session's
   200-line transcript is one of them) — the dispose chain ran, but extraction
   did not finish or log before the host exited. The 21:52:46 restart left no
-  dispose trace at all (hard quit). See trial notes. **Still to observe:**
-  `session.end` on a desktop quit, and the 2–3 day usefulness verdict.
+  dispose trace at all (hard quit). Since 575d900 the quit path is closed by
+  deferred catch-up — verified on the real store (2026-10-24, trial notes
+  below): a resumed session logged `digest.hydrated {userMessages:4}` →
+  `extract.catchup {status:"done", added:4}` → `session.end
+  skipReason:"already_extracted"`. **Still to observe:** the desktop-GUI attach
+  path once the app restarts onto 575d900 (open an old session whose journal
+  has ≥3 user messages, or accumulate ≥3 prompts before quitting), and the
+  2–3 day usefulness verdict.
   *Acceptance:* a short trial note in this file (append under §5) with numbers
   and a verdict on usefulness.
 
@@ -372,6 +378,25 @@ Check boxes as items land, and update this file when the status changes.
   `session.end status:"skipped" skipReason:"already_extracted"`. The preceding
   run (journal seeded with a BOM) reproduced the old failure: hydration lost one
   prompt (5/2), no catch-up, `llm.callFailed code:"NO_ADAPTER"` at unload.
+- **2026-10-24 11:18 — real `~/.harnmem`, resume catch-up end-to-end.**
+  Headless profile `harnmem-verify` against the real store: created a session,
+  appended three preference turns to its journal (simulating the prompts the old
+  code never journaled), then resumed with `--session-id`. Logs:
+  `digest.hydrated {entries:10, userMessages:4}` → `llm.response
+  {chars:1812, reasoningChars:2037, finish:"stop"}` after 6.6 s →
+  `extract.catchup {status:"done", added:4}` → `session.end
+  {status:"skipped", skipReason:"already_extracted"}`. `audit.jsonl` shows four
+  `write` events and `extract done added:4 messages:10 userMessages:4`, then the
+  `already_extracted` skip. Four memory files appeared (3 project, 1 user;
+  store now user 2 / project 5). A preceding run with a too-short turn exited
+  before the background LLM call returned and logged no `extract.catchup` — the
+  headless CLI does not keep the process alive for it; the desktop app process
+  persists, so this is CLI-only.
+  *Desktop note:* the currently resumed tabs have only 0–1 user messages in
+  their journals (`<session-id>`: 1, `<session-id>`: 0), so a plain restart will hydrate
+  below `minUserMessages`; to watch catch-up in the GUI, open a session whose
+  journal has ≥3 users (e.g. `<session-id>` or `<session-id>`, four each) or accumulate
+  three prompts before quitting.
 
 ## 6. Verification runbook
 

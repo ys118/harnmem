@@ -221,6 +221,17 @@ memory `<memory-id>`; the dispose that followed logged
 `session.end status:"skipped" skipReason:"already_extracted"`. Core 29/29,
 adapter 28/28, `pnpm -r typecheck` green.
 
+**Verification on the real store (2026-10-24 11:18):** same flow against the
+real `~/.harnmem` (no `HARNMEM_HOME` override): `digest.hydrated {entries:10,
+userMessages:4}` → `llm.response {chars:1812, reasoningChars:2037,
+finish:"stop"}` after 6.6 s → `extract.catchup {status:"done", added:4}` →
+`session.end status:"skipped" skipReason:"already_extracted"`; `audit.jsonl`
+recorded four `write` events and `extract done added:4 messages:10
+userMessages:4`, and four memory files appeared (store: user 2 / project 5).
+A shorter preceding run exited before the background LLM call returned (the
+CLI does not keep the process alive for it), which is CLI-only — the desktop
+app process persists.
+
 **Residual:** sessions that are never reopened are not extracted (the journal is
 kept; a turn/idle-triggered extraction would close this and is an N13 option).
 The desktop restart cycle itself still has to be observed live in N1.
