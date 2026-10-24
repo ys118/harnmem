@@ -244,10 +244,7 @@ Check boxes as items land, and update this file when the status changes.
   `pi-harnmem` (`C:\Users\<user>\.pi\agent\harnmem.json`). Pre-change copies are
   in `.tmp/n3-backup-20261024-1205/` (restore them to roll back). Takes effect
   on the next DSH/pi start: confirm `plugin.apply` no longer lists
-  `dsh-auto-memory` and that only `harnmem_*` memory tools remain. The legacy
-  stores stay on disk as read-only archives (`~/.dsh/memory`,
-  `~/.pi/agent/memory`); the leftover profile `node_modules` copy of
-  `dsh-auto-memory` is pruned by the next `dsh plugin` install.
+  `dsh-auto-memory` and that only `harnmem_*` memory tools remain.
   *Verified 2026-10-24 15:07 (desktop restart):* `dsh.jsonl` shows
   `plugin.apply` → `tools.registered {count:5, of:5, prefix:"harnmem_"}` →
   `session.started {bytes:5835, ids:24}`, with no `registerFailed` and no
@@ -257,6 +254,17 @@ Check boxes as items land, and update this file when the status changes.
   downloads 4 / harnmem 10, index fresh, 0 duplicate candidates, 0 orphans.
   Old chat sessions may keep the tool list they were created with; open a new
   session to see the `harnmem_*` tools.
+  *Cleaned up 2026-10-24 (legacy files):* the leftover desktop-profile
+  `node_modules` copy was pruned with `dsh plugin --profile desktop install`
+  (5 packages removed: `dsh-auto-memory` and its deps; lockfile references 0),
+  and `C:\Users\<user>\.dsh\memory` (35 files, 131 KB) was deleted after the N4
+  import backups under `~/.harnmem/state/backups/mig-*` were verified to hold
+  full source copies and the merged store was spot-checked. Remaining textual
+  mentions are intentional: the disabled-plugin breadcrumb in the profile's
+  `cordis.patch.yml`, the marketplace catalog/log under
+  `~/.dsh/profiles/desktop/.dsh-market/`, and the rollback copy in
+  `.tmp/n3-backup-20261024-1205/`. The pi legacy store `~/.pi/agent/memory`
+  stays untouched until the pi-memory cleanup is decided.
 
 ### Phase B — one store, real data
 
