@@ -59,6 +59,12 @@ the local process, and lifecycle decisions are explainable and reversible.**
 - **KV-cache-friendly injection.** The injected block is rebuilt only on session
   start, compaction, memory writes and day rollover, and is byte-identical
   between turns, so prompt caches keep hitting.
+- **A vocabulary that grows with your corpus.** The shipped synonym tables are
+  generic on purpose; `harnmem synonyms suggest` reads your own memories, asks a
+  model for interchangeable terms a co-occurrence pass could never find (Chinese
+  jargon usually shares no characters), validates every group against the corpus,
+  and writes reviewed proposals to a local `-suggested` table. `synonyms check`
+  reports the rank gain before you keep it.
 - **Measured, not asserted.** A deterministic evaluation harness covers 12
   scenario suites with hard functional gates and advisory performance gates;
   ablations show which retrieval signals matter.
@@ -74,7 +80,7 @@ Requirements: **Node.js 22.15+** and **pnpm 10** (`corepack enable`).
 corepack enable
 pnpm install
 pnpm -r build
-pnpm test            # core test suite: node --test, 19 tests
+pnpm test            # core test suite: node --test, 52 tests
 ```
 
 ### pi adapter
@@ -124,6 +130,11 @@ node packages/cli/dist/main.js write --type feedback \
 # Migrate legacy memories: dry-run by default, then --apply
 node packages/cli/dist/main.js import dsh
 node packages/cli/dist/main.js import pi --apply
+
+# Grow the local synonym table from your own memories (nothing is auto-applied)
+node packages/cli/dist/main.js synonyms list
+node packages/cli/dist/main.js synonyms suggest --llm-url http://127.0.0.1:11434/v1 --llm-model qwen3:8b
+node packages/cli/dist/main.js synonyms check
 ```
 
 ### Evaluation
@@ -300,8 +311,10 @@ numbers, the running trial, known issues) and the ordered next steps.
 
 ## Security and privacy
 
-HarnMem is local-first: no telemetry, no network calls in the engine or CLI, no
-background service. Memory content is sensitive by nature — back up
+HarnMem is local-first: no telemetry, no background service, and the engine never
+opens a network connection. The CLI is offline by default too; the only outbound
+call is the opt-in `harnmem synonyms suggest --llm-url` bridge, which runs solely
+when you pass an endpoint. Memory content is sensitive by nature — back up
 `~/.harnmem/`, keep it out of version control, and read
 [SECURITY.md](SECURITY.md) before reporting a vulnerability. The store uses
 symlink/path containment checks, size caps, sensitive-value redaction, soft

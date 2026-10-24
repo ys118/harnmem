@@ -5,11 +5,11 @@
 
 ## Deployment and editable copies
 
-- On first engine open: `deployDefaultAssets(home)` copies the package/repository-root `prompts/*.md|*.txt` and `data/*.txt|*.tsv` into `<home>/prompts`, `<home>/data`; **existing files are never overwritten**. Synonym tables are named `synonyms.txt` or `synonyms.<lang>.txt` (e.g. `synonyms.zh.txt`): every such file found in `<home>/data` and the repository `data/` is loaded and merged, with the `<home>` copy winning per filename.
+- On first engine open: `deployDefaultAssets(home)` copies the package/repository-root `prompts/*.md|*.txt` and `data/*.txt|*.tsv` into `<home>/prompts`, `<home>/data`; **existing files are never overwritten**. Synonym tables are named `synonyms.txt` or `synonyms.<lang>.txt` (e.g. `synonyms.zh.txt`): every such file found in `<home>/data` and the repository `data/` is loaded and merged, with the `<home>` copy winning per filename. `harnmem synonyms suggest --write` appends reviewed groups to `<home>/data/synonyms.<lang>-suggested.txt`, which the loader treats as one more language file (delete the file or a line to retire a suggestion — the repository is never modified).
 - Asset-root discovery order: the `HARNMEM_ASSETS_DIR` environment variable → walk up to 8 levels from the directory containing `assets.ts` looking for a directory that contains `prompts/extract.md` → if not found (single-file bundle), use the built-in default prompt in `packages/core/src/extract.ts`.
 - Load priority: `<home>/prompts/<name>.md` → repository/package default (`readAssetRaw`); the user's `<home>` copy overrides, and deleting the copy falls back to the built-in/default.
 - When changes take effect: files are re-read on every extraction/consolidation, no restart needed; an edit applies to the next extraction (byte stability of injected text and the system prompt is guaranteed by engine snapshots, see 03 §5.2).
-- Names: extraction = `extract.md`; consolidation = `consolidate-digest.md`; `write-policy.md` is write-discipline text for humans and adapters, and the engine does not load it today (injection is a v0.2 consideration).
+- Names: extraction = `extract.md`; consolidation = `consolidate-digest.md`; synonym suggestions = `synonyms.md` (read by the `harnmem synonyms suggest` CLI command, not by the engine's extraction path); `write-policy.md` is write-discipline text for humans and adapters, and the engine does not load it today (injection is a v0.2 consideration).
 
 ## File inventory
 
@@ -18,6 +18,7 @@
 | `extract.md` | Background extraction: conversation → candidate-memory JSON | `LlmPort.generate()`, triggered by the engine after a conversation turn | system ≤ 1800 tok (measured 1763); template ≤ 120 tok (measured 85; injected data excluded) |
 | `write-policy.md` | Write-discipline text, **no LLM call**, injected verbatim into the memory block | Injection layer (within the `injectTokens` budget) | ≤ 220 tok (measured 192) |
 | `consolidate-digest.md` | Topic consolidation: a group of memories → one digest page | `LlmPort.generate()`, explicit or background call | system ≤ 650 tok (measured 398); template ≤ 50 tok (measured 32) |
+| `synonyms.md` | Synonym-table suggestions: local memories → proposed `canonical<TAB>synonyms` groups | `harnmem synonyms suggest` only (`packages/core/src/suggest.ts`); the engine never calls it | system ≤ 1100 tok (measured 338); template ≤ 100 tok (measured 44; injected data excluded) |
 
 Engine token estimate: `tokens ≈ 0.75 × CJK chars + 0.3 × ASCII chars`; measurements above were taken on 2026-10-20 after the English rewrite with `estimateTokens` from `packages/core`. CI validates budgets with the same formula and fails when exceeded.
 
@@ -53,6 +54,10 @@ Parsing rules (implementation: `parsePromptAsset` in `packages/core/src/assets.t
 | | `{{transcript}}` | One line each: `User: …` / `Assistant: …` / `Tool: …`; whitespace collapsed to single spaces; each entry truncated to 1200 characters; filled newest-to-oldest, total ≤ 6000 characters |
 | `consolidate-digest.md` | `{{topic}}` | Topic name (`category ?? tags[0] ?? type`, in the user's language as-is) |
 | | `{{memories}}` | One block per memory: `### [mem_id] (type) valid_from=YYYY-MM-DD` + `title:` + `description:` + `content:` (first 800 characters of the body); at most 12 per batch, blocks separated by blank lines |
+| `synonyms.md` | `{{language}}` | Language tag written from `--language` (default `zh`), e.g. `Language: zh` |
+| | `{{terms}}` | One line: `term (count)` pairs joined with `, `, most frequent first; at most 120 terms; `(none)` when the local corpus harvest is empty |
+| | `{{existing}}` | One line per group in force: `canonical = synonym, synonym`; at most 40 groups; `(empty)` when no table is loaded |
+| | `{{samples}}` | One line each: `- title — description` (at most 16 records, each ≤ 160 characters); optional `- [session] text` lines (at most 8, each ≤ 140 characters); `(empty)` when there is nothing to sample |
 
 > The input rendering format is a **contract between prompts and the engine**: confirm the rendering format has not changed before editing a prompt; a rendering-format change must bump the version.
 

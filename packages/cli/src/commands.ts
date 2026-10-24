@@ -143,7 +143,7 @@ async function currentProjectId(parsed: ParsedArgs, home: string, cwd: string): 
   return info.id;
 }
 
-async function openHarnMem(parsed: ParsedArgs, home: string, cwd: string, harness: HarnessId = "cli"): Promise<HarnMem> {
+export async function openHarnMem(parsed: ParsedArgs, home: string, cwd: string, harness: HarnessId = "cli"): Promise<HarnMem> {
   const projectId = await currentProjectId(parsed, home, cwd);
   return HarnMem.open({ harness, home, cwd: resolve(cwd), project: projectId });
 }
@@ -892,6 +892,7 @@ commands:
   rebuild | index rebuild      rebuild the search index
   export [--out <file>]       dump every memory as ImportRecord[]
   import <source|sub>         migrate legacy stores (see: harnmem import help)
+  synonyms <sub>              inspect/grow synonym tables (see: harnmem synonyms help)
 
 global flags: --home <dir>  --cwd <dir>  --project <id|path>  --json  --no-color
               --help   --version

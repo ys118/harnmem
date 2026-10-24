@@ -22,6 +22,38 @@ harnmem consolidate --dry-run
 harnmem export --out backup.json  # ImportRecord[]
 ```
 
+## Synonyms
+
+The shipped `data/synonyms.<lang>.txt` tables are generic; this command turns your
+own memories into reviewed, corpus-validated candidates for a local table:
+
+```text
+harnmem synonyms list                                        # discovered tables + counts
+harnmem synonyms suggest --dump-prompt [--out prompt.txt]    # no network: print the prompt
+harnmem synonyms suggest --from-response answer.json         # validate a saved model answer
+harnmem synonyms suggest --llm-url http://127.0.0.1:11434/v1 --llm-model qwen3:8b
+harnmem synonyms suggest --write                             # append accepted groups
+harnmem synonyms check [--file <path>] [--limit 3] [--k 10]  # rank before/after
+```
+
+- Reads `<home>/memories/**/*.md` plus recent session journals (`--no-sessions` to
+  skip), fills `prompts/synonyms.md`, and validates every returned group: the
+  canonical term must occur in the corpus, must not already be covered by a loaded
+  table, and synonyms may not be substrings of it. Rejections and their reasons go
+  to stderr; `--json` returns the full payload.
+- `--write` appends to `<home>/data/synonyms.<lang>-suggested.txt` (never the
+  repository). The loader treats it as one more language table; delete a line or the
+  file to retire a suggestion. The table is memoized per engine instance, so a new
+  session picks it up.
+- This is the only CLI code path that opens a network connection, and only when
+  `--llm-url` (or `HARNMEM_LLM_URL`) is set. Key: `--llm-api-key` or
+  `HARNMEM_LLM_API_KEY`; timeout: `HARNMEM_LLM_TIMEOUT_MS` (default 120000).
+- `check` measures the file honestly: it picks memories that use the canonical term
+  but not the probed synonym, queries them by that synonym, and compares the
+  target's rank before/after installing the file, then removes the temporary table
+  (and restores the original file). A synonym-only query that only expansion can
+  match may still abstain — that is the precision guard, not a bug.
+
 Global flags: `--home <dir>` (default `$HARNMEM_HOME` or `~/.harnmem`), `--cwd <dir>`,
 `--project <id|path>`, `--json`, `--no-color`.
 

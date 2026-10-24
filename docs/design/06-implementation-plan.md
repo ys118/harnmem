@@ -50,10 +50,10 @@ Conventions: `docs/` holds designs and evidence; `packages/` holds publishable a
 cd <repo>
 pnpm install
 pnpm --filter @harnmem/core build
-pnpm test                      # 19/19 pass
+pnpm test                      # 52/52 pass
 ```
 
-Coverage: write/read/retrieval, dedupe decisions, bitemporal supersede, forget+restore, importRecords, consolidate (mechanical), in-memory index rebuild, hot-index buildContext byte stability (two calls produce identical text), cross-shard two-hop link diffusion, MMR candidate pool, lex calibration, prompt asset deployment/template filling, TAB synonym parsing, explicit supersedes. Tests use a temporary `HARNMEM_HOME` and never touch real user data.
+Coverage: write/read/retrieval, dedupe decisions, bitemporal supersede, forget+restore, importRecords, consolidate (mechanical), in-memory index rebuild, hot-index buildContext byte stability (two calls produce identical text), cross-shard two-hop link diffusion, MMR candidate pool, lex calibration, prompt asset deployment/template filling, TAB synonym parsing, synonym suggestion harvest/validation with an injected fake LLM, explicit supersedes. Tests use a temporary `HARNMEM_HOME` and never touch real user data.
 
 ### 3.2 pi adapter end-to-end in a real session
 

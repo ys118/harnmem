@@ -27,6 +27,7 @@ import {
   resolveHomeFlag,
   VERSION,
 } from "./commands.js";
+import { cmdSynonyms, printSynonymsHelp, SYNONYMS_SUBCOMMANDS } from "./synonyms.js";
 import { Output } from "./output.js";
 
 const COMMAND_FLAGS: Record<string, Record<string, FlagSpec>> = {
@@ -85,9 +86,30 @@ const COMMAND_FLAGS: Record<string, Record<string, FlagSpec>> = {
   },
   help: {},
   version: {},
+  synonyms: {
+    write: { kind: "boolean" },
+    out: { kind: "string" },
+    "dump-prompt": { kind: "boolean" },
+    "from-response": { kind: "string" },
+    language: { kind: "string" },
+    "llm-url": { kind: "string" },
+    "llm-model": { kind: "string" },
+    "llm-api-key": { kind: "string" },
+    "no-sessions": { kind: "boolean" },
+    "session-files": { kind: "number" },
+    "max-groups": { kind: "number" },
+    "max-terms": { kind: "number" },
+    "min-support": { kind: "number" },
+    file: { kind: "string" },
+    limit: { kind: "number" },
+    k: { kind: "number" },
+  },
 };
 
-const IMPORT_TOKEN = new Set<string>([...IMPORT_SUBCOMMANDS, "help"]);
+const SUBCOMMANDS: Record<string, Set<string>> = {
+  import: new Set<string>([...IMPORT_SUBCOMMANDS, "help"]),
+  synonyms: new Set<string>([...SYNONYMS_SUBCOMMANDS]),
+};
 
 interface SplitCommand {
   command: string;
@@ -105,9 +127,10 @@ function splitCommand(argv: string[]): SplitCommand {
   const command = first;
   let rest = argv.slice(1);
   let subcommand: string | undefined;
-  if (command === "import") {
+  const allowed = SUBCOMMANDS[command];
+  if (allowed) {
     const candidate = rest[0];
-    if (candidate !== undefined && !candidate.startsWith("-") && IMPORT_TOKEN.has(candidate)) {
+    if (candidate !== undefined && !candidate.startsWith("-") && allowed.has(candidate)) {
       subcommand = candidate;
       rest = rest.slice(1);
     }
@@ -146,7 +169,9 @@ async function run(argv: string[]): Promise<number> {
   }
   const home = resolveHomeFlag(parsed);
   const cwd = resolve(flagString(parsed, "cwd") ?? process.cwd());
-  if (flagBool(parsed, "help")) return cmdHelp(parsed, out);
+  if (flagBool(parsed, "help")) {
+    return command === "synonyms" ? printSynonymsHelp(out) : cmdHelp(parsed, out);
+  }
 
   switch (command) {
     case "stats":
@@ -171,6 +196,8 @@ async function run(argv: string[]): Promise<number> {
       return cmdExport(parsed, out, home, cwd);
     case "import":
       return cmdImport(parsed, out, home, cwd);
+    case "synonyms":
+      return cmdSynonyms(parsed, out, home, cwd);
     case "help":
       return printMainHelp(out);
     case "version":

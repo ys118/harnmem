@@ -5,6 +5,38 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `@harnmem/core`: synonym-suggestion engine API (`harvestTerms`,
+  `buildSuggestPrompt`, `parseSuggestionGroups`, `validateSuggestions`,
+  `suggestFromResponse`, `suggestSynonyms`) — turns local memories and session
+  journals into corpus-validated synonym groups through a caller-supplied
+  `LlmFn`. Every proposal must occur in the corpus, must not already be covered
+  by a loaded table, and may not be a substring of its canonical; the engine
+  still performs no network I/O.
+- `@harnmem/cli`: `harnmem synonyms list | suggest | check` — inspect the tables
+  actually loaded, propose validated groups (fully offline with `--dump-prompt`
+  or `--from-response`, or through an opt-in OpenAI-compatible bridge
+  `--llm-url`/`--llm-model`), append accepted groups to
+  `<home>/data/synonyms.<lang>-suggested.txt` with `--write`, and measure the
+  rank gain with `check` (the temporary table is installed for one comparison
+  run and then removed).
+- `prompts/synonyms.md`: editable prompt asset for the suggestion pass
+  (`{{language}}`, `{{terms}}`, `{{existing}}`, `{{samples}}`), deployed to
+  `<home>/prompts/` like the other assets; listed in `prompts/README.md` with
+  its budgets.
+
+### Changed
+
+- `@harnmem/core`: synonym tables are now discovered per language — every
+  `data/synonyms.txt` or `data/synonyms.<lang>.txt` under `<home>/data` and the
+  repository `data/` is loaded and merged (the `<home>` copy wins per filename),
+  so adding a language is a data-only change. The English rows moved out of the
+  Chinese table into `data/synonyms.en.txt` (164 entries in effect: 129 zh + 35
+  en), and the shipped tables were reduced to deliberately generic vocabulary.
+
 ## [0.2.0] - 2026-10-24
 
 ### Added

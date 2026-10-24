@@ -81,4 +81,25 @@ export type {
   InspectShard,
   MemoryInspectorOptions,
 } from "./inspect.js";
+export {
+  DEFAULT_SUGGEST_PROMPT,
+  buildSuggestCorpus,
+  buildSuggestPrompt,
+  cleanTerm,
+  harvestTerms,
+  parseSuggestionGroups,
+  suggestFromResponse,
+  suggestSynonyms,
+  validateSuggestions,
+} from "./suggest.js";
+export type {
+  HarvestedTerm,
+  SuggestMessage,
+  SuggestOptions,
+  SuggestPrompt,
+  SuggestProposal,
+  SuggestRecord,
+  SuggestRejection,
+  SuggestRunResult,
+} from "./suggest.js";
 

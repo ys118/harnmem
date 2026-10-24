@@ -174,6 +174,22 @@ Prompt assets: the first time the engine opens, it copies the repository's defau
 
 Loading priority: the `<home>` copy → the repository/package default → the prompt built into `packages/core`. HTML comments (`<!-- ... -->`) are stripped during parsing and never sent to the model; if a file has no `## system`/`## user` markers, the whole file is used as the system prompt. Format details are in `prompts/README.md`. Delete the `<home>` copy to fall back to the defaults. Synonym files follow the same per-filename order: the `<home>` copy replaces the repository file of the same name, and all other language files are merged.
 
+### 5.1 Growing the synonym table (optional)
+
+The shipped tables are deliberately **generic** — common development/AI vocabulary that is useful to everyone. Your own corpus uses words a generic table cannot know (jargon, product names, team slang), and for Chinese the valuable rewrites often share **no characters** (打板 ↔ 涨停板, 割肉 ↔ 止损), so frequency mining cannot find them; a model can. The CLI turns your own memories into reviewed proposals — nothing is written to the repository and nothing is auto-applied:
+
+```powershell
+node packages/cli/dist/main.js synonyms list        # which data/synonyms*.txt files load, group/term counts
+node packages/cli/dist/main.js synonyms suggest --dump-prompt   # exact prompt, no network
+node packages/cli/dist/main.js synonyms suggest --llm-url http://127.0.0.1:11434/v1 --llm-model qwen3:8b
+node packages/cli/dist/main.js synonyms suggest --write         # append validated groups
+node packages/cli/dist/main.js synonyms check                  # rank before/after, then restore the store
+```
+
+`synonyms suggest` reads `<home>/memories/**/*.md` (plus recent session journals unless `--no-sessions`), fills `prompts/synonyms.md` with the language, frequent terms, the tables already in force, and sample memories, and asks the model for groups of interchangeable terms. Every returned group is **validated against your corpus** before it is shown: the canonical term must occur in it, must not already be covered by a loaded table, and a synonym may not be a substring of the canonical (the reasons for rejected groups are printed to stderr). Output is TSV by default; `--write` appends accepted groups to `<home>/data/synonyms.<lang>-suggested.txt`, a separate reviewed file that the loader picks up like any other language file — edit or delete lines to retire a suggestion. `--from-response <file>` validates a saved model answer offline, so you can run the prompt in any chat UI.
+
+Privacy: the command reads only your local store, and nothing leaves the machine unless you pass `--llm-url`; the key comes from `--llm-api-key` or `HARNMEM_LLM_API_KEY`. The engine itself never does network I/O — the HTTP bridge lives only in the CLI (`packages/cli/src/synonyms.ts`), and adapters reuse their host model. `synonyms check` measures the gain honestly: it finds memories that use the canonical term, queries them with a synonym the memory does **not** contain, and compares the target's rank before and after installing the file (the temporary table and any moved file are removed afterwards). A table edit is memoized per engine instance, so restart the session before checking a newly installed file by hand.
+
 ## 6. How it works
 
 - **Injection (KV-cache friendly)**: rebuilt only at session start, before compaction, after writing a memory, or across a day boundary; byte-stable within a session. Default **1200 tokens** (configurable 800–2000); pinned memories first, then reweighted fill by `importance/confidence/recency/use count/pin` when over budget. Only "index lines" are injected (type/title/description); **bodies are not injected** — the model calls `memory_read` when it needs details. The snapshot ends with a fixed HTML comment `<!-- SSOT: ~/.harnmem … -->` warning that it may be stale; it **contains no timestamp**, so byte stability is not broken every turn.
@@ -268,6 +284,7 @@ Safety: dry-run is the default; `--apply` backs up the source first, writes a le
 | CLI | [Verified] usable, including migration on read-only copies (§8); npm not published yet — install from source |
 | Auto-extraction off by default | Triggers only on a normal exit, waits at most 8 seconds |
 | Prompts/synonyms | An editable copy is deployed on first open (see §5); synonym tables are per language (`data/synonyms.<lang>.txt`); `write-policy.md` is reference text only and is not injected by the engine yet |
+| Synonym suggestions | `harnmem synonyms suggest` needs an OpenAI-compatible endpoint (`--llm-url`/`--llm-model`) or a saved answer (`--from-response`); suggestions are proposals — review them before keeping the `-suggested` file, and a `synonyms check` probe only measures memories that use the canonical term |
 | Retrieval quality | Final eval (2026-10-20, deterministic corpus): functional gates PASS — macro R@10 1.000, MRR 0.891, nDCG@10 0.911; S5 both_recall 1.000, S6 abstain_fp 0.000, S10 write-action accuracy 1.000, S12 injected tokens p95 207. Advisory non-functional gaps: 10k-record import ~12–15 s, index overhead ~47× body-only (2.87× canonical store), S8 cross-lingual P@1 0.225 and S11 top-1 ranking |
 | No GUI | Plain files + TUI/CLI, consistent with the "zero services" positioning |
 
@@ -282,6 +299,7 @@ Store: ~/.harnmem    Logs: <home>/logs/pi.jsonl    Status: /memory status
 
 CLI: node packages/cli/dist/main.js --help   (bin: harnmem once the package is installed)
 CLI: harnmem stats | harnmem search "<query>" | harnmem forget <id>
+Synonyms: harnmem synonyms list | suggest [--write] [--llm-url <url>] | check
 Migration: harnmem import dsh|pi|zcode|json   (dry-run by default; add --apply)
 Migration checks: harnmem import list | verify <runId> | rollback <runId> | unresolved
 ```
