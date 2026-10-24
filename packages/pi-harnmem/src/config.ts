@@ -23,6 +23,11 @@ export interface PiHarnMemSettings {
   readOnly?: boolean;
   /** Inject the hot-index snapshot into the system prompt. */
   inject?: boolean;
+  /**
+   * Show the footer status line (`harnmem: N entries · ~T tokens · <sha>`).
+   * Default true; set false for a clean footer. `/memory status` keeps working.
+   */
+  statusLine?: boolean;
   /** Run endSession() extraction on quit (default false; costs an LLM call). */
   autoExtract?: boolean;
   /** Explicit harnmem home (default $HARNMEM_HOME or ~/.harnmem). */
@@ -57,6 +62,8 @@ export interface EffectiveSettings {
   enabled: boolean;
   readOnly: boolean;
   inject: boolean;
+  /** Draw the footer status line (default true). */
+  statusLine: boolean;
   autoExtract: boolean;
   /** Prefix used for the registered tool names, e.g. `memory_` or `harnmem_`. */
   toolPrefix: string;
@@ -73,6 +80,7 @@ const DEFAULTS = {
   enabled: true,
   readOnly: false,
   inject: true,
+  statusLine: true,
   autoExtract: false,
   toolPrefix: "memory_",
   log: "errors" as LogMode,
@@ -201,6 +209,7 @@ export function resolveSettings(cwd: string, env: NodeJS.ProcessEnv = process.en
     const on = truthy(env.HARNMEM_INJECT);
     if (on !== undefined) envPatch.inject = on;
   }
+  if (truthy(env.HARNMEM_STATUS_LINE) !== undefined) envPatch.statusLine = truthy(env.HARNMEM_STATUS_LINE);
   if (env.HARNMEM_TOOL_PREFIX !== undefined) envPatch.toolPrefix = env.HARNMEM_TOOL_PREFIX;
   settings = mergeSettings(settings, envPatch);
 
@@ -213,6 +222,7 @@ export function resolveSettings(cwd: string, env: NodeJS.ProcessEnv = process.en
     enabled: settings.enabled ?? DEFAULTS.enabled,
     readOnly: settings.readOnly ?? DEFAULTS.readOnly,
     inject: settings.inject ?? DEFAULTS.inject,
+    statusLine: settings.statusLine ?? DEFAULTS.statusLine,
     autoExtract: settings.autoExtract ?? DEFAULTS.autoExtract,
     toolPrefix: normalizeToolPrefix(settings.toolPrefix, warnings),
     log,

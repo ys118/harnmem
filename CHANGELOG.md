@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`{{language}}`, `{{terms}}`, `{{existing}}`, `{{samples}}`), deployed to
   `<home>/prompts/` like the other assets; listed in `prompts/README.md` with
   its budgets.
+- `pi-harnmem`: `statusLine` setting (default `true`, env
+  `HARNMEM_STATUS_LINE=1|0`) — set `false` to stop drawing the footer line
+  `harnmem: N entries · ~T tokens · <sha>`. Injection, tools and extraction are
+  unchanged; `/memory status` still reports the snapshot.
 
 ### Changed
 

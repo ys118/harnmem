@@ -68,6 +68,7 @@ Settings are read (lowest → highest priority) from: built-in defaults → `<ho
   "enabled": true,          // master switch
   "inject": true,           // inject hot index at session start
   "readOnly": false,        // block all writes
+  "statusLine": true,       // footer line "harnmem: N entries · ~T tokens · <sha>"; false hides it
   "autoExtract": false,     // background extraction on session quit (opt-in)
   "home": "~/harnmem-home",  // default: ~/.harnmem
   "maxInjectTokens": 1200,  // injection budget (800..2000 recommended)
@@ -84,7 +85,12 @@ Settings are read (lowest → highest priority) from: built-in defaults → `<ho
 }
 ```
 
-Environment overrides: `HARNMEM_HOME`, `HARNMEM_DISABLED=1`, `HARNMEM_READONLY=1`, `HARNMEM_INJECT=1|0`, `HARNMEM_AUTO_EXTRACT=1`, `HARNMEM_DEBUG=1`.
+Environment overrides: `HARNMEM_HOME`, `HARNMEM_DISABLED=1`, `HARNMEM_READONLY=1`, `HARNMEM_INJECT=1|0`, `HARNMEM_STATUS_LINE=1|0`, `HARNMEM_AUTO_EXTRACT=1`, `HARNMEM_DEBUG=1`.
+
+> **Clean footer.** The one-line `harnmem: 22 entries · ~1061 tokens · <session-id>` status is
+> informational; set `"statusLine": false` in `<agentDir>/harnmem.json` (or
+> `HARNMEM_STATUS_LINE=0`) to hide it. Memory injection, tools and extraction are unaffected;
+> `/memory status` and the `memory_status` tool still report the snapshot.
 
 > **Coexisting with pi-memory.** Both extensions otherwise register the same tool names
 > (`memory_write`, `memory_search`, …), and pi silently keeps one of the duplicates. Set

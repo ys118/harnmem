@@ -207,6 +207,11 @@ export class Adapter {
 
   notifyStatus(ctx: ExtensionContext): void {
     if (!this.snapshot) return;
+    if (!this.settings?.statusLine) {
+      // `statusLine: false`: keep the footer clean; /memory status still works.
+      this.logger?.debug("status.suppressed", { reason: "config" });
+      return;
+    }
     try {
       if (ctx.hasUI) ctx.ui.setStatus("harnmem", `harnmem: ${this.snapshot.describe()}`);
     } catch {

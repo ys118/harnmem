@@ -142,6 +142,7 @@ JSON may contain comments (`//`, `/* */`); mistakes only produce warnings, never
 ```json
 {
   "enabled": true, "inject": true, "autoExtract": false, "readOnly": false,
+  "statusLine": true,
   "home": "D:/harnmem-home",
   "maxInjectTokens": 1200, "maxSearchTokens": 1200,
   "model": { "provider": "<provider>", "id": "<model>",
@@ -150,11 +151,11 @@ JSON may contain comments (`//`, `/* */`); mistakes only produce warnings, never
 }
 ```
 
-If `model` is omitted, the current pi session model is used; `log`: `off|errors|on` → `<home>/logs/pi.jsonl`; `debug` records injection hashes and provider request sizes.
+If `model` is omitted, the current pi session model is used; `log`: `off|errors|on` → `<home>/logs/pi.jsonl`; `debug` records injection hashes and provider request sizes. `statusLine` (default `true`) controls the footer line `harnmem: N entries · ~T tokens · <sha>` — set it to `false` for a clean footer; injection, tools and extraction are unaffected.
 
 ### 4.3 Environment variables
 
-`HARNMEM_HOME` (change the root, most common), `HARNMEM_DISABLED=1`, `HARNMEM_READONLY=1`, `HARNMEM_INJECT=1|0`, `HARNMEM_AUTO_EXTRACT=1`, `HARNMEM_DEBUG=1`.
+`HARNMEM_HOME` (change the root, most common), `HARNMEM_DISABLED=1`, `HARNMEM_READONLY=1`, `HARNMEM_INJECT=1|0`, `HARNMEM_STATUS_LINE=1|0`, `HARNMEM_AUTO_EXTRACT=1`, `HARNMEM_DEBUG=1`.
 
 ### 4.4 Tuning tips
 
