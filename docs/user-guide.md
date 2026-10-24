@@ -104,7 +104,7 @@ Defaults to `~/.harnmem` (Windows: `C:\Users\<you>\.harnmem`); override with `HA
 ├── trash/                         # Recycle bin (30 days by default)
 ├── logs/pi.jsonl
 ├── prompts/                       # Prompt assets (editable copy deployed on first open)
-└── data/                          # Synonym tables (deployed on first open; delete to fall back to defaults)
+└── data/                          # Synonym tables, one file per language (deployed on first open; delete to fall back to defaults)
 ```
 
 - **The SSOT is these .md files**: read/grep/back them up with git directly; delete the directory = clear all memories.
@@ -170,9 +170,9 @@ Prompt assets: the first time the engine opens, it copies the repository's defau
 
 - Extraction: `<home>/prompts/extract.md` (`## system` + `## user` + `{{observation_date}}`/`{{existing_memories}}`/`{{transcript}}`)
 - Consolidation: `<home>/prompts/consolidate-digest.md` (`{{topic}}`/`{{memories}}`)
-- Synonyms: `<home>/data/synonyms.zh.txt` (`term<TAB>synonym1,synonym2`, also accepts `=`/`:`/`：`/`、`/`，`; one-hop expansion)
+- Synonyms: `<home>/data/synonyms.<lang>.txt` — one file per language, all discovered files merged (`term<TAB>synonym1,synonym2`, also accepts `=`/`:`/`：`/`、`/`，`; one-hop expansion). The repository ships `synonyms.zh.txt` + `synonyms.en.txt`; adding a language is data-only (`synonyms.fr.txt` is picked up with no code change). The table is read once per engine instance, so restart the session after editing (prompt files do not need this).
 
-Loading priority: the `<home>` copy → the repository/package default → the prompt built into `packages/core`. HTML comments (`<!-- ... -->`) are stripped during parsing and never sent to the model; if a file has no `## system`/`## user` markers, the whole file is used as the system prompt. Format details are in `prompts/README.md`. Delete the `<home>` copy to fall back to the defaults.
+Loading priority: the `<home>` copy → the repository/package default → the prompt built into `packages/core`. HTML comments (`<!-- ... -->`) are stripped during parsing and never sent to the model; if a file has no `## system`/`## user` markers, the whole file is used as the system prompt. Format details are in `prompts/README.md`. Delete the `<home>` copy to fall back to the defaults. Synonym files follow the same per-filename order: the `<home>` copy replaces the repository file of the same name, and all other language files are merged.
 
 ## 6. How it works
 
@@ -267,7 +267,7 @@ Safety: dry-run is the default; `--apply` backs up the source first, writes a le
 | pi only | DSH / Claude Code have design docs only (`docs/design/07,08,09`); no packages yet |
 | CLI | [Verified] usable, including migration on read-only copies (§8); npm not published yet — install from source |
 | Auto-extraction off by default | Triggers only on a normal exit, waits at most 8 seconds |
-| Prompts/synonyms | An editable copy is deployed on first open (see §5); `write-policy.md` is reference text only and is not injected by the engine yet |
+| Prompts/synonyms | An editable copy is deployed on first open (see §5); synonym tables are per language (`data/synonyms.<lang>.txt`); `write-policy.md` is reference text only and is not injected by the engine yet |
 | Retrieval quality | Final eval (2026-10-20, deterministic corpus): functional gates PASS — macro R@10 1.000, MRR 0.891, nDCG@10 0.911; S5 both_recall 1.000, S6 abstain_fp 0.000, S10 write-action accuracy 1.000, S12 injected tokens p95 207. Advisory non-functional gaps: 10k-record import ~12–15 s, index overhead ~47× body-only (2.87× canonical store), S8 cross-lingual P@1 0.225 and S11 top-1 ranking |
 | No GUI | Plain files + TUI/CLI, consistent with the "zero services" positioning |
 

@@ -74,6 +74,67 @@ export function readAssetRaw(home: string, relativePath: string): { text: string
   return null;
 }
 
+/**
+ * Language-tagged synonym tables: `synonyms.zh.txt`, `synonyms.en.txt`, ...;
+ * a bare `synonyms.txt` is accepted too.
+ */
+const SYNONYM_FILE_RE = /^synonyms(?:\.[a-z0-9_-]+)?\.txt$/i;
+
+/**
+ * Synonym tables available to the engine: shipped defaults plus the user's
+ * editable copies, deduplicated by filename and sorted for deterministic
+ * loading. A language is added by adding `data/synonyms.<lang>.txt` — no code
+ * change; the `<home>` copy of a filename overrides the shipped default of the
+ * same name.
+ */
+export function listSynonymFiles(home: string): string[] {
+  const names = new Set<string>();
+  const collect = (root: string | null): void => {
+    if (!root) return;
+    try {
+      for (const file of readdirSync(join(root, "data"))) {
+        if (SYNONYM_FILE_RE.test(file)) names.add(file);
+      }
+    } catch {
+      // optional directory
+    }
+  };
+  collect(home);
+  collect(findAssetRoot());
+  return [...names].sort();
+}
+
+/**
+ * Parse one synonym table. Shipped format is `canonical<TAB>syn1,syn2`;
+ * `=`, `:` and full-width `：` are accepted as separators too, and synonyms may
+ * be separated by `,`, `，` or `、`. Blank lines and `#` comments are ignored.
+ */
+export function parseSynonymTable(raw: string): string[][] {
+  const groups: string[][] = [];
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const match = /^([^\t=:：]+)[\t=:：]+(.+)$/.exec(trimmed);
+    if (!match) continue;
+    const head = match[1] as string;
+    const tail = match[2] as string;
+    const group = [head, ...tail.split(/[,，、]/)].map((s) => s.trim()).filter(Boolean);
+    if (group.length >= 2) groups.push(group);
+  }
+  return groups;
+}
+
+/** All synonym groups from every discovered table; `files` is for diagnostics. */
+export function loadSynonymGroups(home: string): { groups: string[][]; files: string[] } {
+  const files = listSynonymFiles(home);
+  const groups: string[][] = [];
+  for (const file of files) {
+    const asset = readAssetRaw(home, join("data", file));
+    if (asset) groups.push(...parseSynonymTable(asset.text));
+  }
+  return { groups, files };
+}
+
 /** Split a prompt file into stable system text + user template. */
 export function parsePromptAsset(name: string, raw: string, source = "(inline)"): PromptAsset {
   const header = /<!--\s*version:\s*(\d+)\s*-->/i.exec(raw);

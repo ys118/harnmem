@@ -37,7 +37,7 @@ import { Retriever } from "./retrieval.js";
 import { Consolidator } from "./consolidate.js";
 import { decideDedupe, mergeIntoRecord, supersedeOld } from "./lifecycle.js";
 import { buildDigest, runExtraction, type ExistingMemoryRef } from "./extract.js";
-import { deployDefaultAssets, readAssetRaw } from "./assets.js";
+import { deployDefaultAssets, loadSynonymGroups } from "./assets.js";
 import {
   atomicWriteFile,
   dayKey,
@@ -878,24 +878,11 @@ export class HarnMem {
     };
     for (const group of DEFAULT_SYNONYMS) addGroup(group);
     try {
-      // Editable copy in <home>/data first, shipped default second.
-      const asset = readAssetRaw(this.store.home, "data/synonyms.zh.txt");
-      const raw = asset?.text;
-      if (raw) {
-        for (const line of raw.split(/\r?\n/)) {
-          const trimmed = line.trim();
-          if (!trimmed || trimmed.startsWith("#")) continue;
-          // Shipped format is TAB-separated; accept `=`, `:` and full-width `：` too.
-          const match = /^([^\t=:：]+)[\t=:：]+(.+)$/.exec(trimmed);
-          if (!match) continue;
-          const head = match[1] as string;
-          const tail = match[2] as string;
-          const group = [head, ...tail.split(/[,，、]/)].map((s) => s.trim()).filter(Boolean);
-          addGroup(group);
-        }
-      }
+      // Every data/synonyms.<lang>.txt discovered: the <home> copy of a filename
+      // overrides the shipped default of the same name, and all languages merge.
+      for (const group of loadSynonymGroups(this.store.home).groups) addGroup(group);
     } catch {
-      // optional data file
+      // optional data files
     }
     this.synonyms = map;
     return map;

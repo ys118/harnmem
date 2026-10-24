@@ -1,4 +1,4 @@
-# HarnMem synonym table v1 (Chinese-first, English supplement)
+# HarnMem synonym table v1 (Chinese)
 # Purpose: BM25 query expansion / index-side normalization / Chinese near-synonym recall. Zero-dependency plain text, loaded by the engine at startup.
 # Format: canonical<TAB>syn1,syn2,...   — exactly one ASCII TAB; the second column is comma-separated with no spaces around commas.
 # Rules:
@@ -7,7 +7,9 @@
 #   - Terms may contain spaces (e.g. rate limit, pull request); no spaces around commas.
 #   - Lines may cross-reference each other (e.g. deploy→release, release→deploy); expansion is one-hop and deduplicated, never transitive closure.
 #   - Used only for query expansion, never changes stored text; terms hit through expansion are down-weighted in scoring (see docs/design/03-retrieval.md).
-# Maintenance: add rows grouped by topic; after any change run the zh retrieval regression in evals (docs/design/05-evaluation.md).
+#   - Keep the shipped table generic (common development/AI vocabulary). Personal or project-specific domain terms belong in the user's <home>/data/synonyms.zh.txt copy, never in the repository.
+# Language files: the engine loads every data/synonyms.<lang>.txt it finds (this file = Chinese, data/synonyms.en.txt = English); the <home> copy of a filename overrides the shipped default of the same name. Add a language by adding data/synonyms.<lang>.txt — no code change.
+# Maintenance: add rows grouped by topic; verify changes with a reworded `harnmem search` query. The repository eval suite uses its own fixture (evals/data/synonyms.zh.tsv), so it does not cover edits to this file.
 
 ## Development workflow
 部署	上线,发布,rollout,deploy
@@ -141,35 +143,6 @@
 插件	plugin,扩展,addon
 钩子	hook,callback,生命周期钩子
 
-## A-shares / quant
-打板	涨停板,涨停追板,打板买入
-涨停	涨停板,limit up
-跌停	跌停板,limit down
-龙头	龙头股,领涨
-连板	连续涨停,连板股
-首板	首日涨停
-炸板	开板,炸板率
-封单	封板单,封单量
-换手	换手率,turnover
-量能	成交量,缩量,放量
-回测	backtest,回测框架
-选股	筛股,选股策略
-止盈	获利了结,take profit
-止损	割肉,stop loss
-仓位	持仓,position
-建仓	开仓,买入
-清仓	平仓,卖出全部
-复权	前复权,后复权,adjust
-分钟线	分钟K线,分时
-日线	日K,日K线
-券商	证券,broker
-交易日	trading day,开市日
-停牌	suspension,停牌日
-除权	除息,分红
-财报	业绩报告,定期报告
-估值	valuation,PE,PB
-情绪	市场情绪,sentiment
-
 ## Documentation and communication
 文档	doc,说明文档
 规范	约定,convention,约定俗成
@@ -182,43 +155,3 @@
 示例	例子,sample,example
 路径	path,目录
 文件名	filename,文件名称
-
-## English
-agent	assistant,bot
-archive	cold storage
-backtest	backtesting
-baseline	bench,reference score
-branch	feature branch
-build	compile,bundle
-bug	defect,regression
-commit	checkin
-config	configuration,setting
-context	context window,ctx
-coverage	code coverage
-debug	diagnose,troubleshoot
-decay	aging,downweight
-dedupe	deduplicate,dedup
-deploy	deployment,release,ship
-dependency	dep,package,library
-embedding	embed,vectorize
-error	failure,exception,issue
-eval	evaluation,benchmark
-fix	patch,resolve
-hook	callback,lifecycle hook
-install	setup,provision
-limit up	limit-up,涨停
-lint	linter,static check
-memory	memories
-memory leak	leak
-plugin	extension,addon
-position	holding,exposure
-prompt	system prompt,instruction
-pull request	pr,merge request,mr
-refactor	rewrite,restructure
-retrieval	recall,search
-review	code review,cr
-rollback	revert,undo
-session	conversation,thread
-test	spec,suite
-token	tokens
-upgrade	update,bump

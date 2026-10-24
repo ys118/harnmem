@@ -5,7 +5,7 @@
 
 ## Deployment and editable copies
 
-- On first engine open: `deployDefaultAssets(home)` copies the package/repository-root `prompts/*.md|*.txt` and `data/*.txt|*.tsv` into `<home>/prompts`, `<home>/data`; **existing files are never overwritten**.
+- On first engine open: `deployDefaultAssets(home)` copies the package/repository-root `prompts/*.md|*.txt` and `data/*.txt|*.tsv` into `<home>/prompts`, `<home>/data`; **existing files are never overwritten**. Synonym tables are named `synonyms.txt` or `synonyms.<lang>.txt` (e.g. `synonyms.zh.txt`): every such file found in `<home>/data` and the repository `data/` is loaded and merged, with the `<home>` copy winning per filename.
 - Asset-root discovery order: the `HARNMEM_ASSETS_DIR` environment variable → walk up to 8 levels from the directory containing `assets.ts` looking for a directory that contains `prompts/extract.md` → if not found (single-file bundle), use the built-in default prompt in `packages/core/src/extract.ts`.
 - Load priority: `<home>/prompts/<name>.md` → repository/package default (`readAssetRaw`); the user's `<home>` copy overrides, and deleting the copy falls back to the built-in/default.
 - When changes take effect: files are re-read on every extraction/consolidation, no restart needed; an edit applies to the next extraction (byte stability of injected text and the system prompt is guaranteed by engine snapshots, see 03 §5.2).

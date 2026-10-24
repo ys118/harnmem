@@ -33,7 +33,7 @@
 ├── trash/                           # soft deletes (forget lands here; restorable)
 │   └── <YYYYMMDD>-mem_....md
 ├── prompts/                         # first-run deploy: editable prompt copies (assets.ts)
-├── data/                            # first-run deploy: synonym table copy
+├── data/                            # first-run deploy: synonym tables (synonyms.<lang>.txt)
 └── logs/                            # adapter logs (e.g. pi.jsonl, created by the adapter)
 ```
 

@@ -45,8 +45,11 @@ export { resolveHome, estimateTokens, newMemoryId } from "./util.js";
 export {
   deployDefaultAssets,
   findAssetRoot,
+  listSynonymFiles,
   loadPromptAsset,
+  loadSynonymGroups,
   parsePromptAsset,
+  parseSynonymTable,
   readAssetRaw,
 } from "./assets.js";
 export type { PromptAsset } from "./assets.js";

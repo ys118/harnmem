@@ -215,7 +215,7 @@ Default `~/.harnmem/` (Windows: `C:\Users\<you>\.harnmem\`):
 │   └── projects/<projectId>/
 ├── digests/             # optional topic digests produced by consolidation
 ├── prompts/             # prompt assets deployed on first run (editable)
-├── data/                # synonym tables deployed on first run (editable)
+├── data/                # synonym tables, one file per language, deployed on first run (editable)
 ├── projects.json        # project identity registry (git remote/path -> id)
 ├── index/               # derived indexes; safe to delete, rebuilt on demand
 ├── sessions/            # raw session journals used as extraction input

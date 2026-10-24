@@ -31,7 +31,7 @@ harnmem/
 │   └── cli/           harnmem CLI: main/args/commands/pipeline/importers/{dsh,pi,zcode,json}
 ├── evals/             gen/ (deterministic generator), data/ (lexicons/bilingual/synonyms), lib/ (metrics/store), run.mjs, gates.json
 ├── prompts/           extract.md / write-policy.md / consolidate-digest.md / README.md (loading contract)
-├── data/              synonyms.zh.txt (Chinese synonyms, 194 entries)
+├── data/              synonyms.zh.txt / synonyms.en.txt (generic synonyms, 164 entries: 129 zh + 35 en)
 ├── docs/
 │   ├── research/      pi-extension-api / reference-projects / memory-evaluation-and-algorithms /
 │   │                  dsh-plugin-and-migration / dsh-impl-notes / prompt-review
