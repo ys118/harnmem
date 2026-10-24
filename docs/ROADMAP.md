@@ -236,6 +236,18 @@ Check boxes as items land, and update this file when the status changes.
   imports and verifies the legacy stores, disable `dsh-auto-memory` (DSH) and
   `pi-memory` (pi). *Execution deferred to N4 completion; apply the config
   changes then.*
+  *Executed 2026-10-24 (N4 done):* removed `dsh-auto-memory` from
+  `C:\Users\<user>\.dsh\profiles\desktop\package.json` (both the dependency and
+  the `dsh.profile.bundles` row) and its `- id: auto-memory` override from that
+  profile's `cordis.patch.yml`; removed `npm:pi-memory` from
+  `C:\Users\<user>\.pi\agent\settings.json` and re-enabled `autoExtract` for
+  `pi-harnmem` (`C:\Users\<user>\.pi\agent\harnmem.json`). Pre-change copies are
+  in `.tmp/n3-backup-20261024-1205/` (restore them to roll back). Takes effect
+  on the next DSH/pi start: confirm `plugin.apply` no longer lists
+  `dsh-auto-memory` and that only `harnmem_*` memory tools remain. The legacy
+  stores stay on disk as read-only archives (`~/.dsh/memory`,
+  `~/.pi/agent/memory`); the leftover profile `node_modules` copy of
+  `dsh-auto-memory` is pruned by the next `dsh plugin` install.
 
 ### Phase B — one store, real data
 
