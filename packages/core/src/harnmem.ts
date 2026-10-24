@@ -36,7 +36,7 @@ import { IndexManager } from "./indexer.js";
 import { Retriever } from "./retrieval.js";
 import { Consolidator } from "./consolidate.js";
 import { decideDedupe, mergeIntoRecord, supersedeOld } from "./lifecycle.js";
-import { runExtraction, type ExistingMemoryRef } from "./extract.js";
+import { buildDigest, runExtraction, type ExistingMemoryRef } from "./extract.js";
 import { deployDefaultAssets, readAssetRaw } from "./assets.js";
 import {
   atomicWriteFile,
@@ -641,6 +641,45 @@ export class HarnMem {
     return last;
   }
 
+  /**
+   * How many messages the newest completed (`status: "done"`) extraction for
+   * this session already covered; `null` when none ever completed.
+   *
+   * This is the durable counterpart of the in-memory `extracted` flag: a
+   * restarted process (or a resume catch-up) must not call the model again for
+   * a journal prefix that was already extracted, but must still process turns
+   * that happened after the last extraction.
+   */
+  private async extractedMessageCount(sessionId: string): Promise<number | null> {
+    const file = join(this.store.stateDir, "audit.jsonl");
+    const raw = await readTextIfExists(file);
+    if (!raw) return null;
+    let covered: number | null = null;
+    for (const line of raw.split(/\r?\n/)) {
+      if (!line) continue;
+      try {
+        const parsed = JSON.parse(line) as { kind?: string; session?: string; status?: string; messages?: number };
+        if (parsed.kind !== "extract" || parsed.session !== sessionId) continue;
+        if (parsed.status !== "done" || typeof parsed.messages !== "number") continue;
+        covered = covered === null ? parsed.messages : Math.max(covered, parsed.messages);
+      } catch {
+        // ignore malformed lines
+      }
+    }
+    return covered;
+  }
+
+  /**
+   * Persisted session journal for one session id, oldest first (bounded to the
+   * last 200 messages). Adapters use it to rehydrate a process-local transcript
+   * after a restart: DSH resumes a session in a new process without replaying
+   * earlier events, so the digest would otherwise never reach the extraction
+   * gates (N2 quit path).
+   */
+  async readSessionJournal(sessionId: string = this.session.id): Promise<TranscriptMessage[]> {
+    return this.store.readSessionTranscript(this.config.harness, sessionId);
+  }
+
   // ------------------------------------------------------------------ extract
 
   /**
@@ -677,10 +716,20 @@ export class HarnMem {
       if (!write?.autoExtract) return skip("auto_extract_off");
       if (input.skipExtract) return skip("requested");
       if (this.session.extracted) return skip("already_extracted");
+      // Cross-process idempotency: the in-memory flag dies with the process, so
+      // the audit trail is the durable record. Skip only when this attempt would
+      // cover no new messages — a session that continued after its last
+      // extraction still gets the newer turns (N2 resume catch-up).
+      const sessionId = input.sessionId ?? this.session.id;
+      const completedThrough = await this.extractedMessageCount(sessionId);
+      if (completedThrough !== null && messages.length <= completedThrough) return skip("already_extracted");
       if (!this.config.llm) return { status: "no_llm", added: [], superseded: [], skipped: 0 };
       if (this.session.modelWrites >= (write.skipExtractIfModelWrote ?? 1)) return skip("model_wrote");
       const realUserMessages = messages.filter((message) => message.role === "user" && message.text.trim().split(/\s+/).length >= 1);
       if (realUserMessages.length < (write.minUserMessages ?? 3)) return skip("too_few_messages");
+      // A digest below the extraction floor is a normal no-op, not a silent
+      // `done/added:0`: name the reason so the audit line is self-explanatory.
+      if (buildDigest(messages).length < (write.minDigestChars ?? 500)) return skip("digest_too_small");
 
       const existing = await this.existingRefs();
       const extracted = await withTimeout(
@@ -753,7 +802,7 @@ export class HarnMem {
    * advisory: a failure here must never surface as an extraction failure.
    */
   private async auditExtract(input: SessionEndInput, result: ExtractResult): Promise<void> {
-    const messages = input.messages ?? [];
+    const messages = (input.messages ?? []).filter((message) => message.text && message.text.trim());
     try {
       await this.store.audit({
         ts: this.now(),

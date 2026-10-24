@@ -17,6 +17,8 @@ export interface DigestItem {
   role: TranscriptMessage["role"];
   text: string;
   name?: string;
+  /** Event timestamp, when the host event carries one (keeps the journal stable). */
+  ts?: number;
 }
 
 function truncate(text: string, max: number): string {
@@ -58,6 +60,8 @@ export function digestFromEvent(event: unknown): DigestItem | null {
   if (typeof event !== "object" || event === null) return null;
   const record = event as Record<string, unknown>;
   const type = readString(record, "type");
+  const eventTs = record["ts"];
+  const ts = typeof eventTs === "number" && Number.isFinite(eventTs) ? eventTs : undefined;
   const data = record["data"];
   const dataRecord = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : null;
   switch (type) {
@@ -69,12 +73,12 @@ export function digestFromEvent(event: unknown): DigestItem | null {
       if (kind === undefined && dataRecord?.["role"] !== undefined && dataRecord["role"] !== "user") return null;
       const text = textFromContent(dataRecord?.["message"] ?? dataRecord?.["content"] ?? data);
       if (!text.trim()) return null;
-      return { role: "user", text: truncate(text, MAX_ENTRY_CHARS) };
+      return { role: "user", text: truncate(text, MAX_ENTRY_CHARS), ...(ts !== undefined ? { ts } : {}) };
     }
     case "assistant/message": {
       const text = textFromContent(dataRecord?.["message"] ?? dataRecord?.["content"] ?? data);
       if (!text.trim()) return null;
-      return { role: "assistant", text: truncate(text, MAX_ENTRY_CHARS) };
+      return { role: "assistant", text: truncate(text, MAX_ENTRY_CHARS), ...(ts !== undefined ? { ts } : {}) };
     }
     case "tool/call": {
       const tool = dataRecord?.["tool"];
@@ -82,7 +86,7 @@ export function digestFromEvent(event: unknown): DigestItem | null {
       const name = readString(dataRecord, "name") ?? readString(dataRecord, "toolName") ?? readString(toolRecord, "name");
       if (!name) return null;
       // Tool name only: arguments can be large and are not needed for extraction.
-      return { role: "tool", text: name, name };
+      return { role: "tool", text: name, name, ...(ts !== undefined ? { ts } : {}) };
     }
     default:
       return null;
@@ -125,10 +129,21 @@ export class TranscriptDigest {
     return this.items.filter((item) => item.role === "user").length;
   }
 
+  /**
+   * Preload the digest with a transcript persisted by an earlier process
+   * (oldest first). DSH does not replay old events on resume, so without this
+   * the digest of every restarted session starts empty and the quit-time
+   * extraction always skips with `too_few_messages` (N2).
+   */
+  seed(messages: TranscriptMessage[]): void {
+    for (const message of messages) this.add(message);
+  }
+
   snapshot(): TranscriptMessage[] {
     return this.items.map((item) => {
       const message: TranscriptMessage = { role: item.role, text: item.text };
       if (item.name) message.name = item.name;
+      if (item.ts !== undefined) message.ts = item.ts;
       return message;
     });
   }

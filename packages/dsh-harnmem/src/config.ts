@@ -28,6 +28,11 @@ export interface DshHarnMemConfig {
   toolPrefix?: string;
   /** File log at `<home>/logs/dsh.jsonl`. Defaults to `on` during the trial. */
   log?: LogMode;
+  /**
+   * Real user prompts a session must contain before extraction runs. The core
+   * default is 3; lowering it trades extraction quality for coverage.
+   */
+  minUserMessages?: number;
 }
 
 /** Config after defaults and environment overrides. */
@@ -41,6 +46,7 @@ export interface EffectiveSettings {
   consolidateEveryWrites: number;
   toolPrefix: string;
   log: LogMode;
+  minUserMessages: number;
 }
 
 export const DEFAULT_SETTINGS: Omit<EffectiveSettings, "home"> = {
@@ -61,6 +67,7 @@ export const DEFAULT_SETTINGS: Omit<EffectiveSettings, "home"> = {
   // was undiagnosable because nothing was logged. `errors` is the quiet setting;
   // `on` costs ~1–2 KB per session and makes extraction skips visible.
   log: "on",
+  minUserMessages: 3,
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -133,6 +140,7 @@ export function resolveSettings(
     ),
     toolPrefix: toToolPrefix(env["HARNMEM_TOOL_PREFIX"] ?? input["toolPrefix"], DEFAULT_SETTINGS.toolPrefix),
     log: toLogMode(env["HARNMEM_LOG"] ?? input["log"], DEFAULT_SETTINGS.log),
+    minUserMessages: toInt(input["minUserMessages"], DEFAULT_SETTINGS.minUserMessages, 1, 100),
   };
 }
 
@@ -154,4 +162,5 @@ export const Config = Schema.object({
   consolidateEveryWrites: Schema.number().default(DEFAULT_SETTINGS.consolidateEveryWrites),
   toolPrefix: Schema.string().default(DEFAULT_SETTINGS.toolPrefix),
   log: Schema.string().default(DEFAULT_SETTINGS.log),
+  minUserMessages: Schema.number().default(DEFAULT_SETTINGS.minUserMessages),
 });

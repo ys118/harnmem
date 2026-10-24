@@ -2,6 +2,7 @@
 
 > Status: investigation complete; **read-only** (no file in `~/.harnmem`, the DSH profile, or the adapter source was modified).
 > **Resolution (same day, later): fixed and verified end-to-end in a real DSH runtime — see §10.**
+> **Follow-up (2026-10-24): quit-time extraction closed by a deferred catch-up at the next open — see §11.**
 > Collected: 2026-10-23 17:15–17:35 (+08). Machine: Windows 11 x64, DSH desktop (profile `desktop`), Node 24.9.0.
 > Question asked: "harnmem 的写入侧为什么静默?" — i.e. why has the store produced no new memory since the DSH adapter went live?
 > Evidence labels: `[V]` = directly verified on this machine (file read / command output); `[I]` = inferred from code + collected data; `[U]` = unverified, needs a controlled run.
@@ -195,3 +196,31 @@ All three channels were repaired and the extraction path was proven end-to-end i
 **Desktop N1 (partial, 2026-10-23 21:33):** after restarting the bundled app, the real `~/.harnmem/logs/dsh.jsonl` appeared with `plugin.apply` (trial defaults `toolPrefix:"harnmem_"`, `log:"on"`, `llmTimeoutMs:20000`), `tools.registered {count:5, of:5, prefix:"harnmem_"}` and `session.started (bytes:301, ids:1)`. A `harnmem_write` from the desktop agent produced the matching `write` event in `audit.jsonl` and a live `inject` refresh (`bytes:457`, `tokens:104`, 2 ids); `harnmem_search`/`harnmem_read` round-trip. Quit-time `session.end` is still to be observed in the desktop GUI.
 
 **Residual unknowns (unchanged or new):** the desktop GUI quit path is still unverified against the awaited handlers (N1 continues; the load/registration/write path is verified above); the host's duplicate-tool policy is still unlocated, but the prefixed names make it irrelevant for this adapter; desktop `autoExtract` product default belongs to N13. The N3 decision (2026-10-23) is option (b): keep both memory plugins during the trial, then disable `dsh-auto-memory`/`pi-memory` after N4 migration.
+
+## 11. Follow-up (2026-10-24): quit-time extraction
+
+The one gap left after §10 was the desktop quit path: at `plugin_unload` the host
+has already disposed the provider adapters, so the dispose-time `sessionEnd` LLM
+call dies in milliseconds with `code:"NO_ADAPTER"` (observed; core used to swallow
+that as `status:"done", added:0`). Fixing the adapter's timing could not help — the
+model is simply not reachable at that moment.
+
+The shipped fix makes extraction **deferred instead of lost**: the session journal
+is durable, and the next time the same session is opened the adapter re-seeds the
+digest from the journal and runs `sessionEnd` with `reason:"resume_catchup"` while
+the LLM is alive (the desktop app resumes the last session on launch). Core's
+`extract` audit events are the cross-process watermark: a completed extraction
+covers `messages` up to the recorded count, only newer turns re-trigger, and LLM
+failures now surface as `failed` instead of an empty success; digests below
+`minDigestChars` skip as `digest_too_small`.
+
+**Verification (headless real DSH runtime, scratch home):** a 6-entry / 3-user
+journal produced `digest.hydrated {entries:6, userMessages:3}` →
+`extract.catchup {status:"done", added:1}` → `audit.jsonl` `extract added:1` →
+memory `<memory-id>`; the dispose that followed logged
+`session.end status:"skipped" skipReason:"already_extracted"`. Core 29/29,
+adapter 28/28, `pnpm -r typecheck` green.
+
+**Residual:** sessions that are never reopened are not extracted (the journal is
+kept; a turn/idle-triggered extraction would close this and is an N13 option).
+The desktop restart cycle itself still has to be observed live in N1.

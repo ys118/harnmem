@@ -13,7 +13,7 @@
  */
 import { promises as fs } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import type { MemoryRecord, MemoryScope } from "./types.js";
+import type { MemoryRecord, MemoryScope, TranscriptMessage } from "./types.js";
 import { parseFrontmatter, recordFromFrontmatter, recordFileName, serializeRecord } from "./frontmatter.js";
 import { atomicWriteFile, ensureDir, normalizeNewlines, pathExists, readJson, writeJson } from "./util.js";
 
@@ -337,7 +337,13 @@ export class Store {
     await writeJson(this.path("state", "usage.json"), Object.fromEntries(usage));
   }
 
-  /** Session journal entry (only what extraction needs). */
+  /**
+   * Session journal entry (only what extraction needs).
+   *
+   * Idempotent per message: re-persisting a snapshot that already covers
+   * messages from an earlier process (the adapter rehydrates its digest from
+   * this journal) appends only the lines that are not already present.
+   */
   async appendSession(input: {
     harness: string;
     sessionId: string;
@@ -349,11 +355,83 @@ export class Store {
     const dir = this.path("sessions", date);
     await ensureDir(dir);
     const file = join(dir, `${input.harness}_${sanitizeFilePart(input.sessionId)}.jsonl`);
-    const lines = input.messages.map((m) =>
-      JSON.stringify({ ts: m.ts ?? Date.now(), role: m.role, text: m.text.slice(0, 4096), cwd: input.cwd }),
-    );
     const existing = (await pathExists(file)) ? await fs.readFile(file, "utf8") : "";
-    await atomicWriteFile(file, `${existing}${lines.join("\n")}\n`);
+    const seen = new Set<string>();
+    for (const rawLine of existing.split(/\r?\n/)) {
+      // Tolerate a UTF-8 BOM from hand-edited / PowerShell-written journals.
+      const line = rawLine.replace(/^\uFEFF/, "");
+      if (!line.trim()) continue;
+      try {
+        const parsed = JSON.parse(line) as { ts?: number; role?: string; text?: string };
+        if (parsed.role && typeof parsed.text === "string") {
+          seen.add(journalKey(parsed.ts, parsed.role, parsed.text));
+        }
+      } catch {
+        // Ignore malformed journal lines; new messages are still appended.
+      }
+    }
+    const fresh: string[] = [];
+    for (const m of input.messages) {
+      const ts = m.ts ?? Date.now();
+      const key = journalKey(ts, m.role, m.text);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      fresh.push(JSON.stringify({ ts, role: m.role, text: m.text.slice(0, 4096), cwd: input.cwd }));
+    }
+    if (fresh.length === 0) return;
+    await atomicWriteFile(file, `${existing}${fresh.join("\n")}\n`);
+  }
+
+  /**
+   * Read one session's persisted journal across day directories, oldest first,
+   * deduplicated and bounded to the last 200 messages.
+   *
+   * DSH resumes a session in a new process without replaying earlier events, so
+   * an adapter that only kept a process-local digest would always hit the
+   * `too_few_messages` gate at the next quit. Adapters use this to rehydrate.
+   */
+  async readSessionTranscript(harness: string, sessionId: string): Promise<TranscriptMessage[]> {
+    const root = this.path("sessions");
+    let dates: string[] = [];
+    try {
+      dates = (await fs.readdir(root)).filter((name) => /^\d{8}$/.test(name)).sort();
+    } catch {
+      return [];
+    }
+    const file = `${harness}_${sanitizeFilePart(sessionId)}.jsonl`;
+    const seen = new Set<string>();
+    const out: TranscriptMessage[] = [];
+    for (const date of dates) {
+      const path = join(root, date, file);
+      if (!(await pathExists(path))) continue;
+      let raw = "";
+      try {
+        raw = await fs.readFile(path, "utf8");
+      } catch {
+        continue;
+      }
+      for (const rawLine of raw.split(/\r?\n/)) {
+        // Tolerate a UTF-8 BOM from hand-edited / PowerShell-written journals.
+        const line = rawLine.replace(/^\uFEFF/, "");
+        if (!line.trim()) continue;
+        try {
+          const parsed = JSON.parse(line) as { ts?: number; role?: string; text?: string };
+          if (typeof parsed.text !== "string" || parsed.text.trim() === "") continue;
+          const role = parsed.role;
+          if (role !== "user" && role !== "assistant" && role !== "tool" && role !== "system") continue;
+          const key = journalKey(parsed.ts, role, parsed.text);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          const message: TranscriptMessage = { role, text: parsed.text };
+          if (typeof parsed.ts === "number") message.ts = parsed.ts;
+          out.push(message);
+        } catch {
+          // Ignore malformed journal lines.
+        }
+      }
+    }
+    out.sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
+    return out.slice(-200);
   }
 
   async listDigests(shard: ShardRef): Promise<DigestEntry[]> {
@@ -464,6 +542,11 @@ export class Store {
 
 function sanitizeFilePart(input: string): string {
   return input.replace(/[^A-Za-z0-9_.-]+/g, "_").slice(0, 80) || "x";
+}
+
+/** Identity of a journal message: same ts+role+text = same append. */
+function journalKey(ts: number | undefined, role: string, text: string): string {
+  return `${ts ?? 0}\u0000${role}\u0000${text.slice(0, 200)}`;
 }
 
 function dayStamp(ts: number): string {

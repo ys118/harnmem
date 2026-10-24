@@ -4,7 +4,7 @@
  */
 
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
@@ -242,5 +242,122 @@ test('log: "off" creates no file sink', async () => {
   await waitForLog(host, "session.end");
   for (const cleanup of host.effectCleanups()) await cleanup();
   await assert.rejects(readFile(join(home, "logs", "dsh.jsonl"), "utf8"), /ENOENT/);
+});
+
+function dayStamp(ts) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function sanitizeFilePart(input) {
+  return input.replace(/[^A-Za-z0-9_.-]+/g, "_").slice(0, 80) || "x";
+}
+
+async function writeJournal(home, sessionId, entries) {
+  const dir = join(home, "sessions", dayStamp(Date.now()));
+  await mkdir(dir, { recursive: true });
+  const file = join(dir, `dsh_${sanitizeFilePart(sessionId)}.jsonl`);
+  await writeFile(file, entries.map((entry) => JSON.stringify(entry)).join("\n") + "\n");
+}
+
+test("resumed session hydrates its digest from the persisted journal", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dsh-harnmem-hydrate-"));
+  roots.push(root);
+  const home = join(root, "home");
+  const sessionId = `s-hydrate-${root}`;
+  const cwd = join(root, "proj");
+  await writeJournal(home, sessionId, [
+    { ts: 1, role: "user", text: "one: the user prefers pnpm", cwd },
+    { ts: 2, role: "assistant", text: "Noted.", cwd },
+    { ts: 3, role: "user", text: "two: never use npm", cwd },
+  ]);
+  process.env["HARNMEM_HOME"] = home;
+  const host = createFakeContext();
+  await apply(host.ctx, undefined);
+  const agent = fakeAgent({ sessionId, cwd });
+  await host.emit("agent/created", { agent });
+  const hydrated = await waitForLog(host, "digest.hydrated");
+  assert.equal(hydrated.data.entries, 3);
+  assert.equal(hydrated.data.userMessages, 2);
+
+  // The quit-time extraction sees the rehydrated prompts instead of an empty
+  // process-local digest (the N2 failure mode was `userMessages = 0`).
+  await host.emit("agent/disposed", { agent });
+  const end = await waitForLog(host, "session.end");
+  assert.equal(end.data.digestEntries, 3);
+  assert.equal(end.data.userMessages, 2);
+});
+
+test("dispose falls back to the journal when the session digest is short", async () => {
+  const { home, host, agent } = await boot();
+  // e.g. the adapter started recording late, or a previous process wrote more.
+  await writeJournal(home, agent.session.id, [
+    { ts: 1, role: "user", text: "one", cwd: agent.session.header.cwd },
+    { ts: 2, role: "user", text: "two", cwd: agent.session.header.cwd },
+    { ts: 3, role: "user", text: "three", cwd: agent.session.header.cwd },
+  ]);
+  await host.emit("agent/disposed", { agent });
+  const hydrated = await waitForLog(host, "session.endHydrated");
+  assert.equal(hydrated.data.userMessages, 3);
+  // `waitForLog` uses substring matching, so pick the exact outcome line.
+  const end = host.logs.find((entry) => String(entry.message).endsWith("session.end"));
+  assert.ok(end, "session.end was logged");
+  assert.equal(end.data.userMessages, 3);
+  assert.equal(end.data.digestEntries, 3);
+});
+
+test("resume catch-up extracts the hydrated journal while the llm service is alive", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dsh-harnmem-catchup-"));
+  roots.push(root);
+  const home = join(root, "home");
+  const sessionId = `s-catchup-${root}`;
+  const cwd = join(root, "proj");
+  const filler =
+    "仓库里的所有子包必须统一使用 pnpm 安装依赖，锁文件只保留 pnpm-lock.yaml；脚本、文档和 CI 配置中出现的 npm 命令都要改成对应的 pnpm 命令，如果有人误用 npm，需要在 code review 中指出并修正。";
+  const memoryJson = JSON.stringify({
+    memories: [
+      {
+        type: "project",
+        scope: "project",
+        title: "pnpm only",
+        description: "All packages use pnpm exclusively",
+        content: "Always use pnpm. Why: one lockfile. How to apply: prefer pnpm in scripts, docs and CI.",
+        confidence: 0.9,
+      },
+    ],
+  });
+  await writeJournal(home, sessionId, [
+    { ts: 1, role: "user", text: `第一轮：${filler}${filler}`, cwd },
+    { ts: 2, role: "assistant", text: "好的，记下了。", cwd },
+    { ts: 3, role: "user", text: `第二轮：${filler}${filler}`, cwd },
+    { ts: 4, role: "user", text: `第三轮：${filler}${filler}`, cwd },
+  ]);
+  process.env["HARNMEM_HOME"] = home;
+  const host = createFakeContext();
+  // Minimal host llm service: enough for the adapter's protocol bridge.
+  host.provide("llm", {
+    async *stream() {
+      yield { type: "text-delta", text: memoryJson };
+      yield { type: "finish", reason: { kind: "end" } };
+    },
+  });
+  await apply(host.ctx, undefined);
+  const agent = fakeAgent({ sessionId, cwd, provider: "fake-provider", model: "fake-model" });
+  await host.emit("agent/created", { agent });
+
+  // The quit itself cannot extract (providers are already gone at
+  // `plugin_unload`), so the next attach finishes the job while the LLM lives.
+  const catchup = await waitForLog(host, "extract.catchup");
+  assert.equal(catchup.data.status, "done");
+  assert.equal(catchup.data.added, 1);
+  assert.equal(catchup.data.userMessages, 3);
+
+  // The dispose that follows must not extract — that is exactly the mode that
+  // used to exit with NO_ADAPTER before the LLM is torn down.
+  await host.emit("agent/disposed", { agent });
+  const end = host.logs.find((entry) => String(entry.message).endsWith("session.end"));
+  assert.ok(end, "session.end was logged");
+  assert.equal(end.data.status, "skipped");
+  assert.equal(end.data.skipReason, "already_extracted");
 });
 

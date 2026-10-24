@@ -47,6 +47,8 @@ export interface AgentSession {
   closed: boolean;
   /** In-flight dispose; concurrent callers (agent + session events) share it. */
   ending: Promise<void> | null;
+  /** In-flight resume catch-up extraction; dispose joins it before closing. */
+  catchup: Promise<void> | null;
 }
 
 export class SessionManager {
@@ -127,6 +129,7 @@ export class SessionManager {
       startedAt: Date.now(),
       closed: false,
       ending: null,
+      catchup: null,
     };
     this.states.set(sessionId, state);
     log.debug("session.created", { sessionId, cwd, readOnly, llm: llm?.label ?? null });
@@ -150,7 +153,67 @@ export class SessionManager {
       const empty: ContextBlock = { text: "", reason, snapshotAt: Date.now(), ids: [], tokensEstimate: 0 };
       state.snapshot.prime(empty, reason);
     }
+    // Rehydrate the digest from the persisted journal: DSH resumes a session in
+    // a new process without replaying old events, so a process-local digest
+    // would never reach the extraction gates at the next quit (N2).
+    if (!readOnly) {
+      try {
+        const history = await engine.readSessionJournal(sessionId);
+        if (history.length > 0) {
+          state.digest.seed(history);
+          state.log.debug("digest.hydrated", {
+            sessionId,
+            entries: history.length,
+            userMessages: state.digest.userMessages(),
+          });
+        }
+      } catch (err) {
+        state.log.warn("digest.hydrateFailed", { sessionId, error: errorMessage(err) });
+      }
+    }
+    // Resume catch-up (N2 quit path): a desktop quit tears the provider
+    // adapters down before `plugin_unload`, so the dispose-time sessionEnd can
+    // no longer reach a model (observed `code=NO_ADAPTER` at the real quit).
+    // The journal is durable though — finish the extraction at the *next*
+    // attach while the LLM service is alive. Core's audit dedupe keeps this
+    // idempotent across processes.
+    this.scheduleCatchUp(state);
     return state;
+  }
+
+  /** Start a background catch-up when a hydrated journal is worth extracting. */
+  private scheduleCatchUp(state: AgentSession): void {
+    if (state.readOnly || state.closed || state.catchup) return;
+    if (state.digest.userMessages() < state.settings.minUserMessages) return;
+    state.catchup = this.runCatchUp(state).finally(() => {
+      state.catchup = null;
+    });
+  }
+
+  private async runCatchUp(state: AgentSession): Promise<void> {
+    const engine = state.engine;
+    if (!engine) return;
+    try {
+      const result = await engine.sessionEnd({
+        sessionId: state.sessionId,
+        cwd: state.cwd,
+        messages: state.digest.snapshot(),
+        reason: "resume_catchup",
+      });
+      state.log.info("extract.catchup", {
+        sessionId: state.sessionId,
+        status: result.status,
+        added: result.added.length,
+        superseded: result.superseded.length,
+        skipped: result.skipped,
+        skipReason: result.skipReason ?? null,
+        error: result.error ?? null,
+        digestEntries: state.digest.snapshot().length,
+        userMessages: state.digest.userMessages(),
+      });
+    } catch (err) {
+      state.log.warn("extract.catchupFailed", { sessionId: state.sessionId, error: errorMessage(err) });
+    }
   }
 
   /** Open (or reuse) the core engine for a state. Concurrent callers share one open. */
@@ -165,7 +228,11 @@ export class SessionManager {
       readOnly: state.readOnly,
       llm: state.llm?.fn ?? null,
       budget: { injectTokens: state.settings.injectMaxTokens, hotEntries: state.settings.hotEntries },
-      write: { autoExtract: state.settings.autoExtract, llmTimeoutMs: state.settings.llmTimeoutMs },
+      write: {
+        autoExtract: state.settings.autoExtract,
+        llmTimeoutMs: state.settings.llmTimeoutMs,
+        minUserMessages: state.settings.minUserMessages,
+      },
       governance: { consolidateEveryWrites: state.settings.consolidateEveryWrites },
       log: (level: string, message: string, data?: unknown) => {
         if (level === "warn" || level === "error") state.log.warn(message, data);
@@ -252,7 +319,18 @@ export class SessionManager {
    */
   async dispose(state: AgentSession, reason: string = "agent_disposed"): Promise<void> {
     if (state.ending) return state.ending;
-    state.ending = this.runDispose(state, reason).finally(() => {
+    state.ending = (async () => {
+      // Join a catch-up that started at attach: it is the one extraction with
+      // live providers, so never close the engine out from under it.
+      if (state.catchup) {
+        try {
+          await state.catchup;
+        } catch {
+          // runCatchUp already logs its own failures
+        }
+      }
+      await this.runDispose(state, reason);
+    })().finally(() => {
       state.ending = null;
     });
     return state.ending;
@@ -263,25 +341,54 @@ export class SessionManager {
     state.closed = true;
     const engine = state.engine;
     if (engine) {
+      const disposeStartedAt = Date.now();
       const timeout = new Promise<"timeout">((resolve) => {
         const timer = setTimeout(() => resolve("timeout"), state.settings.llmTimeoutMs);
         timer.unref?.();
       });
       try {
+        // The digest only holds this process's events. When it falls short of
+        // the extraction gate, substitute the persisted journal: a restarted
+        // desktop session is exactly the normal trial case, and its old prompts
+        // must not be lost to a process boundary (N2 quit path).
+        let messages = state.digest.snapshot();
+        if (messages.filter((message) => message.role === "user").length < state.settings.minUserMessages) {
+          try {
+            const history = await engine.readSessionJournal(state.sessionId);
+            const users = history.filter((message) => message.role === "user").length;
+            if (users > messages.filter((message) => message.role === "user").length) {
+              messages = history;
+              state.log.debug("session.endHydrated", {
+                sessionId: state.sessionId,
+                messages: history.length,
+                userMessages: users,
+              });
+            }
+          } catch (err) {
+            state.log.warn("session.endHydrateFailed", {
+              sessionId: state.sessionId,
+              error: errorMessage(err),
+            });
+          }
+        }
+        const digest = {
+          digestEntries: messages.length,
+          userMessages: messages.filter((message) => message.role === "user").length,
+        };
         const result = await Promise.race([
           engine.sessionEnd({
             sessionId: state.sessionId,
             cwd: state.cwd,
-            messages: state.digest.snapshot(),
+            messages,
             reason,
           }),
           timeout,
         ]);
-        const digest = { digestEntries: state.digest.size, userMessages: state.digest.userMessages() };
         if (result === "timeout") {
           state.log.warn("session.endTimeout", {
             sessionId: state.sessionId,
             ms: state.settings.llmTimeoutMs,
+            elapsedMs: Date.now() - disposeStartedAt,
             ...digest,
           });
         } else {
@@ -296,7 +403,8 @@ export class SessionManager {
             skipReason: result.skipReason ?? null,
             ...digest,
             turns: state.turns,
-            elapsedMs: Date.now() - state.startedAt,
+            elapsedMs: Date.now() - disposeStartedAt,
+            sessionAgeMs: Date.now() - state.startedAt,
             reason,
           });
         }
@@ -310,7 +418,7 @@ export class SessionManager {
       }
     }
     this.states.delete(state.sessionId);
-    state.log.debug("session.disposed", { sessionId: state.sessionId, elapsedMs: Date.now() - state.startedAt });
+    state.log.debug("session.disposed", { sessionId: state.sessionId, sessionAgeMs: Date.now() - state.startedAt });
   }
 
   /** Close every remaining engine (context unload / session disposed). */

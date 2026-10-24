@@ -113,6 +113,17 @@ export function apply(ctx: Context, config: z.infer<typeof Config>): void { ... 
 | `session/disposed` `(session)` | `[verified]` asar | Clean up the Map (leak prevention; `sessionEnd` no longer waits at this point) | Cleanup only; return the dispose promise |
 | Plugin unload | `[verified]` auto-memory `lib/index.js:1875` | `ctx.effect(function*(){ yield async () => Promise.allSettled([...engines].map(e=>e.close())) })` | Wait for in-flight extraction to land |
 
+`[runtime-verified 2026-10-24]` **The quit path is deferred rather than broken.**
+At `plugin_unload` the host has already disposed the provider adapters, so a
+dispose-time `sessionEnd` LLM call fails in milliseconds (`code:"NO_ADAPTER"`).
+The adapter therefore treats the durable journal as the queue: on `agent/created`
+it hydrates the digest from `readSessionJournal()` and, once
+`userMessages >= minUserMessages` and the engine is writable, schedules
+`sessionEnd({reason:"resume_catchup"})` in the background while the LLM is alive;
+`dispose()` joins that promise before closing. Core's `extract` audit events are
+the cross-process `messages` watermark, so a completed extraction is never
+repeated and only newer turns re-trigger (§11).
+
 `ctx.systemPrompt.section({name,order,text})` `[verified]`: `text` may be `(c)=>string`, re-evaluated every step, executed synchronously; `order` ascending (autoload's memory section uses 4000). `ctx.tools.register(def)` `[verified]`; every event registration uses `ctx.on(event, handler)`.
 
 ## 4. Injection design (byte stability is a hard constraint)
@@ -277,6 +288,18 @@ function makeLlmFn(ctx: Context, agent: Agent): LlmFn | null {
 
 `[runtime-verified 2026-10-23]` the shipped bridge does **not** import `@deepseek-ai/dsh-llm` (a `link:`-installed plugin cannot resolve a host-internal bare specifier; the swallowed failure produced `status:"done", added:0`). It reproduces the two wire shapes locally: a frozen user message `{id, role:"user", content:[{type:"text",text}], source:{kind:"dsh-harnmem"}}` and the chunk stream (`text-delta` appends text, `reasoning-delta` counts hidden reasoning, `finish` carries `reason.kind` ∈ `stop`/`error`/`aborted`). `reasoningEffort` is validated against the model's advertised efforts: unsupported values fail the attempt with `code:"UNSUPPORTED_REASONING_EFFORT"`, so the bridge tries `none` → `minimal` → `low` → default and logs `llm.reasoningUnsupported`. `deepseek-v4-flash` supports only `low`+; reasoning still consumed 5,926 chars for a 2,100-char JSON answer, so the extraction call uses a 4,096-token floor and a 20 s budget (§11).
 
+`[runtime-verified 2026-10-24]` **Quit-time extraction runs on the next open, not
+at quit.** The digest is seeded at attach from the journal reader
+(`HarnMem.readSessionJournal`); a session with at least `minUserMessages` (3)
+user prompts schedules `sessionEnd(reason:"resume_catchup")` fire-and-forget while
+the host LLM service is alive. The catch-up is idempotent through the core
+watermark: the audit `messages` count of the last `done` extraction for the
+session is compared with the current digest length (`already_extracted` otherwise),
+and only strictly newer turns re-trigger. A headless real-runtime run hydrated
+6 entries / 3 users and logged `extract.catchup status:done added:1`; the dispose
+that followed logged `session.end status:skipped skipReason:already_extracted`.
+When the process unloads with a still-pending journal, the next open catches up.
+
 ## 7. Migration importer (`harnmem import`, idempotent/rollbackable)
 
 > **Implementation note (v0.1):** the shipped CLI implements this design as `harnmem import dsh|pi|zcode|json` (dry-run by default; `--apply`, `--path-map`, `--project`, `--verify`, `--rollback`) in `packages/cli`; Claude Code import is designed here but not shipped yet. Where this design section and `packages/cli/README.md` disagree, the CLI README and `--help` output are authoritative. The design below is kept for the phase semantics and the migration gates.
@@ -325,6 +348,7 @@ Runtime and migration share the same gates (no separate rule set): exact duplica
 - [x] Child agent (delegationDepth>0) is read-only: 0 writes, 0 extractions, no Map residue after disposal
 - [x] Profile without an LLM: tool writes work, `sessionEnd` returns `{status:"no_llm"}`
 - [x] Resume session: the injection snapshot is rebuilt and the engine is not created twice
+- [x] Quit-path extraction is deferred to the next open: the digest is hydrated from the journal, catch-up `sessionEnd(reason:"resume_catchup")` runs while the LLM is alive, and a completed extraction is not repeated (audit `messages` watermark)
 - [ ] After migration, old memories are searchable via `harnmem_search`, and re-running migrate adds 0 new records (idempotent)
 
 ## 10. Landing order
@@ -346,3 +370,6 @@ Everything below landed while closing N2; the sections above describe the intend
 5. **Dispose is awaited, deduped and bounded.** `agent/disposed` / `session/disposed` handlers return their promise; a per-session `ending` promise makes concurrent disposal idempotent; the race budget is 20 s (measured extraction 10.8–14.1 s); the unload effect awaits `closeAll()` then `log.flush()`. The host does not await `session/disposed` (verified: the ACP `session/close` response arrives before extraction finishes), so the budget only delays background work; at process unload provider adapters are already gone and the call fails in ms.
 6. **The extraction LLM call is a local protocol bridge** (§6): no host-internal imports, reasoning-effort fallback, 4,096-token floor. Real run: `llm.response` 2,100 chars with 5,926 reasoning chars → `session.end status=done added=3`.
 7. **End-to-end verification** used a disposable ACP profile bootstrapped from the shipped `acp` template and installed with `dsh plugin add <path>`; it booted the same DSH 0.2.1-rc.2 runtime. Three user turns → `audit.jsonl` `extract added:3` + three `write` events + memory files; the next session injected the memories (719 B / 170 tokens) and extracted one more. The desktop GUI repeat is folded into N1.
+8. **The digest is hydrated from the durable journal and quit-time extraction is a catch-up at the next open** (§6). The host tears the provider adapters down before `plugin_unload`, so no LLM call can run at quit (`code:"NO_ADAPTER"` in ms). On attach the adapter seeds the digest with `readSessionJournal()` and, once `userMessages >= minUserMessages`, schedules `sessionEnd(reason:"resume_catchup")` while the LLM is alive (the desktop app resumes the last session on launch); `dispose()` joins that promise. Headless real runtime: 6 entries/3 users hydrated → `extract.catchup status=done added=1`, audit `extract added:1`, memory file written.
+9. **Core extraction is idempotent across processes and its failures are visible.** The `messages` count of the last `done` `extract` audit event is the watermark (`already_extracted`), LLM errors propagate to `status:"failed"`, and short digests skip as `digest_too_small`; the journal readers tolerate a leading UTF-8 BOM (PowerShell 5.1 `Set-Content -Encoding utf8` prepended one and silently dropped the first entry).
+10. **Adapter config gained `minUserMessages`** (default 3), passed to core's write config, and `session.end` records `elapsedMs` (extraction duration) separately from `sessionAgeMs`.

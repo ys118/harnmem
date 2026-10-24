@@ -29,6 +29,13 @@ The plugin is a thin adapter. Storage, retrieval, deduplication and lifecycle li
   is disposed. The dispose handlers return their promise, de-duplicate concurrent disposal,
   and bound the extraction race at `llmTimeoutMs` (20 s). Extraction runs `autoExtract` gates
   in core; without a host LLM the result is `no_llm` and nothing is written.
+- **Quit path / resume catch-up** — the host tears the provider adapters down before
+  `plugin_unload`, so no LLM call can run at quit. The session journal is durable: on
+  the next open of the same session the digest is hydrated from it and, once
+  `minUserMessages` (default 3) prompts are covered, `sessionEnd` runs with
+  `reason:"resume_catchup"` while the LLM is alive. The `extract` audit events are the
+  cross-process watermark, so a completed extraction is never repeated; newer turns
+  are extracted on a later open.
 - **Child agents** — subagents (`delegationDepth > 0`, `parentSession`, or
   `subagentDepth > 0`) get a read-only engine: they can search/read but never auto-write
   or extract. Only root agents persist memories.
@@ -60,6 +67,7 @@ Config can be set in that patch row, or overridden per profile in
 | `injectMaxTokens` | `1200` | Hot-index token budget |
 | `hotEntries` | `24` | Max entries in the hot index |
 | `autoExtract` | `true` | Run session-end extraction when a host LLM is available |
+| `minUserMessages` | `3` | User prompts required before extraction (also gates the resume catch-up) |
 | `projectScope` | `true` | Attribute project-scope memories to the session cwd project |
 | `llmTimeoutMs` | `20000` | Bound for the dispose extraction race (never blocks shutdown; measured extraction 10.8–14.1 s) |
 | `consolidateEveryWrites` | `25` | Mechanical consolidation interval (0 disables) |
@@ -114,7 +122,8 @@ enabled (the trial default), mirrored as JSON lines to `~/.harnmem/logs/dsh.json
 `plugin.apply`, `plugin.ready`, `session.created`, `session.started`, `snapshot.rebuilt`
 (reason, sha, bytes), `snapshot.failed`, `session.compacted`, `session.end`
 (status/added/superseded/skipped/skipReason/digest size/user messages/turns/elapsed),
-`session.endTimeout`, `session.disposed`, `tools.registered`, and the extraction LLM bridge
+`session.endTimeout`, `session.disposed`, `tools.registered`, `digest.hydrated`,
+`extract.catchup`, `extract.catchupFailed`, and the extraction LLM bridge
 (`llm.call`, `llm.response`, `llm.callFailed`, `llm.reasoningUnsupported`). Core also appends
 `kind:"extract"` events to `~/.harnmem/state/audit.jsonl` for every extraction outcome.
 Tests read these entries.
@@ -130,6 +139,13 @@ Tests read these entries.
   evicted early prompts, the dispose handler was fire-and-forget, the 8 s budget raced a
   ~11 s extraction, and the LLM bridge imported a host-internal module that a `link:` install
   cannot resolve; all five are fixed (see `docs/research/dsh-write-silence-2026-10-23.md`).
+- **Quit-time extraction is deferred, not lost (2026-10-24).** At `plugin_unload` the
+  provider adapters are already gone (`code:"NO_ADAPTER"` in ms), so the write happens
+  on the next open of the same session instead (the desktop app resumes the last
+  session on launch). Verified in the real headless runtime: `digest.hydrated` 6
+  entries / 3 users → `extract.catchup added:1` → one memory file; the dispose that
+  followed logged `already_extracted`. A session that is never reopened is not
+  extracted (the journal is kept).
 - **A `link:`/path install is still not the product install.** The plugin resolves its host
   packages structurally (`ctx.get`, structural types) and declares them as optional peers;
   installing into a production profile is a user decision, and a path install also needs

@@ -62,7 +62,8 @@ Last updated: **2026-10-23** (after the first real-trial period).
   plugins are installed the order is deterministic: auto-memory, then HarnMem.
 - Adapter defaults (schema; the profile has no explicit config): `injectMaxTokens:
   1200`, `hotEntries: 24`, `autoExtract: true`, `projectScope: true`,
-  `llmTimeoutMs: 20000`, `log: "on"` during the trial, `toolPrefix: "harnmem_"`.
+  `llmTimeoutMs: 20000`, `minUserMessages: 3`, `log: "on"` during the trial,
+  `toolPrefix: "harnmem_"`.
   The five tools are therefore `harnmem_write/search/read/forget/status`; the
   bare `memory_write`/`memory_read` names belong to `dsh-auto-memory` (the first
   registrant wins in DSH, N2 incidentally proved that with tools 3/5 only).
@@ -77,6 +78,17 @@ Last updated: **2026-10-23** (after the first real-trial period).
   timeout was one of the reasons desktop never wrote a memory (N2,
   2026-10-23). At process unload the provider adapters are already gone, so the
   call fails in milliseconds and shutdown does not hang.
+- **Quit-time extraction is deferred, not lost (2026-10-24).** The host tears
+  the provider adapters down before `plugin_unload`, so no LLM call can run at
+  quit (observed `code:"NO_ADAPTER"` in milliseconds). The session journal
+  (`~/.harnmem/sessions/<yyyymmdd>/dsh_<sessionId>.jsonl`) is durable, and the
+  next time that session is opened the adapter re-seeds the digest from it and
+  runs `sessionEnd` with `reason:"resume_catchup"` while the LLM is alive (the
+  desktop app resumes the last session on launch). Core's `extract` audit
+  events are the cross-process watermark: a completed extraction covers
+  `messages` up to the recorded count, only newer turns trigger another run, and
+  `already_extracted`/`digest_too_small` are explicit skip reasons while LLM
+  failures surface as `failed` (never a silent `done added:0`).
 - Session journals: `~/.harnmem/sessions/<yyyymmdd>/dsh_<sessionId>.jsonl`
   (one 139 KB journal from 2026-10-22; the 2026-10-23 verification runs added
   short journals with 6 messages each).
@@ -106,8 +118,19 @@ Ordered by impact; **do not silently skip these**.
    described in `docs/research/dsh-write-silence-2026-10-23.md`; each link is
    fixed here (tool prefix, file log, audit extract event, digest prompt
    preservation, 20 s dispose budget, local LLM protocol bridge, awaited
-   dispose). **Remaining:** repeat once in the desktop GUI profile during N1;
-   decide the product default for `autoExtract` in N13.
+   dispose). The desktop GUI write path is verified (2026-10-23, trial note
+   below); the **quit path is closed 2026-10-24 by deferred catch-up**: the host
+   disposes the provider adapters before `plugin_unload` (observed
+   `code:"NO_ADAPTER"`), so the write happens on the next open of the same
+   session instead (§2). Headless real-runtime E2E: a 6-entry/3-user journal was
+   hydrated on open, extracted with `reason:"resume_catchup"`
+   (`extract.catchup status=done added=1`; `audit.jsonl` `extract added:1`; one
+   memory file written), and the dispose that followed logged
+   `session.end status=skipped skipReason=already_extracted`. **Remaining:**
+   watch one real desktop restart cycle for `extract.catchup` in
+   `~/.harnmem/logs/dsh.jsonl`; sessions that are never reopened are not
+   extracted (turn/idle-triggered extraction is an N13 option); decide the
+   product default for `autoExtract` in N13.
 2. **10k-store performance is v0.2 work**: one-off import ~11–12 s; first query
    per shard 0.5–1.4 s (JSON parse); on-disk index ~2.9× the canonical `.md`
    store (47× if the denominator is body text only); warm search p95 ~16–22 ms.
@@ -313,6 +336,10 @@ Check boxes as items land, and update this file when the status changes.
 | 2026-10-23 | Digest eviction drops the oldest **non-user** entry first | The 200-event ring evicted a session's first prompts before extraction, forcing `too_few_messages` |
 | 2026-10-23 | Extraction LLM access uses a local chunk protocol bridge, not `@deepseek-ai/dsh-llm` imports | A `link:`-installed plugin resolves bare specifiers from its own directory; the failing dynamic import was swallowed as `status:"done", added:0` |
 | 2026-10-23 | Coexistence policy: option (b) — trial keeps both plugins; after N4 disable `dsh-auto-memory`/`pi-memory` | Prefix + order 4050 fixed the functional collision, but two SSOTs drift and cost ~2.4 K injected tokens; single-store migration is the product direction |
+| 2026-10-24 | Quit-time extraction becomes a **deferred catch-up at the next open of the same session** (`sessionEnd(reason:"resume_catchup")` after seeding the digest from the durable journal) | The host tears the provider adapters down before `plugin_unload`, so no LLM call can run at quit (`code:"NO_ADAPTER"` in ms); the journal survives and the desktop app resumes the last session on launch, so the memories land while the LLM is alive. Verified in the headless real runtime |
+| 2026-10-24 | Cross-process extraction idempotency uses the `extract` audit events as a `messages` watermark, not the in-memory flag | The in-memory `extracted` flag dies with the process: a failed/partial extraction would either double-write after each restart or never cover newer turns. Only turns beyond the recorded count re-trigger; core skips `already_extracted` |
+| 2026-10-24 | Extraction failures are visible: LLM errors bubble to `status:"failed"` and short digests skip as `digest_too_small` | `runExtraction` used to swallow both as an empty result, so a dead bridge logged `done added:0` — exactly the silence the trial is meant to remove |
+| 2026-10-24 | Journal readers tolerate a leading UTF-8 BOM | PowerShell 5.1 `Set-Content -Encoding utf8` prepends a BOM; the first line was silently dropped, hydration lost one user prompt (5 entries/2 users instead of 6/3) and the catch-up gate did not fire |
 | — | **Pending:** npm publishing, repo visibility, Claude adapter timing | Need release step |
 
 ### Trial notes (N1)
@@ -335,6 +362,16 @@ Check boxes as items land, and update this file when the status changes.
 - **2026-10-23 — disposable ACP profile** (installed DSH 0.2.1-rc.2): 3 user
   turns → `session.end status=done added:3`; next session injected
   719 B / 170 tokens; three memory files written.
+- **2026-10-24 — headless real runtime, quit-path fix.** Scratch home
+  (`.tmp/n2-catchup-home`), profile `harnmem-verify` (`dsh-base` + `headless` +
+  the linked adapter), journal seeded with 6 entries / 3 long user messages.
+  One real run: `digest.hydrated {entries:6, userMessages:3}` →
+  `extract.catchup {status:"done", added:1}` (LLM `deepseek-flash`, 4.2 s,
+  778 chars + 1,377 reasoning chars) → `audit.jsonl` `extract added:1` →
+  memory `<memory-id>` written; the dispose that followed logged
+  `session.end status:"skipped" skipReason:"already_extracted"`. The preceding
+  run (journal seeded with a BOM) reproduced the old failure: hydration lost one
+  prompt (5/2), no catch-up, `llm.callFailed code:"NO_ADAPTER"` at unload.
 
 ## 6. Verification runbook
 
@@ -342,8 +379,8 @@ Check boxes as items land, and update this file when the status changes.
 # from <repo>
 pnpm -r build
 pnpm -r typecheck
-pnpm test                                   # core 22/22
-node --test packages/dsh-harnmem/test/*.test.mjs   # adapter 25/25
+pnpm test                                   # core 29/29
+node --test packages/dsh-harnmem/test/*.test.mjs   # adapter 28/28
 node evals/gen/generate.mjs --check         # 36 files byte-identical
 node evals/run.mjs --engine core --gate     # functional PASS; 5 advisory
 

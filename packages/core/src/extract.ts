@@ -175,12 +175,11 @@ export async function runExtraction(
     temperature: 0,
     maxTokens: 2000,
   };
-  try {
-    const response = await llm(request);
-    return parseExtractionResponse(response.text).slice(0, config.write?.maxPerRun ?? 6);
-  } catch {
-    return [];
-  }
+  // LLM/transport failures are surfaced, not swallowed: a silent `[]` used to
+  // look like `status:"done", added:0` and hid a broken auxiliary call for
+  // days (N2). The caller records `status:"failed"` and can retry later.
+  const response = await llm(request);
+  return parseExtractionResponse(response.text).slice(0, config.write?.maxPerRun ?? 6);
 }
 
 /** Read a session journal file back into messages (adapter-free harnesses). */
@@ -188,7 +187,9 @@ export async function readSessionJournal(file: string): Promise<TranscriptMessag
   const raw = await readTextIfExists(file);
   if (!raw) return [];
   const out: TranscriptMessage[] = [];
-  for (const line of raw.split(/\r?\n/)) {
+  for (const rawLine of raw.split(/\r?\n/)) {
+    // Tolerate a UTF-8 BOM from hand-edited / PowerShell-written journals.
+    const line = rawLine.replace(/^\uFEFF/, "");
     if (!line.trim()) continue;
     try {
       const parsed = JSON.parse(line) as { role?: string; text?: string; ts?: number };

@@ -32,6 +32,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   next steps with acceptance criteria and a verification runbook.
 
 ### Changed
+- `dsh-harnmem`: resume catch-up extraction — on attach the digest is hydrated
+  from the durable session journal and a `sessionEnd(reason:"resume_catchup")`
+  runs while the host LLM is alive, so a quit-path extraction that the host tears
+  down at unload lands on the next open of the same session. Verified in the real
+  headless runtime (journal 6/3 → `extract added:1`).
+- `@harnmem/core`: cross-process extraction idempotency via the `extract` audit
+  watermark (`messages` count), an explicit `digest_too_small` skip, and LLM
+  failures surfaced as `status:"failed"`; `store.readSessionTranscript()` journal
+  reader (deduped, chronological, BOM-tolerant).
 
 - `pi-harnmem`: new `toolPrefix` setting (default `memory_`) lets the adapter
   expose `harnmem_write`, `harnmem_search`, `harnmem_read`, `harnmem_forget` and
@@ -58,6 +67,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   three user turns now produce `extract added:3` in `audit.jsonl`, three memory
   files, and injection of those memories (719 B / 170 tokens) in the next
   session.
+- `dsh-harnmem`: quit-time extraction. The host disposes the provider adapters
+  before `plugin_unload`, so the dispose-time extraction could never call a model
+  (`code:"NO_ADAPTER"`). The adapter now hydrates the digest from the durable
+  journal at attach and runs the extraction as a `resume_catchup` while the LLM is
+  alive; a completed extraction is not repeated (audit watermark). Headless real
+  runtime: `extract.catchup added:1`, one memory file written.
+- `@harnmem/core`: short-digest and LLM failures were reported as
+  `status:"done", added:0`; they are now `digest_too_small` / `failed`. Journal
+  readers tolerate a leading UTF-8 BOM so hydration cannot silently lose the first
+  prompt.
 
 ## [0.1.0] - 2026-10-20
 

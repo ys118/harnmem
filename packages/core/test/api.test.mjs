@@ -258,3 +258,88 @@ test("migrated source with nested migratedFrom survives disk roundtrip", async (
   assert.equal(read?.record.source.migratedFrom?.path, "C:/memory/x.md");
   assert.equal(read?.record.source.migratedFrom?.originalId, "orig-1");
 });
+
+test("extraction is idempotent across processes and still covers newer turns", async () => {
+  const first = await fresh({
+    autoExtract: true,
+    llm: async () => ({ text: JSON.stringify({ memories: [] }) }),
+    write: { autoExtract: true, minUserMessages: 2, minDigestChars: 20, minConfidence: 0, llmTimeoutMs: 5000 },
+  });
+  const messages = [
+    { role: "user", text: "We agreed to use pnpm for every package in this repository." },
+    { role: "assistant", text: "Understood." },
+    { role: "user", text: "Please remember that decision forever." },
+  ];
+  const firstRun = await first.eng.sessionEnd({ sessionId: "s-cross", messages });
+  assert.equal(firstRun.status, "done");
+  await first.eng.close();
+
+  // Same home, new process: the journal prefix must not hit the model again.
+  let llmCalls = 0;
+  const second = await HarnMem.open({
+    harness: "cli",
+    cwd: first.cwd,
+    home: first.home,
+    project: "proj",
+    autoExtract: true,
+    llm: async () => {
+      llmCalls += 1;
+      return { text: JSON.stringify({ memories: [] }) };
+    },
+    write: { autoExtract: true, minUserMessages: 2, minDigestChars: 20, minConfidence: 0, llmTimeoutMs: 5000 },
+  });
+  const repeat = await second.sessionEnd({ sessionId: "s-cross", messages: messages.slice(0, 2) });
+  assert.equal(repeat.status, "skipped");
+  assert.equal(repeat.skipReason, "already_extracted");
+  assert.equal(llmCalls, 0);
+
+  // Turns after the last extraction are not lost to the dedupe.
+  const extended = [...messages, { role: "user", text: "Also run pnpm install before CI." }];
+  const nextRun = await second.sessionEnd({ sessionId: "s-cross", messages: extended });
+  assert.equal(nextRun.status, "done");
+  assert.equal(llmCalls, 1);
+  await second.close();
+});
+
+test("a too-short digest is reported as digest_too_small, not a silent done", async () => {
+  const { eng } = await fresh({
+    autoExtract: true,
+    llm: async () => ({ text: JSON.stringify({ memories: [] }) }),
+    write: { autoExtract: true, minUserMessages: 1, minDigestChars: 500, minConfidence: 0, llmTimeoutMs: 5000 },
+  });
+  const result = await eng.sessionEnd({
+    sessionId: "s-small",
+    messages: [
+      { role: "user", text: "a" },
+      { role: "user", text: "b" },
+      { role: "user", text: "c" },
+    ],
+  });
+  assert.equal(result.status, "skipped");
+  assert.equal(result.skipReason, "digest_too_small");
+});
+
+test("an LLM failure is reported as failed instead of a silent empty extraction", async () => {
+  const { eng, home } = await fresh({
+    autoExtract: true,
+    llm: async () => {
+      throw new Error("boom");
+    },
+    write: { autoExtract: true, minUserMessages: 1, minDigestChars: 20, minConfidence: 0, llmTimeoutMs: 5000 },
+  });
+  const result = await eng.sessionEnd({
+    sessionId: "s-fail",
+    messages: [
+      { role: "user", text: `Remember the deployment approach we agreed on today: no containers, local binary only. ${"x".repeat(300)}` },
+      { role: "user", text: `Also record that the backend port must stay 8080 for local debugging. ${"y".repeat(300)}` },
+    ],
+  });
+  assert.equal(result.status, "failed");
+  assert.match(result.error, /boom/);
+  const audit = (await readFile(join(home, "state", "audit.jsonl"), "utf8"))
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line))
+    .filter((entry) => entry.kind === "extract" && entry.session === "s-fail");
+  assert.equal(audit.at(-1).status, "failed");
+});
