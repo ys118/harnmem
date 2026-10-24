@@ -176,7 +176,11 @@ export async function loadProjects(home: string): Promise<ProjectsFile> {
   const file = projectsFile(home);
   const parsed = await readJson<Partial<ProjectsFile>>(file, EMPTY_PROJECTS);
   if (!parsed || typeof parsed !== "object" || !parsed.projects) return { version: 1, projects: {} };
-  return { version: 1, projects: parsed.projects };
+  // Copy the nested record: `readJson` hands back the shared `EMPTY_PROJECTS`
+  // object when the registry file is missing, and `registerProject` mutates it.
+  // Without the copy, a second home opened in the same process inherits the
+  // first home's entries.
+  return { version: 1, projects: { ...parsed.projects } };
 }
 
 export async function registerProject(

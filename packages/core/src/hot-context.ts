@@ -97,17 +97,42 @@ function resolveProjectId(home: string, cwd: string | undefined): string | null 
   })();
   if (!registries) return null;
   const target = normalizePathKey(cwd);
-  let best: { id: string; length: number } | null = null;
+  // A registry can hold several ids for the same path (a `path:` entry and a
+  // `git:` entry written by different runs). Keep every candidate and prefer
+  // the one that actually has memories: returning the first match would
+  // silently drop that project's shard from the injected block.
+  const candidates = new Map<string, number>();
   for (const entry of Object.values(registries.projects)) {
     if (!entry || typeof entry.id !== "string" || !Array.isArray(entry.paths)) continue;
     for (const path of entry.paths) {
       if (typeof path !== "string") continue;
       const normalized = normalizePathKey(path);
       if (target !== normalized && !target.startsWith(`${normalized}/`)) continue;
-      if (!best || normalized.length > best.length) best = { id: entry.id, length: normalized.length };
+      const known = candidates.get(entry.id) ?? -1;
+      if (normalized.length > known) candidates.set(entry.id, normalized.length);
+    }
+  }
+  if (candidates.size === 0) return null;
+  if (candidates.size === 1) return candidates.keys().next().value ?? null;
+  let best: { id: string; length: number; records: number } | null = null;
+  for (const [id, length] of candidates) {
+    const records = projectRecordCount(home, id);
+    if (!best || records > best.records || (records === best.records && length > best.length)) {
+      best = { id, length, records };
     }
   }
   return best?.id ?? null;
+}
+
+/** Number of memory files in a project shard (`-1` when the shard is missing). */
+function projectRecordCount(home: string, projectId: string): number {
+  try {
+    return readdirSync(join(home, "memories", "projects", projectId)).filter(
+      (file) => file.endsWith(".md") && file !== "MEMORY.md",
+    ).length;
+  } catch {
+    return -1;
+  }
 }
 
 /** Read digest pages for one shard without touching the async store. */
