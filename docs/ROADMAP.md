@@ -129,11 +129,12 @@ Ordered by impact; **do not silently skip these**.
    hydrated on open, extracted with `reason:"resume_catchup"`
    (`extract.catchup status=done added=1`; `audit.jsonl` `extract added:1`; one
    memory file written), and the dispose that followed logged
-   `session.end status=skipped skipReason=already_extracted`. **Remaining:**
-   watch one real desktop restart cycle for `extract.catchup` in
-   `~/.harnmem/logs/dsh.jsonl`; sessions that are never reopened are not
-   extracted (turn/idle-triggered extraction is an N13 option); decide the
-   product default for `autoExtract` in N13.
+   `session.end status=skipped skipReason=already_extracted`. The real desktop
+   GUI cycle is watched too (2026-10-24 11:37, trial note below:
+   `extract.catchup status=done added=3` after 37.3 s on the 60 s build).
+   **Remaining:** sessions that are never reopened are not extracted
+   (turn/idle-triggered extraction is an N13 option); decide the product default
+   for `autoExtract` in N13.
 2. **10k-store performance is v0.2 work**: one-off import ~11–12 s; first query
    per shard 0.5–1.4 s (JSON parse); on-disk index ~2.9× the canonical `.md`
    store (47× if the denominator is body text only); warm search p95 ~16–22 ms.
@@ -415,8 +416,14 @@ Check boxes as items land, and update this file when the status changes.
   silent `done added:0` — and the watermark stayed put, so the next open retries.
   A small session (`<session-id>`, 12 entries / 5 users) finished in 14.3 s:
   `extract.catchup {status:"done", added:1}`, the first desktop-GUI catch-up
-  write. Follow-up: the default budget is now 60 s (decision log); one more
-  restart loads it and should land this session's extraction.
+  write. Follow-up landed: after the restart with the 60 s build
+  (`plugin.apply llmTimeoutMs:60000`), the same session retried on open —
+  `digest.hydrated {entries:200, userMessages:4}` → `llm.response
+  {chars:2598, reasoningChars:3453, finish:"stop"}` after 37.3 s →
+  `extract.catchup {status:"done", added:3}`; `audit.jsonl` gained three `write`
+  events and `extract done added:3 messages:200 userMessages:4`, and three
+  memory files appeared (titles: "DSH 补写抽取预算 20s 提升到 60s",
+  "桌面端补写真机验证：小会话成功、大会话 20s 超时", "补写失败要显式报错且不推进水位").
 
 ## 6. Verification runbook
 

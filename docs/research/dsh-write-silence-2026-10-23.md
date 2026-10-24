@@ -242,7 +242,11 @@ automatically. The 20 s budget was too tight for a reasoning model
 run logged `extract.catchup {status:"failed", error:"extraction timed out after
 20000ms"}` — visible and retried on the next open — while a smaller session
 (`12 entries / 5 users`) completed in 14.3 s with `extract.catchup
-{status:"done", added:1}`. The default budget is now 60 s.
+{status:"done", added:1}`. The default budget is now 60 s. The 60 s retry then
+landed the same session's extraction: on the next open,
+`extract.catchup {status:"done", added:3}` after 37.3 s (2,598 answer chars +
+3,453 reasoning chars) and three memory files written — the desktop GUI
+quit-path loop is closed end to end.
 
 **Residual:** sessions that are never reopened are not extracted (the journal is
 kept; a turn/idle-triggered extraction would close this and is an N13 option).
