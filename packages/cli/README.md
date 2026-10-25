@@ -68,21 +68,32 @@ Exit codes: `0` ok, `1` runtime or verification failure, `2` usage error.
 ## Migration
 
 ```text
+harnmem import auto                # dry-run: probe DSH / pi / ZCode / Claude Code stores, print a plan
+harnmem import auto --apply        # one run (and one ledger) per source; y/N prompt in a TTY
+harnmem import auto --apply --yes  # non-interactive
 harnmem import dsh                 # dry-run by default: ~/.dsh/memory (+ sessions for cwd recovery)
 harnmem import dsh --apply         # backup -> import -> ledger -> source-integrity check
 harnmem import pi  --apply         # ~/.pi/agent/memory (MEMORY.md blocks + daily/ notes)
 harnmem import zcode --apply       # optional; absent store is skipped
-harnmem import json --path backup.json --apply   # ImportRecord[] round-trip
+harnmem import claude --apply      # ~/.claude/projects/<slug>/*.md + legacy ~/.claude/memory
+harnmem import md --path ./notes --apply            # any Markdown tree (one record per file)
+harnmem import md --path ./notes --mode heading     # one record per H1/H2 section
+harnmem import json --path backup.json --apply      # arrays, envelopes, field aliases
+harnmem import json --path backup.jsonl --apply     # JSONL/NDJSON (or --jsonl)
+cat export.json | harnmem import json --path -      # stdin
 harnmem import list                # recorded runs
 harnmem import verify [runId]      # re-read all ids + ensure sources untouched
 harnmem import rollback [runId]    # hard-forget exactly what one run imported
 harnmem import unresolved          # buckets that could not be attributed
 ```
 
+`import auto` only scans *memory stores*; it never imports `CLAUDE.md`/`AGENTS.md`/IDE rule files (the host still reads them, so a copy would be injected twice). For stores without a parser — cloud memory services, transcripts, PDF/OCR text — use the shipped `prompts/migrate.md` recipe with your agent: it produces an `ImportRecord[]` JSON file that `import json` accepts.
+
 Long form is equivalent (`--from` plus flags), useful for scripting:
 
 ```text
-harnmem import --from dsh|pi|zcode|json --path <dir|file> [--dry-run] [--apply]
+harnmem import --from dsh|pi|zcode|claude|json|md|auto --path <dir|file> [--dry-run] [--apply]
+              [--jsonl] [--mode file|heading] [--max-files N] [--include-all]
               [--path-map map.json | key=id|path] [--project <id|path>] [--verify]
 harnmem import --verify [runId] | --rollback <runId>
 harnmem index rebuild              # alias of harnmem rebuild
@@ -94,16 +105,27 @@ Guarantees and rules:
 - Before writing, `--apply` copies the source tree to
   `<home>/state/backups/<runId>/source/` and records sha256 + mtime for every
   file in `manifest.json`; `verify` re-checks them, so migration never edits the
-  legacy stores.
+  legacy stores. (`auto` runs are separate per source, so rollback is per source.)
 - Idempotent via `<home>/state/migrations/<runId>.json`: entries are keyed
   `harness|relativeOriginPath|originalId` with a content hash, so a second run
   imports 0 and changed sources are re-imported with a warning.
+- `import json` accepts arrays, `{records|memories|data|results|items}` envelopes,
+  JSONL and stdin, plus common field aliases (`name`→`title`, `text`/`memory`/`body`
+  →`content`, `created_at`/`date`→`created`, `score`→`importance`, …). A bad file
+  is a usage error; a bad record goes to the unresolved bucket and the rest import.
+- `import md` imports `.md`/`.mdc`/`.mdx`/`.markdown`/`.txt` trees, honours
+  frontmatter, infers type from frontmatter/tags/path, attributes each file to the
+  nearest git repository (otherwise `user` scope + warning), and skips
+  `CLAUDE.md`/`AGENTS.md`/`GEMINI.md`/`.cursor*`/`MEMORY.md` unless `--include-all`.
+  A dry-run may register discovered projects in `<home>/projects.json`; nothing else is written.
 - Source mtimes/hashes are never touched; `SCRATCHPAD.md` / `recovery/` are
   skipped, and project identity is recovered from DSH session-log cwd
-  (`session.v4.jsonl.zstd`) or pi session JSONL, with `--path-map key=<project-id-or-existing-path>`
+  (`session.v4.jsonl.zstd`), pi session JSONL, or Claude Code session JSONL (first
+  256 KiB per project directory), with `--path-map key=<project-id-or-existing-path>`
   and an `imports/unresolved/` bucket as explicit fallbacks.
 - Environment: `DSH_HOME` (default `~/.dsh`), `PI_AGENT_DIR` (default
-  `~/.pi/agent`), `ZCODE_HOME` (default `~/.zcode`).
+  `~/.pi/agent`), `ZCODE_HOME` (default `~/.zcode`), `CLAUDE_CONFIG_DIR` (default
+  `~/.claude`).
 
 ## Development
 

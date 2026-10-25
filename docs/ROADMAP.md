@@ -418,8 +418,15 @@ Check boxes as items land, and update this file when the status changes.
   `dsh.jsonl`.)* Remaining: decide the product default for `autoExtract` per
   harness and sample-audit extraction precision with the LLM-judge protocol in
   [`design/05-evaluation.md`](design/05-evaluation.md).
-- [ ] **N14. Documentation:** migration guide (dsh/pi/ZCode → HarnMem),
-  FAQ, adapter-authoring guide, refreshed README numbers.
+- [x] **N14. Documentation:** migration guide (dsh/pi/ZCode/Claude Code/Markdown →
+  HarnMem), FAQ, adapter-authoring guide, refreshed README numbers.
+  *Completed 2026-10-25.* Design of record:
+  [`design/10-migration-onboarding.md`](design/10-migration-onboarding.md) — a
+  three-layer onboarding path (relaxed JSON contract, `import md` / `import claude` /
+  `import auto`, agent-assisted recipe). Shipped with it: user guide §8, the CLI
+  README, [`faq.md`](faq.md), [`adapter-authoring.md`](adapter-authoring.md), a
+  five-layer docs index and a refreshed [`README.md`](../README.md);
+  `packages/cli/test/` covers the new import paths end to end.
 
 ## 5. Decision log
 
@@ -443,6 +450,8 @@ Check boxes as items land, and update this file when the status changes.
 | 2026-10-24 | Extraction budget 20 s → 60 s | Desktop-GUI catch-up of a 6,000-char digest on `<provider>/<model>` took 33.3 s and logged `extract.catchup {status:"failed", error:"extraction timed out after 20000ms"}`; the catch-up runs in the background and never blocks a turn, so a larger budget only helps, and a `failed` row does not advance the watermark so the next open retries |
 | 2026-10-24 | Journal readers tolerate a leading UTF-8 BOM | PowerShell 5.1 `Set-Content -Encoding utf8` prepends a BOM; the first line was silently dropped, hydration lost one user prompt (5 entries/2 users instead of 6/3) and the catch-up gate did not fire |
 | 2026-10-25 | Repository made public; `v0.2.0` GitHub release published from the changelog | Open-source flip completed after the prep PR (privacy sweep + history rewrite + contribution gate) was reviewed and merged |
+| 2026-10-25 | Migration onboarding is three layers, not one parser per product: relaxed JSON contract, deterministic `md`/`claude`/`auto` importers, agent-assisted prompt for the long tail | The pipeline (dry-run, backup, ledger, verify/rollback) already exists; per-product connectors drift and multiply. Moving *conclusions* (title/description/content) rather than raw documents is what HarnMem injection rewards — design in [`design/10-migration-onboarding.md`](design/10-migration-onboarding.md) |
+| 2026-10-25 | `import auto` probes only known harness memory stores; repository instruction files (`CLAUDE.md`, `AGENTS.md`, rule files) are never auto-migrated | Hosts inject instruction files directly, so importing them would double-inject and fork stale copies; explicit `import md --include-all` covers the decommissioning case |
 
 ### Trial notes (N1)
 

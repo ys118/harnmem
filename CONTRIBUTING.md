@@ -153,8 +153,9 @@ pnpm -r typecheck
 pnpm test
 ```
 
-`pnpm test` builds `@harnmem/core` and runs its `node --test` suite. Adapter
-packages have their own tests and READMEs.
+`pnpm test` builds `@harnmem/core` and `@harnmem/cli` and runs both `node --test`
+suites (engine plus CLI end-to-end tests). Adapter packages have their own tests
+and READMEs.
 
 ## Code conventions
 
@@ -182,7 +183,9 @@ first, and open an issue before writing. An adapter:
   an end-to-end verification note.
 
 The design-only Claude Code adapter (`docs/design/09-claude-adapter.md`) is the
-natural starting point for a new harness.
+natural starting point for a new harness. To *import* a legacy memory store
+instead of wiring a runtime adapter, follow the importer track in
+[`docs/adapter-authoring.md`](docs/adapter-authoring.md).
 
 ## Blocking
 

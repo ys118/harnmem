@@ -1,14 +1,23 @@
 # Documentation
 
-The documentation is organized in four layers. If you are new, read the
+The documentation is organized in five layers. If you are new, read the
 [user guide](user-guide.md) first, then [`design/00-overview.md`](design/00-overview.md).
 
 ## User guide
 
 - [User guide](user-guide.md) — install, first run, configuration, tools,
   `/memory` commands, migration, troubleshooting, privacy.
+- [FAQ](faq.md) — short answers on storage/privacy, migration, adapters and
+  common failures.
 - [Roadmap and current status](ROADMAP.md) — what is done, what is running,
   known issues, and the ordered next steps (start here to continue development).
+
+## Contributor guides
+
+- [Adapter authoring guide](adapter-authoring.md) — add a CLI importer (bring a
+  legacy store into HarnMem) or a runtime adapter (make a harness use HarnMem).
+- [Contributing](../CONTRIBUTING.md) — quality bar, contribution gate, PR flow,
+  local checks.
 
 ## Design (design of record)
 
@@ -24,6 +33,7 @@ The documentation is organized in four layers. If you are new, read the
 | [`design/07-adapter-contract.md`](design/07-adapter-contract.md) | Adapter contract, tool semantics, KV-cache rules, execution-surface split |
 | [`design/08-dsh-adapter.md`](design/08-dsh-adapter.md) | DeepSeek Harness adapter: plugin shape, hooks, injection, cold-start fallback, tools |
 | [`design/09-claude-adapter.md`](design/09-claude-adapter.md) | Claude Code adapter design: zero-dependency MCP stdio server + hooks (not implemented) |
+| [`design/10-migration-onboarding.md`](design/10-migration-onboarding.md) | Migration onboarding: relaxed JSON contract, `import md` / `import claude` / `import auto`, agent-assisted recipe, safety and acceptance criteria |
 
 ## Research notes
 

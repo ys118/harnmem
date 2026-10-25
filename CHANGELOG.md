@@ -31,6 +31,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `HARNMEM_STATUS_LINE=1|0`) — set `false` to stop drawing the footer line
   `harnmem: N entries · ~T tokens · <sha>`. Injection, tools and extraction are
   unchanged; `/memory status` still reports the snapshot.
+- `@harnmem/cli`: migration onboarding — `harnmem import auto` probes the known
+  memory stores (DSH, pi, ZCode, Claude Code), prints a plan and imports each
+  source as its own run/ledger (`--apply`, TTY y/N, `--yes` for non-interactive);
+  `harnmem import claude` imports `~/.claude/projects/<slug>` memory files with
+  project attribution recovered from the session JSONL `cwd`; `harnmem import md
+  --path <dir|file>` imports any Markdown/`.txt` tree in `file` or `heading` mode,
+  honoring frontmatter and inferring type/scope/project; `harnmem import json` now
+  accepts arrays, `{records|memories|data|results|items}` envelopes, JSONL/NDJSON
+  (`--jsonl`), stdin (`--path -`), common field aliases and infers missing
+  type/title, while bad records go to the unresolved bucket instead of aborting
+  the file. See `docs/design/10-migration-onboarding.md`.
+- `prompts/migrate.md`: agent-facing migration recipe (deployed to
+  `<home>/prompts/`, never engine-loaded) for legacy stores without a
+  deterministic importer — the agent reads the old memory, writes an
+  `ImportRecord[]` JSON file and runs `harnmem import json --apply --verify`.
+- Documentation for migration onboarding: `docs/faq.md` (general, migration,
+  adapters and troubleshooting answers), `docs/adapter-authoring.md` (Track A CLI
+  importer contract and Track B runtime adapter contract), a five-layer
+  documentation index, and a refreshed README/harness-support table. The roadmap
+  items for the migration guide and adapter-authoring guide are complete.
 
 ### Changed
 
