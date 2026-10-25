@@ -371,9 +371,9 @@ Check boxes as items land, and update this file when the status changes.
   explicit `--provenance` in release.yml is unaffected). Publishing required
   the maintainer's terminal: account 2FA is auth-and-writes, so chat-relayed
   TOTP codes expired in transit (`EOTP` ×2); the interactive browser-OTP flow
-  succeeded. Note: an extra stray publish from a pre-repo checkout created
-  `0.0.0-stage` versions of pi-harnmem/dsh-harnmem — unpublish pending (72 h
-  window). *Acceptance:* `npm view` shows 0.2.0 ×4 ✓; clean-dir
+  succeeded. Note: an extra stray publish from a pre-repo checkout had created
+  `0.0.0-stage` versions of pi-harnmem/dsh-harnmem; both were unpublished the
+  same day (registry now shows only 0.2.0). *Acceptance:* `npm view` shows 0.2.0 ×4 ✓; clean-dir
   `npm install pi-harnmem dsh-harnmem` auto-resolves `@harnmem/core@0.2.0`
   (no manual junction) and the pi entry imports ✓; `dsh plugin --profile
   npm-test add dsh-harnmem` installs 0.2.0 from npm ✓; all four READMEs now
