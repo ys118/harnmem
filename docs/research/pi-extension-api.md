@@ -300,7 +300,7 @@ This is exactly pi-memory's exit-summary call (`index.ts:467-471`, model resolut
 ## 7. Session/environment access
 
 `ctx.sessionManager: ReadonlySessionManager` = `Pick<SessionManager, "getCwd" | "getSessionDir" | "getSessionId" | "getSessionFile" | "getLeafId" | "getLeafEntry" | "getEntry" | "getLabel" | "getBranch" | "buildContextEntries" | "getHeader" | "getEntries" | "getTree" | "getSessionName">` (`session-manager.ts:190-206`).
-- `getSessionId()`: UUIDv7 string (probe: `<session-id>-…`). `getSessionFile()`: path or **`undefined` when `--no-session`/ephemeral** (probe hit this).
+- `getSessionId()`: UUIDv7 string (probe: <uuid>). `getSessionFile()`: path or **`undefined` when `--no-session`/ephemeral** (probe hit this).
 - `getEntries()`: all `SessionEntry[]`; `getBranch()`: current branch; `buildContextEntries()`: branch with compaction applied (this is what the model sees — use for transcript extraction).
 - `getHeader()`: session header (id, cwd, timestamps, model); `getContextUsage()` on ctx for tokens/window/percent.
 - Assistant/user/tool messages in `buildContextEntries()`; `turn_end.message` + `toolResults` for incremental capture; `session_compact` gives `compactionEntry.summary` + `tokensBefore`.
@@ -333,7 +333,7 @@ Full UI context includes `select/confirm/input/editor/custom` (overlay), `setFoo
 
 - Headless: `pi -p "prompt"` (print mode, no UI, exits). `--mode json` for machine-readable; `--no-session` ephemeral; `pi -e ./ext.ts` one-off load; `--no-extensions` to isolate.
 - Extension unit tests outside pi: the factory is plain TS; extract logic into pure modules (no pi runtime imports at module top, `import type` only) and run with vitest/node — **this is the recommended split for harnmem core**. [No pi-provided mock server/test-utils documented; unverified.]
-- Integration: run `pi -p --no-session -e ./probe -p "…"` against a cheap model and assert log/output (see §13). Provider config: user default `<provider>` / `<model>`; auth via stored login or `OPENCODE_GO_API_KEY` (not present in this shell env; probe still worked via pi's stored auth — do not print keys).
+- Integration: run `pi -p --no-session -e ./probe -p "…"` against a cheap model and assert log/output (see §13). Provider config: user default `<provider>` / `<model>`; auth via stored login or `<PROVIDER>_API_KEY` (not present in this shell env; probe still worked via pi's stored auth — do not print keys).
 - Debug: no documented `PI_DEBUG` flag [unverified]; write your own log file under the agent dir (`~/.pi/agent/…`) and gate by env (`HARNMEM_DEBUG=1`). `before_provider_request` is the documented hook for inspecting serialization/cache behavior (`extensions.md:720`).
 - 71 example extensions ship in the installed package: `…\pi-coding-agent\examples\extensions\` (source refs: `tool-override.ts`, `read.ts`, `bash.ts`, …); ground truth types in `dist/index.d.ts`.
 
@@ -371,7 +371,7 @@ Result: exit 0, stdout `PROBE_DONE`; `probe.log`:
 ```
 factory loaded (cwd=…, …)                 ← module imported by jiti
 factory done: 1 tool + 3 events + 1 command registered
-event session_start reason=startup cwd=<workdir> sessionId=<session-id>-… file=ephemeral entries=2
+event session_start reason=startup cwd=<workdir> sessionId=<session-id> file=ephemeral entries=2
 event before_agent_start systemPromptLen=27735 model=<model>
 event before_provider_request payloadLen=165271 hasMarker=true   ← injected text reached the real provider payload
 event turn_end stopReason=stop

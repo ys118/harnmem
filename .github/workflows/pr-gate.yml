@@ -1,0 +1,120 @@
+name: PR gate
+
+# Closes pull requests from contributors who are not approved for PRs.
+# Maintainers (write access and above), trusted bots and users listed with the
+# `pr` capability in .github/APPROVED_CONTRIBUTORS pass.
+# Approval flow: CONTRIBUTING.md.
+
+on:
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  gate:
+    name: gate new pull request
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close unapproved pull request
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const APPROVALS_PATH = '.github/APPROVED_CONTRIBUTORS';
+            const VALID_CAPABILITIES = new Set(['issue', 'pr']);
+            const TRUSTED_BOT_AUTHORS = new Set(['dependabot[bot]', 'github-actions[bot]']);
+            const MAINTAINER_PERMISSIONS = ['admin', 'maintain', 'write'];
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pull = context.payload.pull_request;
+            const author = pull.user.login;
+
+            if (TRUSTED_BOT_AUTHORS.has(author)) {
+              core.info(`Trusted bot ${author}; skipping gate.`);
+              return;
+            }
+
+            if (!author.endsWith('[bot]')) {
+              const permission = await getPermission(owner, repo, author);
+              if (permission && MAINTAINER_PERMISSIONS.includes(permission)) {
+                core.info(`${author} has ${permission} access; skipping gate.`);
+                return;
+              }
+            }
+
+            const capability = await approvedCapability(owner, repo, author);
+            if (capability === 'pr') {
+              core.info(`${author} is approved for PRs; keeping pull request open.`);
+              return;
+            }
+
+            const reason =
+              capability === 'issue'
+                ? '`lgtmi` does not grant PR rights: only contributors approved with `lgtm` can open PRs.'
+                : 'Only contributors approved with `lgtm` can open PRs.';
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: pull.number,
+              body: [
+                'This pull request was auto-closed.',
+                '',
+                `${reason} Open an issue first and ask a maintainer for approval; the rules are in`,
+                `[CONTRIBUTING.md](${context.payload.repository.html_url}/blob/${context.payload.repository.default_branch}/CONTRIBUTING.md).`,
+                '',
+                'Approved contributors are listed in `.github/APPROVED_CONTRIBUTORS`.',
+              ].join('\n'),
+            });
+
+            await github.rest.pulls.update({
+              owner,
+              repo,
+              pull_number: pull.number,
+              state: 'closed',
+            });
+
+            async function getPermission(owner, repo, login) {
+              try {
+                const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner,
+                  repo,
+                  username: login,
+                });
+                return data.permission;
+              } catch (error) {
+                core.warning(`Cannot read repository permission for ${login}: ${error.message}`);
+                return null;
+              }
+            }
+
+            async function approvedCapability(owner, repo, login) {
+              let text;
+              try {
+                const { data } = await github.rest.repos.getContent({
+                  owner,
+                  repo,
+                  path: APPROVALS_PATH,
+                });
+                text = Buffer.from(data.content, 'base64').toString('utf8');
+              } catch (error) {
+                if (error.status === 404) return null;
+                throw error;
+              }
+
+              for (const line of text.split(/\r?\n/)) {
+                const trimmed = line.trim();
+                if (!trimmed || trimmed.startsWith('#')) continue;
+                const tokens = trimmed.split(/\s+/);
+                if (tokens.length !== 2) continue;
+                const [username, rawCapability] = tokens;
+                const capability = rawCapability.toLowerCase();
+                if (!VALID_CAPABILITIES.has(capability)) continue;
+                if (username.toLowerCase() === login.toLowerCase()) return capability;
+              }
+              return null;
+            }

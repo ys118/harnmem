@@ -1,7 +1,6 @@
 # dsh-harnmem
 
-[HarnMem](https://github.com/ys118/harnmem) memory for [DSH](https://github.com/ys118/deepseek-harness)
-(DeepSeek Harness): a byte-stable hot-memory index injected into the system prompt, five
+[HarnMem](https://github.com/ys118/harnmem) memory for DeepSeek Harness (DSH): a byte-stable hot-memory index injected into the system prompt, five
 `harnmem_*` tools for on-demand recall and writes, and session-end extraction that turns a
 finished conversation into durable memories.
 

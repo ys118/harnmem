@@ -71,7 +71,7 @@ test("buildSuggestPrompt uses the shipped asset and fills every placeholder", as
   assert.ok(prompt.source.replaceAll("\\", "/").endsWith("prompts/synonyms.md"), `unexpected source ${prompt.source}`);
   assert.ok(prompt.hasTemplate, "the asset carries a user section");
   assert.ok(prompt.system.startsWith("You maintain the synonym table"), "system section comes from the asset");
-  assert.ok(prompt.system.includes("打板"), "the shipped rules keep their examples");
+  assert.ok(prompt.system.includes("降级"), "the shipped rules keep their examples");
   assert.ok(prompt.user.includes("Language: zh"));
   assert.ok(prompt.user.includes("涨停板"), "harvested terms are listed");
   assert.ok(prompt.user.includes("部署 = "), "existing shipped groups are listed");

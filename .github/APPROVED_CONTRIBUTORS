@@ -1,0 +1,13 @@
+# GitHub handles approved to bypass the contribution gate.
+#
+# Format: <github-username> <capability>
+#   issue  future issues from this user stay open
+#   pr     future issues and PRs from this user stay open
+#
+# One entry per line, exactly two whitespace-separated tokens. Blank lines
+# and lines starting with `#` are ignored. Entries are added by maintainers
+# after a maintainer reply of `lgtmi` (issue) or `lgtm` (pr) in the command
+# position described in CONTRIBUTING.md. Collaborators with write access are
+# skipped automatically by the gate and do not need an entry.
+#
+# No approved contributors yet.

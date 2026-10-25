@@ -298,7 +298,7 @@ The external `tobi/qmd`: BM25/semantic/hybrid deep retrieval, where **semantic r
 
 ---
 
-## 7. ZCode memory mechanism (local doc `<downloads>/zcode-memory-mechanism.md`, 365 lines, read in full)
+## 7. ZCode memory mechanism (local design note, 365 lines, read in full)
 
 **Positioning**: a Claude Code-derived pure-filesystem memory, **closest to our shape**; the doc also records shared semantics, security hardening, and one "dormant" semantic-recall branch.
 
@@ -461,4 +461,4 @@ The parser strips a BOM, normalizes CRLF, requires the first line to be `---`, t
 - opencode-mem: https://github.com/tickernelz/opencode-mem (README).
 - dsh-auto-memory 0.9.0: local `~/.dsh/profiles/desktop/node_modules/dsh-auto-memory/{package.json,README.md,lib/index.js}` (line references in the body).
 - pi-memory 0.4.2: local `~/.pi/agent/npm/node_modules/pi-memory/{index.ts,README.md}`.
-- ZCode: local `<downloads>/zcode-memory-mechanism.md` (365 lines; includes the sharing matrix, security hardening, and dormant semantic recall).
+- ZCode: local design note (365 lines; includes the sharing matrix, security hardening, and dormant semantic recall).

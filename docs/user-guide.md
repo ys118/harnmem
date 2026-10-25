@@ -1,6 +1,6 @@
 # HarnMem user guide
 
-Version: v0.1.0 · Updated: 2026-10-20 · Tested with: pi 1.3.0 on Windows 11 (the reference environment); macOS/Linux not yet tested
+Version: v0.2.0 · Updated: 2026-10-25 · Tested with: pi 1.3.0 and DSH 0.2.1 on Windows 11 (the reference environment); macOS/Linux not yet tested
 
 HarnMem is a **cross-harness long-term memory system**: memories live as plain Markdown in `~/.harnmem`, with zero external services, zero databases, and zero embedding models. The model uses them through an injected "memory index" plus 5 tools.
 
@@ -13,8 +13,9 @@ Labels: **[Verified]** actually ran in this repo; **[Syntax-verified]** the comm
 | Host | Status | Notes |
 |---|---|---|
 | **pi** | ✅ Usable (e2e) | 5 tools + `/memory` command + stable snapshot injection (verified in a real pi 1.3.0 session) |
-| **CLI** | ✅ Usable | `@harnmem/cli`, bin `harnmem` (run as `node packages/cli/dist/main.js` from a checkout): stats/search/read/write/forget/restore/consolidate/rebuild/export + migration importers |
-| DSH / Claude Code | 📐 Design only | `docs/design/07,08,09`; no packages yet |
+| **CLI** | ✅ Usable | `@harnmem/cli` 0.2.0 on npm, bin `harnmem` (or `node packages/cli/dist/main.js` from a checkout): stats/search/read/write/forget/restore/consolidate/rebuild/export + migration importers |
+| **DSH** | ✅ Usable (0.2.x) | `dsh-harnmem` plugin: five `harnmem_*` tools, attach-time catch-up extraction (60 s budget); see `packages/dsh-harnmem/README.md` |
+| **Claude Code** | 📐 Design only | `docs/design/09`; no package yet |
 
 Writing memories relies on the model calling `memory_write` explicitly; end-of-session background extraction is **off by default** (§5).
 
@@ -28,7 +29,7 @@ pnpm install
 pnpm -r build
 ```
 
-[Verified] `pnpm -r build` builds `@harnmem/core`, `@harnmem/cli`, and `pi-harnmem`; `pnpm test` passes 19/19 (build + `node --test`).
+[Verified] `pnpm -r build` builds `@harnmem/core`, `@harnmem/cli`, `pi-harnmem`, and `dsh-harnmem`; `pnpm test` passes 52/52 core tests and `pnpm --filter dsh-harnmem test` passes 58/58 adapter tests.
 
 Install into pi (local path):
 
@@ -55,7 +56,7 @@ shard user [user] total=1 active=1 superseded=0 archived=0 pinned=0
 extraction: pending=0 failed=0
 ```
 
-npm installation (`pi install npm:pi-harnmem`) has not been published yet.
+npm installation: `pi install npm:pi-harnmem@0.2.0` (all four packages are published at 0.2.0).
 
 ## 2. First use
 
@@ -163,7 +164,7 @@ Save tokens → `injectTokens: 800`; keep more memories → `maxProjectRecords: 
 
 ## 5. Auto-extraction (off by default)
 
-When enabled (plugin `autoExtract: true` or `HARNMEM_AUTO_EXTRACT=1`), a background LLM extracts 0–6 durable memories **on a normal exit**. Triggers (all required): at least 3 real user messages this session; the model **did not** write memories by hand this session (`skipExtractIfModelWrote: 1`); an LLM is available; exit waits at most **8 seconds** (gives up on timeout, never blocks exit).
+When enabled (plugin `autoExtract: true` or `HARNMEM_AUTO_EXTRACT=1`), a background LLM extracts 0–6 durable memories **on a normal exit**. Triggers (all required): at least 3 real user messages this session; the model **did not** write memories by hand this session (`skipExtractIfModelWrote: 1`); an LLM is available; exit waits at most **8 seconds** (gives up on timeout, never blocks exit). In DSH the same extraction runs as an attach-time catch-up with a 60-second budget.
 
 Filtering: `confidence < 0.5` is dropped, at most 6 per run, identical content is skipped.
 
@@ -177,7 +178,7 @@ Loading priority: the `<home>` copy → the repository/package default → the p
 
 ### 5.1 Growing the synonym table (optional)
 
-The shipped tables are deliberately **generic** — common development/AI vocabulary that is useful to everyone. Your own corpus uses words a generic table cannot know (jargon, product names, team slang), and for Chinese the valuable rewrites often share **no characters** (打板 ↔ 涨停板, 割肉 ↔ 止损), so frequency mining cannot find them; a model can. The CLI turns your own memories into reviewed proposals — nothing is written to the repository and nothing is auto-applied:
+The shipped tables are deliberately **generic** — common development/AI vocabulary that is useful to everyone. Your own corpus uses words a generic table cannot know (jargon, product names, team slang), and for Chinese the valuable rewrites often share **no characters** (降级 ↔ 兜底, 灰度 ↔ 分批发布), so frequency mining cannot find them; a model can. The CLI turns your own memories into reviewed proposals — nothing is written to the repository and nothing is auto-applied:
 
 ```powershell
 node packages/cli/dist/main.js synonyms list        # which data/synonyms*.txt files load, group/term counts
@@ -277,13 +278,13 @@ Safety: dry-run is the default; `--apply` backs up the source first, writes a le
 - **Deletion semantics**: `memory_forget` moves to `trash/` by default (purgeable after 30 days); `hard=true` deletes permanently; there is no one-shot clear command — delete the directory to clear everything.
 - **Multi-machine sharing**: pointing the same home at a sync drive shares memories across machines; v0.1 does not heavily validate concurrent writes from multiple hosts.
 
-## 11. Known limitations (v0.1)
+## 11. Known limitations (v0.2)
 
 | Limitation | Notes |
 |---|---|
-| pi only | DSH / Claude Code have design docs only (`docs/design/07,08,09`); no packages yet |
-| CLI | [Verified] usable, including migration on read-only copies (§8); npm not published yet — install from source |
-| Auto-extraction off by default | Triggers only on a normal exit, waits at most 8 seconds |
+| pi and DSH only | pi: five `memory_*` tools; DSH: five `harnmem_*` tools; Claude Code has a design doc only (`docs/design/09`) |
+| CLI | [Verified] usable, including migration on read-only copies (§8); published on npm (`npm install -g @harnmem/cli` or `npx @harnmem/cli`) |
+| Auto-extraction off by default | pi runs it on a normal exit (8 s cap); DSH runs attach-time catch-up (60 s budget) |
 | Prompts/synonyms | An editable copy is deployed on first open (see §5); synonym tables are per language (`data/synonyms.<lang>.txt`); `write-policy.md` is reference text only and is not injected by the engine yet |
 | Synonym suggestions | `harnmem synonyms suggest` needs an OpenAI-compatible endpoint (`--llm-url`/`--llm-model`) or a saved answer (`--from-response`); suggestions are proposals — review them before keeping the `-suggested` file, and a `synonyms check` probe only measures memories that use the canonical term |
 | Retrieval quality | Final eval (2026-10-20, deterministic corpus): functional gates PASS — macro R@10 1.000, MRR 0.891, nDCG@10 0.911; S5 both_recall 1.000, S6 abstain_fp 0.000, S10 write-action accuracy 1.000, S12 injected tokens p95 207. Advisory non-functional gaps: 10k-record import ~12–15 s, index overhead ~47× body-only (2.87× canonical store), S8 cross-lingual P@1 0.225 and S11 top-1 ranking |
@@ -294,11 +295,11 @@ Safety: dry-run is the default; `--apply` backs up the source first, writes a le
 ```text
 Build: pnpm install && pnpm -r build      Test: pnpm test
 Load in dev: pi -e ./packages/pi-harnmem/dist/index.js
-Install: pi install ./packages/pi-harnmem
+Install: pi install npm:pi-harnmem@0.2.0   (from a checkout: pi install ./packages/pi-harnmem)
 Isolated environment: $env:HARNMEM_HOME="D:\tmp\harnmem-test"
 Store: ~/.harnmem    Logs: <home>/logs/pi.jsonl    Status: /memory status
 
-CLI: node packages/cli/dist/main.js --help   (bin: harnmem once the package is installed)
+CLI: harnmem --help   (npm install -g @harnmem/cli; or node packages/cli/dist/main.js from a checkout)
 CLI: harnmem stats | harnmem search "<query>" | harnmem forget <id>
 Synonyms: harnmem synonyms list | suggest [--write] [--llm-url <url>] | check
 Migration: harnmem import dsh|pi|zcode|json   (dry-run by default; add --apply)

@@ -3,7 +3,7 @@
  *
  * MEMORY.md is an append-only markdown log whose entries are delimited by HTML
  * comment markers:
- *   `<!-- 2026-09-19 14:46:48 [<session-id>] -->`   (timestamp + session-id prefix)
+ *   `<!-- 2026-09-19 14:46:48 [a1b2c3d4] -->`   (timestamp + session-id prefix)
  *   `<!-- 2026-09-19 PINNED -->`               (pinned long-term entry)
  *   `<!-- 2026-09-19 -->`                      (date restatement *inside* the
  *                                               entry that started above it)

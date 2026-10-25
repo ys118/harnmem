@@ -4,10 +4,10 @@
 
 | Version | Supported |
 | ------- | --------- |
-| 0.1.x   | Yes       |
+| 0.2.x   | Yes       |
 
-HarnMem is at an early stage. Security fixes land on `main` and in the newest
-release; there are no long-term support branches yet.
+HarnMem is at an early stage. Security fixes land on `master` (the default
+branch) and in the newest release; there are no long-term support branches yet.
 
 ## Reporting a vulnerability
 
@@ -18,7 +18,7 @@ disclosure date with you.
 
 Include:
 
-- affected version/commit and harness (pi, CLI, core),
+- affected version/commit and harness (pi, DSH, CLI, core),
 - a minimal reproduction (memory files, config, command line),
 - impact assessment (data leak across scopes/projects, path traversal, secret
   exposure, code execution through a crafted store, ...),

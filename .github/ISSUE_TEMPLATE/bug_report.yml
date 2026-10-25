@@ -1,21 +1,24 @@
 name: Bug report
-description: Report a defect in HarnMem (core, CLI, pi extension, docs or evals)
+description: Report a defect in HarnMem (engine, CLI, adapters, evals or docs)
 title: "[bug]: "
 labels: ["bug", "triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report a bug. Please **do not include
-        secrets, credentials, or real personal memory content** in this issue.
-        Security problems belong in the private advisory flow described in
-        SECURITY.md.
+        **Before you start:** Read [CONTRIBUTING.md](https://github.com/ys118/harnmem/blob/master/CONTRIBUTING.md).
+
+        New issues from new contributors are closed automatically by default. Maintainers review auto-closed issues daily and reopen the ones that meet the quality bar. Issues that do not meet the bar will not be reopened or receive a reply.
+
+        Keep this short: if it does not fit on one screen, it is too long. Write in your own voice.
+
+        Do not paste secrets, credentials or real personal memory content. Redact usernames, home paths and machine names from logs. Security problems go through the private process in [SECURITY.md](https://github.com/ys118/harnmem/blob/master/SECURITY.md), not a public issue.
   - type: input
     id: version
     attributes:
       label: Version / commit
-      description: Release tag or commit SHA
-      placeholder: v0.1.0 or 85e31c8
+      description: Release tag or commit SHA (0.2.0 or later for npm installs).
+      placeholder: 0.2.0 or a 7-character commit SHA
     validations:
       required: true
   - type: dropdown
@@ -25,7 +28,8 @@ body:
       options:
         - core engine (@harnmem/core)
         - CLI / migration (@harnmem/cli)
-        - pi extension (pi-harnmem)
+        - pi adapter (pi-harnmem)
+        - DSH adapter (dsh-harnmem)
         - evals
         - documentation
         - other
@@ -35,17 +39,17 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: OS, Node.js version, pnpm version, harness version (e.g. pi 1.3.0)
-      placeholder: Windows 11, Node 24.9.0, pnpm 10.33.2, pi 1.3.0
+      description: OS, Node.js version, pnpm version, harness name and version.
+      placeholder: Windows 11, Node 22.15.0, pnpm 10.33.2, pi 1.3.0
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
       label: Reproduction steps
-      description: Minimal, deterministic steps. Prefer a temporary home (`HARNMEM_HOME=<tmp>`) and synthetic memories.
+      description: Minimal, deterministic steps. Prefer an isolated home (`HARNMEM_HOME=<tmp>`) and synthetic memories.
       placeholder: |
-        1. HARNMEM_HOME=/tmp/hm pnpm --filter @harnmem/core build
+        1. HARNMEM_HOME=/tmp/hm node packages/cli/dist/main.js write ...
         2. ...
     validations:
       required: true
@@ -59,13 +63,14 @@ body:
     id: actual
     attributes:
       label: Actual behavior
-      description: Include the error text. Redact paths containing your username.
+      description: Include the exact error text, with usernames and home paths redacted.
     validations:
       required: true
   - type: textarea
     id: logs
     attributes:
       label: Relevant output / logs
+      description: Optional. Trim to the relevant part and redact personal paths.
       render: text
     validations:
       required: false

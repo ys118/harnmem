@@ -59,8 +59,8 @@ export const DEFAULT_SETTINGS: Omit<EffectiveSettings, "home"> = {
   // ~11.2 s through the plugin bridge; 8 s cut every real extraction off at the
   // dispose race (docs/research/dsh-write-silence-2026-10-23.md, N2 rerun).
   // The 20 s budget then proved too tight for the attach-time catch-up on the
-  // desktop host: a 6,000-char digest through `<provider>/<model>`
-  // took 33.3 s (2026-10-24, desktop GUI) and timed out. 60 s keeps the
+  // desktop host: a 6,000-char digest through the desktop provider took
+  // 33.3 s (2026-10-24, desktop GUI) and timed out. 60 s keeps the
   // background catch-up inside budget without blocking the turn; the budget
   // only delays dispose work the host does not await, and at process unload the
   // provider adapters are already gone so the call fails in ms.

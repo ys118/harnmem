@@ -88,7 +88,7 @@ source:
   ts: 1792421073359
 provenance:
   - dsh:0f1e2d3c#42
-  - pi:<session-id>#118
+  - pi:a1b2c3d4#118
 links: [mem_01k2p4a1b2c3d4e5f6g7h8j9km, mem_01k2p5n0q1r2s3t4u5v6w7x8yz]
 supersedes: []
 superseded_by: null
@@ -229,7 +229,7 @@ Input: cwd (the session working directory)
 ### 4.2 `state/audit.jsonl` (append-only)
 
 ```jsonc
-{"seq":1288,"ts":1792487632100,"kind":"inject","harness":"pi","session":"01a0...","ids":["mem_...","mem_..."],"bytes":2106}
+{"seq":1288,"ts":1792487632100,"kind":"inject","harness":"pi","session":"a1b2c3d4","ids":["mem_...","mem_..."],"bytes":2106}
 {"seq":1289,"ts":1792487632200,"kind":"write","harness":"dsh","action":"supersede","id":"mem_...","superseded":["mem_..."]}
 {"seq":1290,"ts":1792487632300,"kind":"consolidate","merged":["mem_a","mem_b"],"into":"mem_c","reason":"near-dup"}
 {"seq":1291,"ts":1792487632400,"kind":"archive","ids":["mem_x"],"reason":"decayed"}

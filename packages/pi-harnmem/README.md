@@ -84,7 +84,7 @@ Settings are read (lowest → highest priority) from: built-in defaults → `<ho
 
 Environment overrides: `HARNMEM_HOME`, `HARNMEM_DISABLED=1`, `HARNMEM_READONLY=1`, `HARNMEM_INJECT=1|0`, `HARNMEM_STATUS_LINE=1|0`, `HARNMEM_AUTO_EXTRACT=1`, `HARNMEM_DEBUG=1`.
 
-> **Clean footer.** The one-line `harnmem: 22 entries · ~1061 tokens · <session-id>` status is
+> **Clean footer.** The one-line `harnmem: 22 entries · ~1061 tokens · <sha>` status is
 > informational; set `"statusLine": false` in `<agentDir>/harnmem.json` (or
 > `HARNMEM_STATUS_LINE=0`) to hide it. Memory injection, tools and extraction are unaffected;
 > `/memory status` and the `memory_status` tool still report the snapshot.
@@ -164,14 +164,14 @@ Plain files are the source of truth: back up or sync `~/.harnmem` directly. The 
 ```bash
 pnpm --filter @harnmem/core build
 pnpm --filter pi-harnmem build     # tsc; 44 files emitted to dist/
-pnpm test                          # core test suite (19 tests)
+pnpm test                          # core test suite (52 tests)
 ```
 
 Source layout: `src/index.ts` (event wiring), `state.ts` (engine lifecycle), `context.ts` (snapshot manager), `tools.ts`, `command.ts`, `llm.ts` (pi model bridge), `journal.ts`, `log.ts`, `subagent.ts`, `config.ts`, `format.ts`.
 
 ## Limitations
 
-- pi only; DSH and Claude Code adapters are not implemented.
+- pi only for this package; DSH uses `dsh-harnmem`, and Claude Code has a design doc only (`docs/design/09`).
 - No automated tests for this package; behavior is covered by manual end-to-end runs against pi 1.3.0 (real subagent sessions not yet exercised).
 - `autoExtract` defaults to off and only runs on normal quit.
 

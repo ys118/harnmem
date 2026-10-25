@@ -78,7 +78,7 @@ Source-side cross-reference (checkout 0.1.3-alpha.1): `packages/core/agent/src/r
 
 | Fact | Evidence |
 |---|---|
-| dsh data layout: `_user/MEMORY.md + entries`, `--<projectKey>--/` project layers, `audit.jsonl` injection audit (each line `ts/sessionId/cwd/injected/truncated/bytes`) | `~/.dsh/memory/` (`_user` 2 entries, `--D-projects-example-project--` 24 entries, `<downloads-slug>` 4 entries, audit 23,288 B) |
+| dsh data layout: `_user/MEMORY.md + entries`, `--<projectKey>--/` project layers, `audit.jsonl` injection audit (each line `ts/sessionId/cwd/injected/truncated/bytes`) | `~/.dsh/memory/` (`_user` 2 entries, `--D-projects-example-project--` 24 entries, `--C-Users-me-Example--` 4 entries, audit 23,288 B) |
 | `projectKey` algorithm (`/ \ :`→`-` collapsing; illegal chars→`~XXXX`; ≤251; `--<slug>--`) is isomorphic with session directories and **cannot be uniquely inverted** | `lib/index.js:134-153` |
 | The correct way to recover the real path = read the `cwd` in the header of that key's session log | auto-memory's `import-claude` precedent: read the first 262144 B of `~/.claude/projects/<slug>/*.jsonl`, line-by-line `JSON.parse`, and take the first `cwd`, `lib/index.js:1883-2135` (the cwd extraction is at 1974-2006) |
 | DSH session logs are `session.v4.jsonl.zstd` (zstd-compressed) | measured filenames under `~/.dsh/sessions/--D-projects-example-project--/` |

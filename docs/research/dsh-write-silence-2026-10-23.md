@@ -4,7 +4,7 @@
 > **Resolution (same day, later): fixed and verified end-to-end in a real DSH runtime — see §10.**
 > **Follow-up (2026-10-24): quit-time extraction closed by a deferred catch-up at the next open — see §11.**
 > Collected: 2026-10-23 17:15–17:35 (+08). Machine: Windows 11 x64, DSH desktop (profile `desktop`), Node 24.9.0.
-> Question asked: "harnmem 的写入侧为什么静默?" — i.e. why has the store produced no new memory since the DSH adapter went live?
+> Question asked: why has the write side been silent? — i.e. why has the store produced no new memory since the DSH adapter went live?
 > Evidence labels: `[V]` = directly verified on this machine (file read / command output); `[I]` = inferred from code + collected data; `[U]` = unverified, needs a controlled run.
 
 ## 0. TL;DR
@@ -43,9 +43,9 @@ Injection from `dsh` **does** work (13 `inject` events), so the plugin is loaded
 
 | Observation | Meaning |
 |---|---|
-| `memory_read("<memory-id>")` — the store's *real* HarnMem id — returned `Error: memory not found: "mem-01m5f7fvgk2021csmy34"` (id lower-cased + kebab-cased before lookup) | The `memory_read` handler is `dsh-auto-memory`'s (kebab names), not HarnMem's `mem_01…` underscore ids |
+| `memory_read("<memory-id>")` — the store's *real* HarnMem id — returned `Error: memory not found: "<lower-cased id>"` (id lower-cased + kebab-cased before lookup) | The `memory_read` handler is `dsh-auto-memory`'s (kebab names), not HarnMem's `mem_01…` underscore ids |
 | In real DSH sessions, every `memory_write` tool call carries `{"name": …, "description": …, "type": …, "body": …}` | That is auto-memory's schema. HarnMem's `memory_write` requires `type/title/description/content` and rejects anything else with `"memory_write: type/title/description/content are required; nothing was stored"` (`tools.ts:238`) |
-| `memory_status` output is HarnMem's (`harnmem 1 · home C:\Users\<user>\.harnmem · project <project-b>-<project-id> / user: 1 active`) | HarnMem's `memory_status` survived *because auto-memory defines no tool with that name* — the one channel that works is the one with no collision |
+| `memory_status` output is HarnMem's (`harnmem 1 · home ~/.harnmem · project <project-b>-<project-id> / user: 1 active`) | HarnMem's `memory_status` survived *because auto-memory defines no tool with that name* — the one channel that works is the one with no collision |
 
 Documented precedent: ROADMAP §5 notes the same failure mode on the pi side ("pi silently keeps one of two duplicate tool names") and fixed it with `toolPrefix: "harnmem_"` (`~/.pi/agent/harnmem.json`). **The DSH adapter has no prefix mechanism** — `tools.ts` registers the bare names.
 
@@ -68,7 +68,7 @@ None of these `skip(...)` results is written to `audit.jsonl` or any file; `Opti
 
 ### 3.2 The one time `sessionEnd` actually ran
 
-The single DSH transcript (`~/.harnmem/sessions/20261022/dsh_session-<session-id>-….jsonl`, written 2026-10-22 08:11:13) contains 200 digest entries: **1 `user`**, 89 `assistant`, 110 `tool`. Therefore `realUserMessages.length = 1 < 3` → `skip("too_few_messages")`. That is the *only* end-of-session extraction the DSH adapter has ever attempted since 2026-10-21.
+The single DSH transcript (`~/.harnmem/sessions/20261022/dsh_session-<session-id>.jsonl`, written 2026-10-22 08:11:13) contains 200 digest entries: **1 `user`**, 89 `assistant`, 110 `tool`. Therefore `realUserMessages.length = 1 < 3` → `skip("too_few_messages")`. That is the *only* end-of-session extraction the DSH adapter has ever attempted since 2026-10-21.
 
 Note the timing: the session kept running until 2026-10-22 10:47:38, i.e. this dispose fired **mid-session** (reload/restart artefact), not at close.
 
@@ -93,8 +93,8 @@ Conclusion: for real DSH sessions the `realUserMessages < 3` gate is the *normal
 
 | Fact | Evidence |
 |---|---|
-| 10 real DSH sessions started/used after install (2026-10-21 20:37) | session snapshots (see §6): `<session-id>`, `<session-id>`, `<session-id>`, `<session-id>`, `<session-id>`, `<session-id>`, `<session-id>`, `<session-id>`, `<session-id>`, `<session-id>` (this one) |
-| Transcripts produced | **1** (`<session-id>`, at 08:11 mid-session) |
+| 10 real DSH sessions started/used after install (2026-10-21 20:37) | session snapshots (see §6): 10 session ids captured (elided) |
+| Transcripts produced | **1** (at 08:11 mid-session) |
 | Dispose wiring | `packages/dsh-harnmem/src/index.ts`: `agent/disposed` → `void sessions.dispose(agent)` (not awaited); `session/disposed` likewise; `ctx.effect` cleanup runs `closeAll()` on unload |
 | Events exist in the host | `app.asar` contains `agent/disposed` (32 occurrences) and `session/disposed` (29), i.e. the listeners are on real events — the question is whether the desktop quit path waits long enough |
 | Design doc checklist | `docs/design/08-dsh-adapter.md` item "After `agent/disposed`, `sessionEnd` finishes within 8s; shutdown does not hang" is still **unchecked** |
@@ -141,15 +141,15 @@ for (const ev of evs) {
 console.log({ total: evs.length, eligible: ring.length, ringUsers: ring.filter(x => x === "user").length });
 ```
 
-Session paths: `C:\Users\<user>\.dsh\sessions\--<cwd-slug>--\session-<id>\session.v4.jsonl.zstd`.
+Session paths: `~/.dsh/sessions/--<cwd-slug>--/session-<id>/session.v4.jsonl.zstd`.
 
 Other evidence commands:
 
 ```powershell
-Get-Content C:\Users\<user>\.harnmem\state\audit.jsonl -Encoding UTF8
-Get-Content C:\Users\<user>\.harnmem\logs\pi.jsonl -Tail 6
-Get-ChildItem C:\Users\<user>\.harnmem\sessions -Recurse -File
-Get-Content C:\Users\<user>\.harnmem\sessions\20261022\dsh_session-<session-id>.jsonl |
+Get-Content $HOME\.harnmem\state\audit.jsonl -Encoding UTF8
+Get-Content $HOME\.harnmem\logs\pi.jsonl -Tail 6
+Get-ChildItem $HOME\.harnmem\sessions -Recurse -File
+Get-Content $HOME\.harnmem\sessions\20261022\dsh_session-<session-id>.jsonl |
   ForEach-Object { ($_ | ConvertFrom-Json).role } | Group-Object | Format-Table
 ```
 

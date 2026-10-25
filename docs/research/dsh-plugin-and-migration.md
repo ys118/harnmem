@@ -89,7 +89,7 @@ Three patch entry forms (measured `cordis.patch.yml`):
 - id: some-row
   disabled: true             # disable a row
 - insert:                    # add a row (MCP server, plugin row); name must be an npm package name
-    - { id: <mcp-server>, name: "@deepseek-ai/dsh-mcp-client", config: { serverName: <mcp-server>, transport: stdio, command: "..." } }
+    - { id: mcp-example, name: "@deepseek-ai/dsh-mcp-client", config: { serverName: example, transport: stdio, command: "..." } }
 ```
 
 Installation command: `dsh plugin --profile <name> add <npm-pkg | /abs/path>` (README measured: `dsh plugin --profile demo add dsh-auto-memory`), then restart the profile (`dsh --profile demo`). The HMR row in the base bundle is `disabled: true` by default, meaning **no hot reload by default**; configuration changes require a profile restart.
@@ -395,7 +395,7 @@ function makeLlmFn(ctx: Context, agent: Agent): LlmFn | undefined {
 ~/.dsh/memory/
 ├── _user/  MEMORY.md (284 B) + example-preference.md (2385 B) + example-routine.md (2329 B)
 ├── --D-projects-example-project--/  MEMORY.md + 24 .md files
-├── <downloads-slug>/        MEMORY.md + 4 .md files (what this session injects: user + this project layer)
+├── --C-Users-me-Example--/          MEMORY.md + 4 .md files (what this session injects: user + this project layer)
 └── audit.jsonl (23,288 B; measured line {"ts":…,"sessionId":…,"cwd":…,"injected":[…],"truncated":[],"bytes":2106})
 ```
 
@@ -423,16 +423,16 @@ First line of `MEMORY.md`: `<!-- Long-term memory: decisions, preferences, facts
 <!-- 2026-09-19 PINNED -->
 #rule #preference (example) how to write an important pinned rule: conclusion + one sentence of applicability…
 
-<!-- 2026-09-19 14:35:19 [<session-id>] -->
+<!-- 2026-09-19 14:35:19 [a1b2c3d4] -->
 #decision #workflow (example) branching workflow (the user requires compliance):
 - every change goes through a feature branch + PR; never commit straight to main…
 - create a worktree before touching code when starting the next development phase…
 
-<!-- 2026-09-19 14:46:48 [<session-id>] -->
-#tooling #<project-c> (example) …
+<!-- 2026-09-19 14:46:48 [a1b2c3d4] -->
+#tooling (example) …
 ```
 
-- Marker = `<!-- YYYY-MM-DD[ HH:MM:SS] [8-hex] -->`; `[hash]` is the tag of the session that wrote it (correlatable across files); tags like `[<session-id>]` also appear in `daily/`, so they can serve as `origin_session_id`.
+- Marker = `<!-- YYYY-MM-DD[ HH:MM:SS] [8-hex] -->`; `[hash]` is the tag of the session that wrote it (correlatable across files); tags like `[a1b2c3d4]` also appear in `daily/`, so they can serve as `origin_session_id`.
 - Tag vocabulary: `#rule #decision #preference #lesson #tooling #project #extra #决策 #规则` (mixed Chinese/English, not a controlled vocabulary).
 - Links: `[[pr-workflow]]` (wiki style, pointing at this file or other entries, with **_no** corresponding file).
 - Structure: long entries carry their own second-level section headers such as `## [Top-priority hard rules] …`.
@@ -443,7 +443,7 @@ First line of `MEMORY.md`: `<!-- Long-term memory: decisions, preferences, facts
 # 2026-09-05
 - Enabled pi-memory + qmd on Windows. qmd context add must use the qmd:// virtual path form …
 
-<!-- 2026-09-05 14:25:36 [<session-id>] -->
+<!-- 2026-09-05 14:25:36 [a1b2c3d4] -->
 ## Session Summary (auto, exit: session-end)
 
 ### Decisions
@@ -455,8 +455,8 @@ None.
 `recovery/<uuid>.json` (delete trash, 5 fields):
 
 ```json
-{ "version": 1, "id": "<session-id>-…", "createdAt": "2026-09-19T04:18:27.349Z",
-  "target": "long_term", "removedContent": ["<!-- 2026-09-19 12:10:48 [<session-id>] -->\n#decision …"] }
+{ "version": 1, "id": "<uuid>", "createdAt": "2026-09-19T04:18:27.349Z",
+  "target": "long_term", "removedContent": ["<!-- 2026-09-19 12:10:48 [a1b2c3d4] -->\n#decision …"] }
 ```
 
 #### B1.3 ZCode (`~/.zcode/cli/memories/projects/**`) — **the data no longer exists on this machine**
