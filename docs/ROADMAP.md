@@ -9,9 +9,9 @@ Last updated: **2026-10-25** (N1 trial closed; N7 npm publish shipped — 4 pack
 
 | Item | State |
 | --- | --- |
-| Repository | `github.com/ys118/harnmem` (private), branch `master`, CI green on `19c7e2d` |
-| Latest release | `v0.2.0` tag on `19c7e2d` (DSH adapter + write-silence fix + resume catch-up + single-store migration) |
-| Commits after `v0.1.0` | `3203871..19c7e2d` — DSH adapter and cold-start fix, toolPrefix/order coexistence, the DSH write-silence fix, resume catch-up, and the N4/N5 single-store migration |
+| Repository | `github.com/ys118/harnmem` (private until the N8 flip), branch `master`, CI green on `a731f2f` |
+| Latest release | `v0.2.0` tag on `a731f2f` (DSH adapter + write-silence fix + resume catch-up + single-store migration) |
+| Commits after `v0.1.0` | `b872c86..a731f2f` — DSH adapter and cold-start fix, toolPrefix/order coexistence, the DSH write-silence fix, resume catch-up, and the N4/N5 single-store migration |
 | Packages (all `0.2.0`, published on npm) | `@harnmem/core`, `@harnmem/cli`, `pi-harnmem`, `dsh-harnmem` |
 | Core tests | 52/52 pass (`node --test packages/core/test/*.test.mjs`); adapter 58/58 (`pnpm --filter dsh-harnmem test`) |
 | Evaluation | functional gates PASS; macro R@10 1.000, MRR 0.891, nDCG@10 0.911; 5 advisory perf gates (see §3) |
@@ -203,12 +203,12 @@ Check boxes as items land, and update this file when the status changes.
   once (`sessions/20261023/*.jsonl`, mtime `13:33:15.16–.20Z`; this session's
   200-line transcript is one of them) — the dispose chain ran, but extraction
   did not finish or log before the host exited. The 21:52:46 restart left no
-  dispose trace at all (hard quit). Since 575d900 the quit path is closed by
+  dispose trace at all (hard quit). Since 6cea64f the quit path is closed by
   deferred catch-up — verified on the real store (2026-10-24, trial notes
   below): a resumed session logged `digest.hydrated {userMessages:4}` →
   `extract.catchup {status:"done", added:4}` → `session.end
   skipReason:"already_extracted"`. **Still to observe:** the desktop-GUI attach
-  path once the app restarts onto 575d900 (open an old session whose journal
+  path once the app restarts onto 6cea64f (open an old session whose journal
   has ≥3 user messages, or accumulate ≥3 prompts before quitting), and the
   2–3 day usefulness verdict.
   *Acceptance:* a short trial note in this file (append under §5) with numbers
@@ -350,7 +350,7 @@ Check boxes as items land, and update this file when the status changes.
   fail without npm credentials).
   *Acceptance:* tag on a green commit; `git log v0.1.0..v0.2.0` tells the story.
   *Done 2026-10-24:* bumped all four packages to `0.2.0` and dated
-  `CHANGELOG.md` as `[0.2.0] - 2026-10-24` (commit `19c7e2d`), tagged
+  `CHANGELOG.md` as `[0.2.0] - 2026-10-24` (commit `a731f2f`), tagged
   `v0.2.0` and pushed `master` + the tag. CI run
   [40060992327](https://github.com/ys118/harnmem/actions/runs/40060992327) is
   green; the tag-triggered Release run
@@ -365,9 +365,9 @@ Check boxes as items land, and update this file when the status changes.
   [@harnmem/cli](https://www.npmjs.com/package/@harnmem/cli),
   [pi-harnmem](https://www.npmjs.com/package/pi-harnmem),
   [dsh-harnmem](https://www.npmjs.com/package/dsh-harnmem).
-  Pre-publish fixes: pi peer ranges widened to `>=1.3.0 <2` (7420f61; upstream
+  Pre-publish fixes: pi peer ranges widened to `>=1.3.0 <2` (0e7005f; upstream
   pi is at 1.4.0 and the adapter is verified there), `publishConfig.provenance`
-  removed from all four (4cfaec3; local publish cannot mint provenance — CI's
+  removed from all four (8fafaf6; local publish cannot mint provenance — CI's
   explicit `--provenance` in release.yml is unaffected). Publishing required
   the maintainer's terminal: account 2FA is auth-and-writes, so chat-relayed
   TOTP codes expired in transit (`EOTP` ×2); the interactive browser-OTP flow
@@ -380,9 +380,13 @@ Check boxes as items land, and update this file when the status changes.
   lead with npm install docs ✓.
 
 - [ ] **N8. Repository visibility and release notes.**
-  Decide public vs private (public unlocks provenance, issues, stars);
-  add a GitHub release for `v0.2.0` from the changelog; only then add badges
-  that point at CI.
+  Decision: make the repository public (2026-10-25). Repository prep is done:
+  docs/memory provenance sweep, full git-history rewrite (old SHAs and tags
+  rebuilt), pi-style contribution gate (issue/PR auto-close, `lgtmi`/`lgtm`
+  approvals, `CODEOWNERS`), and the branch/tag rulesets are ready to apply.
+  Remaining after owner sign-off: flip visibility, add the GitHub release for
+  `v0.2.0` from the changelog, enable Discussions and the security features,
+  then confirm the CI badges render.
 
 ### Phase D — Claude Code adapter
 
@@ -440,7 +444,7 @@ Check boxes as items land, and update this file when the status changes.
 | 2026-10-24 | Extraction failures are visible: LLM errors bubble to `status:"failed"` and short digests skip as `digest_too_small` | `runExtraction` used to swallow both as an empty result, so a dead bridge logged `done added:0` — exactly the silence the trial is meant to remove |
 | 2026-10-24 | Extraction budget 20 s → 60 s | Desktop-GUI catch-up of a 6,000-char digest on `<provider>/<model>` took 33.3 s and logged `extract.catchup {status:"failed", error:"extraction timed out after 20000ms"}`; the catch-up runs in the background and never blocks a turn, so a larger budget only helps, and a `failed` row does not advance the watermark so the next open retries |
 | 2026-10-24 | Journal readers tolerate a leading UTF-8 BOM | PowerShell 5.1 `Set-Content -Encoding utf8` prepends a BOM; the first line was silently dropped, hydration lost one user prompt (5 entries/2 users instead of 6/3) and the catch-up gate did not fire |
-| — | **Pending:** repo visibility + v0.2.0 release, Claude adapter timing | Need release step |
+| — | **Pending:** repo visibility flip + v0.2.0 release, Claude adapter timing | Open-source prep is ready; flip awaits owner sign-off |
 
 ### Trial notes (N1)
 
@@ -545,7 +549,7 @@ Check boxes as items land, and update this file when the status changes.
     re-deriving them).
   - Health at close: `harnmem stats` — 70 records / 62 active, 0 duplicate
     candidates, 0 orphans, `extract pending 0, failed 0`; pi 1.4.0 (10-25)
-    loads the adapter fine with the root-entry fix (`f528dc6`).
+    loads the adapter fine with the root-entry fix (`2e78bc3`).
   - Residuals (not N1 blockers): one cross-scope duplicate family
     ("Node/npm toolchain baseline" ×3 across user+project — dedupe is per-scope
     by design); <project-a> carries two project identities (`<project-id>`
