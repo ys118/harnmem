@@ -3,7 +3,7 @@
 Single source of truth for **where the project stands and what to do next**.
 Design intent lives in [`design/`](design/); this file tracks execution state.
 
-Last updated: **2026-10-25** (N1 trial closed — verdict: useful).
+Last updated: **2026-10-25** (N1 trial closed; N7 npm publish shipped — 4 packages at 0.2.0).
 
 ## 1. Snapshot
 
@@ -359,20 +359,25 @@ Check boxes as items land, and update this file when the status changes.
   packages" with `ENEEDAUTH` (no `NPM_TOKEN` secret / `@harnmem` npm org
   yet) — exactly the expected N7 blocker.
 
-- [ ] **N7. Publish to npm (publish order matters).**
-  ```powershell
-  pnpm -r build
-  pnpm --filter @harnmem/core publish --access public --no-git-checks
-  pnpm --filter @harnmem/cli publish --access public --no-git-checks
-  pnpm --filter pi-harnmem publish --access public --no-git-checks
-  pnpm --filter dsh-harnmem publish --access public --no-git-checks
-  ```
-  Requires: npm account + 2FA, free org `harnmem`, and for CI publishing an
-  Automation token stored as `NPM_TOKEN`. Provenance (`--provenance`) requires
-  a public repo.
-  *Acceptance:* `npm view` shows 0.2.0; `pi install npm:pi-harnmem` works in a
-  clean profile; `dsh plugin --profile <p> add dsh-harnmem` works without a
-  manual core junction; document both in the package READMEs.
+- [x] **N7. Publish to npm (publish order matters).** ✅ 2026-10-25 — all four
+  packages live at 0.2.0 with `latest` tags correct:
+  [@harnmem/core](https://www.npmjs.com/package/@harnmem/core),
+  [@harnmem/cli](https://www.npmjs.com/package/@harnmem/cli),
+  [pi-harnmem](https://www.npmjs.com/package/pi-harnmem),
+  [dsh-harnmem](https://www.npmjs.com/package/dsh-harnmem).
+  Pre-publish fixes: pi peer ranges widened to `>=1.3.0 <2` (7420f61; upstream
+  pi is at 1.4.0 and the adapter is verified there), `publishConfig.provenance`
+  removed from all four (4cfaec3; local publish cannot mint provenance — CI's
+  explicit `--provenance` in release.yml is unaffected). Publishing required
+  the maintainer's terminal: account 2FA is auth-and-writes, so chat-relayed
+  TOTP codes expired in transit (`EOTP` ×2); the interactive browser-OTP flow
+  succeeded. Note: an extra stray publish from a pre-repo checkout created
+  `0.0.0-stage` versions of pi-harnmem/dsh-harnmem — unpublish pending (72 h
+  window). *Acceptance:* `npm view` shows 0.2.0 ×4 ✓; clean-dir
+  `npm install pi-harnmem dsh-harnmem` auto-resolves `@harnmem/core@0.2.0`
+  (no manual junction) and the pi entry imports ✓; `dsh plugin --profile
+  npm-test add dsh-harnmem` installs 0.2.0 from npm ✓; all four READMEs now
+  lead with npm install docs ✓.
 
 - [ ] **N8. Repository visibility and release notes.**
   Decide public vs private (public unlocks provenance, issues, stars);
@@ -435,7 +440,7 @@ Check boxes as items land, and update this file when the status changes.
 | 2026-10-24 | Extraction failures are visible: LLM errors bubble to `status:"failed"` and short digests skip as `digest_too_small` | `runExtraction` used to swallow both as an empty result, so a dead bridge logged `done added:0` — exactly the silence the trial is meant to remove |
 | 2026-10-24 | Extraction budget 20 s → 60 s | Desktop-GUI catch-up of a 6,000-char digest on `<provider>/<model>` took 33.3 s and logged `extract.catchup {status:"failed", error:"extraction timed out after 20000ms"}`; the catch-up runs in the background and never blocks a turn, so a larger budget only helps, and a `failed` row does not advance the watermark so the next open retries |
 | 2026-10-24 | Journal readers tolerate a leading UTF-8 BOM | PowerShell 5.1 `Set-Content -Encoding utf8` prepends a BOM; the first line was silently dropped, hydration lost one user prompt (5 entries/2 users instead of 6/3) and the catch-up gate did not fire |
-| — | **Pending:** npm publishing, repo visibility, Claude adapter timing | Need release step |
+| — | **Pending:** repo visibility + v0.2.0 release, Claude adapter timing | Need release step |
 
 ### Trial notes (N1)
 

@@ -10,6 +10,12 @@ engine and the write/lifecycle pipeline. It has **zero runtime dependencies**
 Typical consumers are harness adapters (for example
 [`pi-harnmem`](../pi-harnmem)) and the [`@harnmem/cli`](../cli) migration tool.
 
+## Install
+
+```bash
+npm install @harnmem/core
+```
+
 ## What it provides
 
 - `HarnMem` facade: `open`, `ensureContext`, `search`, `read`,

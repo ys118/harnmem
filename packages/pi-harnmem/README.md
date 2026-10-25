@@ -4,22 +4,23 @@ Long-term, plain-file memory for [pi](https://github.com/earendil-works/pi) — 
 
 Memory is stored as Markdown in `~/.harnmem` (no service, no database, no local embedding model). The extension injects a small, byte-stable memory index into the session system prompt and exposes 5 tools so the model can write, search, read, forget and inspect memory across sessions and projects.
 
-Requires `pi >= 1.3.0`. Status: **v0.1.0 — pi only** (DSH / Claude Code adapters are designed, not implemented).
+Requires `pi >= 1.3.0` (the peer range accepts 1.4.x). A DSH adapter with the same
+feature set also exists: [`dsh-harnmem`](../dsh-harnmem).
 
 ## Install
 
-Build first, from the repo root:
-
 ```bash
-pnpm install
-pnpm -r build
+pi install npm:pi-harnmem
+# -l / --local installs into the current project's settings instead of user settings
 ```
 
 ### Install into pi (local path)
 
+For development against a repo checkout:
+
 ```bash
+pnpm install && pnpm -r build
 pi install ./packages/pi-harnmem
-# -l / --local installs into the current project's settings instead of user settings
 ```
 
 Verified syntax against `pi install --help` (pi 1.3.0). The full install flow is not covered by the repo's automated checks — if it fails, use the dev loading path below.
@@ -31,10 +32,6 @@ pi -e ./packages/pi-harnmem/dist/index.js
 ```
 
 Verified end-to-end against a real pi 1.3.0 session: empty-store load, write, cross-session recall, byte-stable injection, read-only children.
-
-### npm
-
-Not published yet (`pi install npm:pi-harnmem` is a v0.2 target).
 
 ## Quick start
 

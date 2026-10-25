@@ -42,7 +42,13 @@ The plugin is a thin adapter. Storage, retrieval, deduplication and lifecycle li
 
 ## Install
 
-DSH profiles install bundles through the CLI:
+From npm:
+
+```bash
+dsh plugin --profile desktop add dsh-harnmem
+```
+
+For development against a repo checkout, install the local path instead:
 
 ```bash
 dsh plugin --profile desktop add /path/to/packages/dsh-harnmem

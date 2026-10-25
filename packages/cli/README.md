@@ -7,6 +7,12 @@ shared `~/.harnmem` plain-file store.
 Zero runtime dependencies beyond `@harnmem/core`; runs on Node >= 22.15 (`node:zlib`
 zstd for DSH session logs).
 
+## Install
+
+```bash
+npm install -g @harnmem/cli
+```
+
 ## Usage
 
 ```text
