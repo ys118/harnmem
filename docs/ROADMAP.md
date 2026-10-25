@@ -9,7 +9,7 @@ Last updated: **2026-10-25** (N1 trial closed; N7 npm publish shipped — 4 pack
 
 | Item | State |
 | --- | --- |
-| Repository | `github.com/ys118/harnmem` (private until the N8 flip), branch `master`, CI green on `a731f2f` |
+| Repository | `github.com/ys118/harnmem` (public), branch `master`, CI green on `a731f2f` |
 | Latest release | `v0.2.0` tag on `a731f2f` (DSH adapter + write-silence fix + resume catch-up + single-store migration) |
 | Commits after `v0.1.0` | `b872c86..a731f2f` — DSH adapter and cold-start fix, toolPrefix/order coexistence, the DSH write-silence fix, resume catch-up, and the N4/N5 single-store migration |
 | Packages (all `0.2.0`, published on npm) | `@harnmem/core`, `@harnmem/cli`, `pi-harnmem`, `dsh-harnmem` |
@@ -379,14 +379,12 @@ Check boxes as items land, and update this file when the status changes.
   npm-test add dsh-harnmem` installs 0.2.0 from npm ✓; all four READMEs now
   lead with npm install docs ✓.
 
-- [ ] **N8. Repository visibility and release notes.**
-  Decision: make the repository public (2026-10-25). Repository prep is done:
-  docs/memory provenance sweep, full git-history rewrite (old SHAs and tags
-  rebuilt), pi-style contribution gate (issue/PR auto-close, `lgtmi`/`lgtm`
-  approvals, `CODEOWNERS`), and the branch/tag rulesets are ready to apply.
-  Remaining after owner sign-off: flip visibility, add the GitHub release for
-  `v0.2.0` from the changelog, enable Discussions and the security features,
-  then confirm the CI badges render.
+- [x] **N8. Repository visibility and release notes.**
+  Repository is public (2026-10-25) with the
+  [`v0.2.0` release](https://github.com/ys118/harnmem/releases/tag/v0.2.0)
+  published from the changelog. Discussions, secret scanning/push protection,
+  private vulnerability reporting, master/tag rulesets and the CI badge are
+  live; the pi-style contribution gate protects the issue tracker.
 
 ### Phase D — Claude Code adapter
 
@@ -444,7 +442,7 @@ Check boxes as items land, and update this file when the status changes.
 | 2026-10-24 | Extraction failures are visible: LLM errors bubble to `status:"failed"` and short digests skip as `digest_too_small` | `runExtraction` used to swallow both as an empty result, so a dead bridge logged `done added:0` — exactly the silence the trial is meant to remove |
 | 2026-10-24 | Extraction budget 20 s → 60 s | Desktop-GUI catch-up of a 6,000-char digest on `<provider>/<model>` took 33.3 s and logged `extract.catchup {status:"failed", error:"extraction timed out after 20000ms"}`; the catch-up runs in the background and never blocks a turn, so a larger budget only helps, and a `failed` row does not advance the watermark so the next open retries |
 | 2026-10-24 | Journal readers tolerate a leading UTF-8 BOM | PowerShell 5.1 `Set-Content -Encoding utf8` prepends a BOM; the first line was silently dropped, hydration lost one user prompt (5 entries/2 users instead of 6/3) and the catch-up gate did not fire |
-| — | **Pending:** repo visibility flip + v0.2.0 release, Claude adapter timing | Open-source prep is ready; flip awaits owner sign-off |
+| 2026-10-25 | Repository made public; `v0.2.0` GitHub release published from the changelog | Open-source flip completed after the prep PR (privacy sweep + history rewrite + contribution gate) was reviewed and merged |
 
 ### Trial notes (N1)
 
