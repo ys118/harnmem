@@ -12,12 +12,13 @@
   ],
   "pi": {
     "extensions": [
-      "./dist/index.js"
+      "./pi-harnmem.js"
     ]
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
+    "pi-harnmem.js",
     "dist/",
     "README.md"
   ],

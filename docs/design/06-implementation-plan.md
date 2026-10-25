@@ -113,11 +113,11 @@ Verified against the real desktop runtime (disposable `DSH_HOME` profile) with a
 |---|---|---|---|
 | `@harnmem/core` | Engine + types + default prompts/data | ESM `dist/` + `.d.ts` | zero runtime dependencies |
 | `harnmem` | CLI (bin: `harnmem`) | ESM + bin shim | exact version of `@harnmem/core` |
-| `pi-harnmem` | pi extension | ESM; `package.json`'s `pi.extensions: ["dist/index.js"]`, `keywords:["pi-package"]` | peer: `@earendil-works/pi-coding-agent`, `pi-ai`, `typebox`; dep `@harnmem/core` |
+| `pi-harnmem` | pi extension | ESM; `package.json`'s `pi.extensions: ["./pi-harnmem.js"]`, `keywords:["pi-package"]` | peer: `@earendil-works/pi-coding-agent`, `pi-ai`, `typebox`; dep `@harnmem/core` |
 | `dsh-harnmem` | DSH cordis plugin | ESM; `package.json` `dsh.manifestVersion:1` + `dsh.bundle.patch`; depends on `@harnmem/core` | zero runtime deps beyond core |
 
 - Phase 1: `pi install ./packages/pi-harnmem` (local path), no publishing; publish to npm only after the UX is confirmed.
-- Publish with `pnpm -r publish --access public`; `workspace:*` is rewritten to concrete versions at publish time; first run `pnpm pack` to check the `files` allowlist (only `dist/`, `prompts/`, `data/`, README).
+- Publish with `pnpm -r publish --access public`; `workspace:*` is rewritten to concrete versions at publish time; first run `pnpm pack` to check the `files` allowlist (only `pi-harnmem.js`, `dist/`, `prompts/`, `data/`, README).
 - `@harnmem/core` and the adapters' peer dependencies are not bundled, avoiding duplicate instances; pi declares the core package as a peerDependency, provided by the host on the pi side.
 - Versioning: core and adapters use independent semver; `HARNMEM_API_VERSION` is exported from types.ts and validated by adapters on load.
 - Data compatibility: `schema` field + `state/VERSION`; upgrades are additive only, and migration scripts go through `harnmem doctor --migrate`.

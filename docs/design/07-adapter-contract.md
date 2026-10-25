@@ -136,13 +136,14 @@ The "Option P" from pi-memory must be replicated:
   "name": "pi-harnmem",
   "type": "module",
   "keywords": ["pi-package", "memory"],
-  "pi": { "extensions": ["./dist/index.js"] },
+  "pi": { "extensions": ["./pi-harnmem.js"] },
   "peerDependencies": { "@earendil-works/pi-coding-agent": "*", "@earendil-works/pi-ai": "*", "typebox": "*" },
   "dependencies": { "@harnmem/core": "workspace:*" }
 }
 ```
 
-- Install: `pi install ./packages/pi-harnmem` (local) or, after publishing, `pi install npm:pi-harnmem`; `pi -e dist/index.js` loads it for a single run;
+- Install: `pi install ./packages/pi-harnmem` (local) or, after publishing, `pi install npm:pi-harnmem`; `pi -e packages/pi-harnmem/dist/index.js` loads it for a single run;
+- The root-level `pi-harnmem.js` entry only re-exports `dist/index.js`. It exists because pi derives the startup `[Extensions]` label from the entry path: for a package installed from a local path, a `./dist/index.js` entry collapses to the label `dist`, while `./pi-harnmem.js` shows as `pi-harnmem.js`;
 - The core package is a peer/normal dependency, and pi's jiti can load ESM JS; at publish time `@harnmem/core` must be a standalone npm package (or core could be bundled into pi-harnmem — is that easier for v1? — **v1 uses a separate package** so dsh/claude can reuse it).
 
 ### 4.5 Acceptance
@@ -334,13 +335,14 @@ The "Option P" from pi-memory must be replicated:
   "name": "pi-harnmem",
   "type": "module",
   "keywords": ["pi-package", "memory"],
-  "pi": { "extensions": ["./dist/index.js"] },
+  "pi": { "extensions": ["./pi-harnmem.js"] },
   "peerDependencies": { "@earendil-works/pi-coding-agent": "*", "@earendil-works/pi-ai": "*", "typebox": "*" },
   "dependencies": { "@harnmem/core": "workspace:*" }
 }
 ```
 
-- Install: `pi install ./packages/pi-harnmem` (local) or, after publishing, `pi install npm:pi-harnmem`; `pi -e dist/index.js` loads it for a single run;
+- Install: `pi install ./packages/pi-harnmem` (local) or, after publishing, `pi install npm:pi-harnmem`; `pi -e packages/pi-harnmem/dist/index.js` loads it for a single run;
+- The root-level `pi-harnmem.js` entry only re-exports `dist/index.js`. It exists because pi derives the startup `[Extensions]` label from the entry path: for a package installed from a local path, a `./dist/index.js` entry collapses to the label `dist`, while `./pi-harnmem.js` shows as `pi-harnmem.js`;
 - The core package is a peer/normal dependency, and pi's jiti can load ESM JS; at publish time `@harnmem/core` must be a standalone npm package (or core could be bundled into pi-harnmem — is that easier for v1? — **v1 uses a separate package** so dsh/claude can reuse it).
 
 ### 4.5 Acceptance
