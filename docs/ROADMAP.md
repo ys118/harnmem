@@ -3,7 +3,7 @@
 Single source of truth for **where the project stands and what to do next**.
 Design intent lives in [`design/`](design/); this file tracks execution state.
 
-Last updated: **2026-10-23** (after the first real-trial period).
+Last updated: **2026-10-25** (N1 trial closed — verdict: useful).
 
 ## 1. Snapshot
 
@@ -15,7 +15,7 @@ Last updated: **2026-10-23** (after the first real-trial period).
 | Packages (all `0.2.0`, unpublished) | `@harnmem/core`, `@harnmem/cli`, `pi-harnmem`, `dsh-harnmem` |
 | Core tests | 29/29 pass (`node --test packages/core/test/*.test.mjs`); adapter 28/28 (`pnpm --filter dsh-harnmem test`) |
 | Evaluation | functional gates PASS; macro R@10 1.000, MRR 0.891, nDCG@10 0.911; 5 advisory perf gates (see §3) |
-| Real trial | running since 2026-10-21; since 2026-10-24 it is a single store: N4/N5 migrated the legacy memories and N3 disabled `dsh-auto-memory` (desktop profile) and `pi-memory` (pi), effective on the next start of each harness |
+| Real trial | N1 closed 2026-10-25, verdict **useful**; single store since 2026-10-24: legacy memories migrated (N4/N5), `dsh-auto-memory`/`pi-memory` disabled and their stores later deleted, HarnMem is the memory SSOT (user decision 2026-10-25) |
 | Environment | Windows 11, Node 24.9.0, pnpm 10.33.2, pi 1.3.0, DeepSeek Harness 0.2.1-rc.2 |
 
 **Live trial evidence** (`C:\Users\<user>\.harnmem`):
@@ -26,7 +26,8 @@ Last updated: **2026-10-23** (after the first real-trial period).
   1 `resume`) plus 1 write. Both adapters inject byte-stable snapshots at
   session start.
 - No writes or extraction failures observed in either harness; `extract pending 0, failed 0`.
-- Open question: the trial has produced **no auto-extracted memories yet** — see N2.
+- (Resolved 2026-10-24) auto-extraction was initially silent — proven and fixed
+  in N2; the final N1 verdict with trial-wide numbers is in §5 "Trial notes".
 
 ## 2. What is running right now
 
@@ -177,7 +178,10 @@ Check boxes as items land, and update this file when the status changes.
 
 ### Phase A — finish the real trial (decision gate)
 
-- [ ] **N1. Run the trial for a few more real sessions.**
+- [x] **N1. Run the trial for a few more real sessions.**
+  *(Closed 2026-10-25 — the wrap-up with numbers and the usefulness verdict is
+  in §5 "Trial notes"; remaining gaps stay tracked in N13 (never-reopened
+  sessions) and N12 (project identity split).)*
   Use pi and DSH normally for 2–3 days (both plugins on). Look at:
   ```powershell
   node packages/cli/dist/main.js stats --home C:\Users\<user>\.harnmem
@@ -504,6 +508,62 @@ Check boxes as items land, and update this file when the status changes.
   events and `extract done added:3 messages:200 userMessages:4`, and three
   memory files appeared (titles: "DSH 补写抽取预算 20s 提升到 60s",
   "桌面端补写真机验证：小会话成功、大会话 20s 超时", "补写失败要显式报错且不推进水位").
+
+- **2026-10-25 — N1 wrap-up: trial closed, verdict useful.** Trial window
+  2026-10-21 → 10-25 on the real `~/.harnmem`, pi and the DSH desktop app in
+  daily use; single store since 10-24. Numbers at close:
+  - Injections: 150 audit `inject` events (130 `session_start`, 4 `resume`,
+    16 write-refreshes); dsh 88 / pi 62. Average injection grew from 301 B
+    (1 id) before the migration to 3.2–5.5 KB (avg 13–23 ids, roughly
+    0.8–1.3K tokens) after it — inside `injectMaxTokens: 1200`; ≈0.46 MB
+    injected over the whole trial.
+  - Captures: 32 `write` events (28 NEW incl. supersedes, 3 LINK, 1 MERGE);
+    28 record files created since 10-24 across user scope and 4 projects.
+    All write paths fired: desktop catch-up extraction +8 (`<session-id>` +4/+1,
+    `<session-id>` +3), explicit model tool calls (pi 8 NEW + 1 LINK, dsh
+    10 NEW + 2 LINK), CLI 3 NEW.
+  - Extraction: 60 `extract` events — 3 done (+8 records), 4 failed, 50
+    skipped (`too_few_messages` 35, `already_extracted` 8, `model_wrote` 3,
+    `read_only` 4). Every failure was visible, never a silent `done added:0`:
+    1×20 s timeout (old build; retried successfully on reopen), 3×
+    `NO_ADAPTER` at quit dispose (expected; watermark not advanced). Two
+    sessions (`<session-id>` 4 user msgs, `<session-id>` 10 user msgs) still await
+    their catch-up on next open — concrete N13 examples of the
+    never-reopened gap.
+  - Recall in real use: pi `harnmem_search` ×5 with real queries (cf CLI
+    environment, Node toolchain, <project-c> quota, pi extensions) plus
+    `harnmem_read` ×2; the DSH read-only memory browser served 7 process
+    runs; injected snapshots demonstrably reused cross-project (later
+    sessions recalled the pnpm/commit-style/toolchain memories instead of
+    re-deriving them).
+  - Health at close: `harnmem stats` — 70 records / 62 active, 0 duplicate
+    candidates, 0 orphans, `extract pending 0, failed 0`; pi 1.4.0 (10-25)
+    loads the adapter fine with the root-entry fix (`f528dc6`).
+  - Residuals (not N1 blockers): one cross-scope duplicate family
+    ("Node/npm 工具链基线" ×3 across user+project — dedupe is per-scope by
+    design); <project-a> carries two project identities (`<project-id>`
+    23 records vs `<project-id>` 3) — the known path-key/git-key split. Both
+    are N12 doctor/normalize fodder.
+
+### Post-migration cleanup (2026-10-25)
+
+- Full re-audit of both migrations passed: dsh-auto-memory 30/30 (ledger
+  `mig-20261024T035400Z-xu092w.json`, idempotent re-run 30 skipped) and
+  pi-memory 10/10 (`mig-20261024T035400Z-ek35re.json`, re-run 10 skipped);
+  all 40 migrated ids verified live in `~/.harnmem/memories`, none in `trash/`.
+- Gap found and closed: `daily/2026-10-17.md` (session `<session-id>`, lesson-2
+  delivery stats) had no `imports/unresolved` record; appended as a third
+  record into `unresolved/<session-id>/records.json` (count 2 -> 3, JSON validated).
+- User decision: **HarnMem is the single source of truth (SSOT) for all memory
+  across harnesses.** Legacy stores deleted after byte-level backup
+  verification: `~/.pi/agent/memory/` (14 files; backup =
+  `state/backups/mig-20261024T035400Z-ek35re/source/`, byte-identical);
+  `~/.dsh/memory/` was already removed on 2026-10-24 (backup =
+  `state/backups/mig-20261024T035400Z-xu092w/source/`).
+- Config residue removed: `dsh-auto-memory@0.9.0` entry dropped from
+  `~/.dsh/profiles/desktop/pnpm-workspace.yaml` `minimumReleaseAgeExclude`
+  (node_modules and pnpm-lock verified clean). The provenance comment in
+  `cordis.patch.yml` L112-114 is intentionally kept.
 
 ## 6. Verification runbook
 
