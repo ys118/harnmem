@@ -1,7 +1,7 @@
 {
   "name": "@harnmem/cli",
   "version": "0.2.0",
-  "description": "HarnMem command-line interface: memory CRUD, search, consolidation and idempotent migration importers (DSH, pi, ZCode, JSON).",
+  "description": "HarnMem command-line interface: memory CRUD, search, consolidation and idempotent migration importers (DSH, pi, ZCode, Claude Code, Markdown, JSON/JSONL/stdin, auto-discovery).",
   "license": "MIT",
   "type": "module",
   "keywords": [
@@ -27,7 +27,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
     "@harnmem/core": "workspace:*"

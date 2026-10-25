@@ -31,8 +31,10 @@ import {
 } from "./ledger.js";
 import type { ProjectInfo } from "./identity.js";
 import { readProjects } from "./identity.js";
+import { discoverClaude } from "./importers/claude.js";
 import { discoverDsh } from "./importers/dsh.js";
 import { discoverJson } from "./importers/json.js";
+import { discoverMd } from "./importers/md.js";
 import { discoverPi } from "./importers/pi.js";
 import { discoverZcode } from "./importers/zcode.js";
 import {
@@ -43,7 +45,7 @@ import {
   type ImportItem,
 } from "./importers/types.js";
 
-export type ImportSource = "dsh" | "pi" | "zcode" | "json";
+export type ImportSource = "dsh" | "pi" | "zcode" | "claude" | "json" | "md";
 
 export interface ImportCommandOptions {
   from: ImportSource;
@@ -56,6 +58,16 @@ export interface ImportCommandOptions {
   includeDaily: boolean;
   /** True when the user did NOT pass --apply/--yes (dry-run is the default). */
   dryRun: boolean;
+  /** Display/idempotency label when the source was materialized from stdin (`-`). */
+  sourceLabel?: string;
+  /** JSON source: force JSONL parsing. */
+  jsonl?: boolean;
+  /** Markdown source: split per file (default) or per heading. */
+  mdMode?: "file" | "heading";
+  /** Markdown source: hard file cap (default 5000). */
+  maxFiles?: number;
+  /** Markdown source: include host instruction files and memory indexes. */
+  includeAll?: boolean;
 }
 
 export interface VerifyReport {
@@ -100,15 +112,21 @@ export interface BackupManifest {
   entries: ManifestEntry[];
 }
 
-async function discover(options: ImportCommandOptions): Promise<DiscoverResult> {
+/** Probe one source without writing anything (`import auto` uses this to build its plan). */
+export async function discoverSources(options: ImportCommandOptions): Promise<DiscoverResult> {
   const common: DiscoverOptions = {
     sourcePath: options.sourcePath,
+    sourceLabel: options.sourceLabel,
     sessionsRoot: options.sessionsRoot,
     pathMap: options.pathMap,
     fallbackProject: options.fallbackProject,
     cwd: options.cwd,
     home: options.home,
     includeDaily: options.includeDaily,
+    jsonl: options.jsonl,
+    mdMode: options.mdMode,
+    maxFiles: options.maxFiles,
+    includeAll: options.includeAll,
   };
   switch (options.from) {
     case "dsh":
@@ -117,8 +135,12 @@ async function discover(options: ImportCommandOptions): Promise<DiscoverResult> 
       return discoverPi(common);
     case "zcode":
       return discoverZcode(common);
+    case "claude":
+      return discoverClaude(common);
     case "json":
       return discoverJson(common);
+    case "md":
+      return discoverMd(common);
     default: {
       const never: never = options.from;
       throw new Error(`unknown import source: ${String(never)}`);
@@ -260,7 +282,7 @@ function tally(list: ImportItem[], pick: (item: ImportItem) => string | undefine
 export async function runImport(eng: HarnMem | null, home: string, options: ImportCommandOptions): Promise<ImportReport> {
   const startedAt = Date.now();
   const runId = newRunId(startedAt);
-  const discovery = await discover(options);
+  const discovery = await discoverSources(options);
   const { byKey, runByKey } = buildImportedIndex(await listLedgers(home));
 
   // Core fills a missing projectName with *its own* project name, which would
@@ -391,7 +413,7 @@ export async function runImport(eng: HarnMem | null, home: string, options: Impo
   const report: ImportReport = {
     runId,
     harness: String(discovery.harness),
-    sourceRoot: discovery.sourceRoot,
+    sourceRoot: options.sourceLabel ?? discovery.sourceRoot,
     dryRun: options.dryRun,
     counts,
     byType: tally(importable, (item) => item.record.type),

@@ -7,9 +7,10 @@
  */
 
 import { existsSync } from "node:fs";
-import { readdir, readFile, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { homedir, tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
+import { createInterface } from "node:readline/promises";
 
 import { HarnMem } from "@harnmem/core";
 import type {
@@ -31,6 +32,7 @@ import { listLedgers, readLedger } from "./ledger.js";
 import { Output, formatBytes, formatHit, pad, shortDate } from "./output.js";
 import {
   describeIntegrity,
+  discoverSources,
   readBackupManifest,
   rollbackRun,
   runImport,
@@ -39,7 +41,8 @@ import {
   type ImportReport,
   type ImportSource,
 } from "./pipeline.js";
-import { asMemoryType, type DiscoverOptions } from "./importers/types.js";
+import { locateZcodeRoot } from "./importers/zcode.js";
+import { asMemoryType, type DiscoverResult, type DiscoverOptions } from "./importers/types.js";
 
 export const EXIT = { OK: 0, FAIL: 1, USAGE: 2 } as const;
 
@@ -72,6 +75,11 @@ function piAgentDir(): string {
 function zcodeHome(): string {
   const raw = process.env.ZCODE_HOME;
   return raw ? resolve(expandHome(raw)) : join(homedir(), ".zcode");
+}
+
+function claudeHome(): string {
+  const raw = process.env.CLAUDE_CONFIG_DIR;
+  return raw ? resolve(expandHome(raw)) : join(homedir(), ".claude");
 }
 
 // ------------------------------------------------------------------ helpers
@@ -579,8 +587,56 @@ export async function cmdExport(parsed: ParsedArgs, out: Output, home: string, c
 
 // ------------------------------------------------------------------ import
 
-export const IMPORT_SOURCES: ImportSource[] = ["dsh", "pi", "zcode", "json"];
-export const IMPORT_SUBCOMMANDS = [...IMPORT_SOURCES, "verify", "rollback", "list", "unresolved"] as const;
+export const IMPORT_SOURCES: ImportSource[] = ["dsh", "pi", "zcode", "claude", "json", "md"];
+export const IMPORT_SUBCOMMANDS = [...IMPORT_SOURCES, "auto", "verify", "rollback", "list", "unresolved"] as const;
+
+/** A `--path -` source: stdin is materialized so backup/verify see a real file. */
+interface MaterializedSource {
+  sourcePath: string;
+  sourceLabel: string;
+  /** Remove the temporary file after a dry-run (applied runs keep it). */
+  cleanup: () => Promise<void>;
+}
+
+async function readStdinText(): Promise<string> {
+  if (process.stdin.isTTY) {
+    throw new UsageError(
+      "import --path - expects JSON on stdin (e.g. `cat export.json | harnmem import json --path -`)",
+    );
+  }
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk as Buffer));
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+/**
+ * `--path -`: read all of stdin.
+ *
+ * Dry runs write to an OS temp file removed immediately; applied runs land under
+ * `<home>/imports/incoming/` so `import verify` can prove the backing file is
+ * unchanged long after the pipe is gone.
+ */
+async function materializeStdin(home: string, dryRun: boolean): Promise<MaterializedSource> {
+  const text = await readStdinText();
+  if (text.trim() === "") throw new UsageError("import --path - received empty stdin");
+  if (dryRun) {
+    const dir = await mkdtemp(join(tmpdir(), "harnmem-stdin-"));
+    const file = join(dir, "stdin.json");
+    await writeFile(file, text, "utf8");
+    return {
+      sourcePath: file,
+      sourceLabel: "-",
+      cleanup: async () => {
+        await rm(dir, { recursive: true, force: true });
+      },
+    };
+  }
+  const dir = join(home, "imports", "incoming");
+  await mkdir(dir, { recursive: true });
+  const file = join(dir, `stdin-${Date.now()}.json`);
+  await writeFile(file, text, "utf8");
+  return { sourcePath: file, sourceLabel: "-", cleanup: async () => {} };
+}
 
 function resolveInputPath(raw: string | undefined, cwd: string): string | undefined {
   return raw ? resolve(cwd, expandHome(raw)) : undefined;
@@ -594,6 +650,8 @@ function defaultSourcePath(source: ImportSource): string {
       return join(piAgentDir(), "memory");
     case "zcode":
       return join(zcodeHome(), "cli");
+    case "claude":
+      return claudeHome();
     case "json":
       return "";
     default:
@@ -657,12 +715,20 @@ function printImportReport(out: Output, report: ImportReport): void {
 function resolveSourcePath(source: ImportSource, parsed: ParsedArgs, cwd: string): string {
   const explicit = resolveInputPath(flagString(parsed, "path"), cwd);
   if (explicit) return explicit;
-  if (source === "json") throw new UsageError("import --from json requires --path <file.json>");
+  if (source === "json") throw new UsageError("import json requires --path <file.json|file.jsonl|->");
+  if (source === "md") throw new UsageError("import md requires --path <dir|file>");
   const fallback = defaultSourcePath(source);
   if (!existsSync(fallback)) {
     throw new UsageError(`source not found: ${fallback} (pass --path <dir>)`);
   }
   return fallback;
+}
+
+function resolveMdMode(parsed: ParsedArgs): "file" | "heading" | undefined {
+  const raw = flagString(parsed, "mode");
+  if (raw === undefined) return undefined;
+  if (raw === "file" || raw === "heading") return raw;
+  throw new UsageError(`--mode must be "file" or "heading" (got "${raw}")`);
 }
 
 async function cmdImportSource(
@@ -672,39 +738,60 @@ async function cmdImportSource(
   home: string,
   cwd: string,
 ): Promise<number> {
-  const sourcePath = resolveSourcePath(source, parsed, cwd);
-  const sessionsRoot =
-    resolveInputPath(flagString(parsed, "sessions"), cwd) ??
-    (flagString(parsed, "sessions") === undefined ? defaultSessionsRoot(source) : undefined);
-  const fallbackProjectRaw = flagString(parsed, "project");
-  const fallbackProject = fallbackProjectRaw
-    ? await resolveProjectArgument(home, fallbackProjectRaw, cwd)
-    : undefined;
+  const rawPath = flagString(parsed, "path");
+  const readsStdin = rawPath === "-";
   const dryRun = !(flagBool(parsed, "apply") || flagBool(parsed, "yes"));
-  const options: ImportCommandOptions = {
-    from: source,
-    sourcePath,
-    sessionsRoot,
-    pathMap: await resolvePathMaps(flagList(parsed, "path-map"), cwd),
-    fallbackProject,
-    cwd,
-    home,
-    includeDaily: !flagBool(parsed, "skip-daily"),
-    dryRun,
-  };
-  const eng = dryRun ? null : await openHarnMem(parsed, home, cwd);
-  try {
-    const report = await runImport(eng, home, options);
-    if (!dryRun && eng && flagBool(parsed, "verify")) {
-      report.verify = await verifyRun(eng, home, report.runId);
+  let materialized: MaterializedSource | undefined;
+  const body = async (sourcePath: string): Promise<number> => {
+    const sessionsRoot =
+      resolveInputPath(flagString(parsed, "sessions"), cwd) ??
+      (flagString(parsed, "sessions") === undefined ? defaultSessionsRoot(source) : undefined);
+    const fallbackProjectRaw = flagString(parsed, "project");
+    const fallbackProject = fallbackProjectRaw
+      ? await resolveProjectArgument(home, fallbackProjectRaw, cwd)
+      : undefined;
+    const options: ImportCommandOptions = {
+      from: source,
+      sourcePath,
+      sourceLabel: materialized?.sourceLabel,
+      sessionsRoot,
+      pathMap: await resolvePathMaps(flagList(parsed, "path-map"), cwd),
+      fallbackProject,
+      cwd,
+      home,
+      includeDaily: !flagBool(parsed, "skip-daily"),
+      dryRun,
+      jsonl: flagBool(parsed, "jsonl") || undefined,
+      mdMode: resolveMdMode(parsed),
+      maxFiles: flagNumber(parsed, "max-files"),
+      includeAll: flagBool(parsed, "include-all") || undefined,
+    };
+    const eng = dryRun ? null : await openHarnMem(parsed, home, cwd);
+    try {
+      const report = await runImport(eng, home, options);
+      if (!dryRun && eng && flagBool(parsed, "verify")) {
+        report.verify = await verifyRun(eng, home, report.runId);
+      }
+      printImportReport(out, report);
+      if (dryRun) return EXIT.OK;
+      if (report.counts.errors > 0) return EXIT.FAIL;
+      if (report.verify && (!report.verify.sourcesUnchanged || report.verify.missing > 0)) return EXIT.FAIL;
+      return EXIT.OK;
+    } finally {
+      if (eng) await eng.close();
     }
-    printImportReport(out, report);
-    if (dryRun) return EXIT.OK;
-    if (report.counts.errors > 0) return EXIT.FAIL;
-    if (report.verify && (!report.verify.sourcesUnchanged || report.verify.missing > 0)) return EXIT.FAIL;
-    return EXIT.OK;
+  };
+
+  if (readsStdin) {
+    if (source !== "json") {
+      throw new UsageError(`--path - is only supported by \`import json\` (got "${source}")`);
+    }
+    materialized = await materializeStdin(home, dryRun);
+  }
+  try {
+    return await body(materialized ? materialized.sourcePath : resolveSourcePath(source, parsed, cwd));
   } finally {
-    if (eng) await eng.close();
+    if (materialized) await materialized.cleanup();
   }
 }
 
@@ -818,6 +905,240 @@ async function cmdImportUnresolved(out: Output, home: string): Promise<number> {
   return EXIT.OK;
 }
 
+// ------------------------------------------------------------------ auto
+
+interface AutoProbe {
+  source: ImportSource;
+  sourcePath: string;
+  present: boolean;
+}
+
+interface AutoRow {
+  source: ImportSource;
+  sourcePath: string;
+  discovered: number;
+  byType: Record<string, number>;
+  projects: number;
+  unresolved: number;
+  warnings: string[];
+}
+
+function countByType(discovery: DiscoverResult | undefined): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const item of discovery?.items ?? []) out[item.record.type] = (out[item.record.type] ?? 0) + 1;
+  return out;
+}
+
+function countProjects(discovery: DiscoverResult | undefined): number {
+  const ids = new Set(
+    (discovery?.items ?? [])
+      .map((item) => item.record.project)
+      .filter((id): id is string => typeof id === "string"),
+  );
+  return ids.size;
+}
+
+function countUnresolved(discovery: DiscoverResult | undefined): number {
+  return (discovery?.unresolved ?? []).reduce((sum, group) => sum + group.records.length, 0);
+}
+
+async function hasEntries(dir: string): Promise<boolean> {
+  try {
+    return (await readdir(dir)).length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function claudePresent(root: string): Promise<boolean> {
+  try {
+    for (const entry of await readdir(join(root, "projects"), { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const files = await readdir(join(root, "projects", entry.name));
+      if (files.some((name) => name.toLowerCase().endsWith(".md"))) return true;
+    }
+  } catch {
+    // no projects/ tree
+  }
+  try {
+    const files = await readdir(join(root, "memory"));
+    if (files.some((name) => name.toLowerCase().endsWith(".md"))) return true;
+  } catch {
+    // no legacy memory/ tree
+  }
+  return false;
+}
+
+/** Known memory stores only — repository instruction files are never auto-scanned. */
+async function probeAutoSources(): Promise<AutoProbe[]> {
+  const dshPath = join(dshHome(), "memory");
+  const piPath = join(piAgentDir(), "memory");
+  const zcodePath = join(zcodeHome(), "cli");
+  const claudeRoot = claudeHome();
+  const zcode = await locateZcodeRoot(zcodePath);
+  return [
+    { source: "dsh", sourcePath: dshPath, present: await hasEntries(dshPath) },
+    {
+      source: "pi",
+      sourcePath: piPath,
+      present: existsSync(join(piPath, "MEMORY.md")) || existsSync(join(piPath, "daily")),
+    },
+    { source: "zcode", sourcePath: zcodePath, present: zcode.projectsRoot !== undefined },
+    { source: "claude", sourcePath: claudeRoot, present: await claudePresent(claudeRoot) },
+  ];
+}
+
+async function confirmImport(question: string): Promise<boolean> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = (await rl.question(`${question} [y/N] `)).trim().toLowerCase();
+    return answer === "y" || answer === "yes";
+  } finally {
+    rl.close();
+  }
+}
+
+function formatByType(byType: Record<string, number>): string {
+  return Object.entries(byType)
+    .map(([key, count]) => `${key} ${count}`)
+    .join(", ");
+}
+
+type AutoBase = Omit<ImportCommandOptions, "from" | "sourcePath" | "sessionsRoot" | "dryRun">;
+
+function autoOptions(probe: AutoProbe, base: AutoBase, dryRun: boolean): ImportCommandOptions {
+  return {
+    ...base,
+    from: probe.source,
+    sourcePath: probe.sourcePath,
+    sessionsRoot: defaultSessionsRoot(probe.source),
+    dryRun,
+  };
+}
+
+async function cmdImportAuto(parsed: ParsedArgs, out: Output, home: string, cwd: string): Promise<number> {
+  if (flagString(parsed, "path") !== undefined) {
+    throw new UsageError(
+      "import auto scans known stores only; use `harnmem import md --path <dir|file>` for a custom directory",
+    );
+  }
+  const projectRaw = flagString(parsed, "project");
+  const base: AutoBase = {
+    pathMap: await resolvePathMaps(flagList(parsed, "path-map"), cwd),
+    fallbackProject: projectRaw ? await resolveProjectArgument(home, projectRaw, cwd) : undefined,
+    cwd,
+    home,
+    includeDaily: !flagBool(parsed, "skip-daily"),
+  };
+  const present = (await probeAutoSources()).filter((probe) => probe.present);
+  const rows: AutoRow[] = [];
+  const discoveries = new Map<ImportSource, DiscoverResult | undefined>();
+  for (const probe of present) {
+    const warnings: string[] = [];
+    let discovery: DiscoverResult | undefined;
+    try {
+      discovery = await discoverSources(autoOptions(probe, base, true));
+    } catch (err) {
+      warnings.push(`probe failed: ${(err as Error).message}`);
+    }
+    discoveries.set(probe.source, discovery);
+    const unresolvedCount = countUnresolved(discovery);
+    rows.push({
+      source: probe.source,
+      sourcePath: probe.sourcePath,
+      discovered: (discovery?.items.length ?? 0) + unresolvedCount,
+      byType: countByType(discovery),
+      projects: countProjects(discovery),
+      unresolved: unresolvedCount,
+      warnings: [...warnings, ...(discovery?.warnings ?? [])],
+    });
+  }
+  const totalDiscovered = rows.reduce((sum, row) => sum + row.discovered, 0);
+  const apply = flagBool(parsed, "apply") || flagBool(parsed, "yes");
+
+  if (out.json && !apply) {
+    out.data({ dryRun: true, sources: rows, totals: { sources: rows.length, discovered: totalDiscovered } });
+    return EXIT.OK;
+  }
+  if (!out.json) {
+    out.line(
+      out.paint(apply ? "auto import" : "auto plan (dry-run; pass --apply to import)", apply ? "green" : "yellow"),
+    );
+    if (rows.length === 0) {
+      out.line("no known memory stores found (dsh, pi, zcode, claude) — nothing to do");
+      out.line("custom directory: harnmem import md --path <dir|file>");
+      out.line(`cloud/proprietary store: agent recipe at ${join(home, "prompts", "migrate.md")}`);
+      return EXIT.OK;
+    }
+    out.line(
+      `${pad("source", 8)} ${pad("discovered", 10)} ${pad("by type", 44)} ${pad("projects", 8)} unresolved`,
+    );
+    for (const row of rows) {
+      out.line(
+        `${pad(row.source, 8)} ${pad(String(row.discovered), 10)} ${pad(formatByType(row.byType) || "-", 44)} ` +
+          `${pad(String(row.projects), 8)} ${row.unresolved}`,
+      );
+      out.line(`  ${row.sourcePath}`);
+      for (const warning of row.warnings) out.warn(warning);
+    }
+    out.line(`totals: ${rows.length} source(s), ${totalDiscovered} record(s) discovered`);
+  }
+  if (!apply) return EXIT.OK;
+  if (!process.stdin.isTTY && !flagBool(parsed, "yes")) {
+    throw new UsageError("import auto --apply needs --yes when stdin is not a TTY");
+  }
+  if (process.stdin.isTTY && !flagBool(parsed, "yes")) {
+    if (!(await confirmImport(`Import ${rows.length} source(s) into ${home}?`))) {
+      out.line("aborted; nothing was written");
+      return EXIT.OK;
+    }
+  }
+
+  const eng = await openHarnMem(parsed, home, cwd);
+  const reports: ImportReport[] = [];
+  const totals = { imported: 0, skipped: 0, unresolved: 0, errors: 0 };
+  let failed = false;
+  try {
+    for (const probe of present) {
+      if (!existsSync(probe.sourcePath)) {
+        out.warn(`skipped ${probe.source}: ${probe.sourcePath} disappeared before import`);
+        continue;
+      }
+      if (!discoveries.get(probe.source)) {
+        out.warn(`skipped ${probe.source}: probe failed`);
+        failed = true;
+        continue;
+      }
+      if (!out.json) out.line(out.paint(`── ${probe.source} (${probe.sourcePath})`, "bold"));
+      try {
+        const report = await runImport(eng, home, autoOptions(probe, base, false));
+        reports.push(report);
+        totals.imported += report.counts.imported;
+        totals.skipped += report.counts.skipped;
+        totals.unresolved += report.counts.unresolved;
+        totals.errors += report.counts.errors;
+        if (report.counts.errors > 0) failed = true;
+        if (report.verify && (!report.verify.sourcesUnchanged || report.verify.missing > 0)) failed = true;
+        if (!out.json) printImportReport(out, report);
+      } catch (err) {
+        failed = true;
+        out.warn(`import ${probe.source} failed: ${(err as Error).message}`);
+      }
+    }
+  } finally {
+    await eng.close();
+  }
+  if (out.json) {
+    out.data({ dryRun: false, sources: reports, totals, failed });
+  } else {
+    out.line(
+      `totals: ${totals.imported} imported, ${totals.skipped} skipped, ` +
+        `${totals.unresolved} unresolved, ${totals.errors} errors`,
+    );
+  }
+  return failed ? EXIT.FAIL : EXIT.OK;
+}
+
 export async function cmdImport(parsed: ParsedArgs, out: Output, home: string, cwd: string): Promise<number> {
   const rollbackId = flagString(parsed, "rollback");
   if (rollbackId) return cmdImportRollback(parsed, out, home, cwd, rollbackId);
@@ -827,10 +1148,14 @@ export async function cmdImport(parsed: ParsedArgs, out: Output, home: string, c
     return cmdImportHelp(out);
   }
   switch (sub) {
+    case "auto":
+      return cmdImportAuto(parsed, out, home, cwd);
     case "dsh":
     case "pi":
     case "zcode":
+    case "claude":
     case "json":
+    case "md":
       return cmdImportSource(sub, parsed, out, home, cwd);
     case "verify":
       return cmdImportVerify(parsed, out, home, cwd);
@@ -852,10 +1177,14 @@ sources:
   harnmem import dsh  [--path <dir>] [--sessions <dir>] [--path-map key=id|path | map.json] [--apply]
   harnmem import pi   [--path <dir>] [--sessions <dir>] [--skip-daily] [--apply]
   harnmem import zcode [--path <dir>] [--apply]
-  harnmem import json --path <file.json> [--apply]     # ImportRecord[] round-trip
+  harnmem import claude [--path <dir>] [--path-map <file.json>|key=id|path] [--apply]
+  harnmem import md   --path <dir|file> [--mode file|heading] [--include-all] [--apply]
+  harnmem import json --path <file.json|file.jsonl|-> [--jsonl] [--apply]
+                      # any export: arrays, {records|memories|data|results|items}, JSONL, stdin
+  harnmem import auto [--apply] [--yes]                # probe known stores, then import them all
 
 equivalent long form (same flags):
-  harnmem import --from dsh|pi|zcode|json --path <dir|file> [--dry-run] [--apply]
+  harnmem import --from dsh|pi|zcode|claude|json|md|auto [--path <dir|file>] [--dry-run] [--apply]
                 [--path-map <file.json>|key=id|path] [--project <id|path>] [--verify]
 
 inspection:
@@ -867,7 +1196,7 @@ inspection:
   harnmem import unresolved           # buckets that could not be attributed
 
 defaults: ~/.dsh/memory + ~/.dsh/sessions, ~/.pi/agent/memory + sessions,
-          ~/.zcode/cli (ZCode stores are optional; absent = skipped)
+          ~/.zcode/cli and ~/.claude (ZCode/Claude stores are optional; absent = skipped)
 dry-run is the default; --apply backs up the source, writes a ledger and
 verifies source mtimes/hashes afterwards. --path-map values may be a project
 id already registered in <home>/projects.json or an existing directory path.`);
