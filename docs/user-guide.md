@@ -227,14 +227,47 @@ so HarnMem exposes `harnmem_write`, `harnmem_search`, `harnmem_read`, `harnmem_f
 
 ## 8. Migration
 
-[Verified] Migration is implemented in the CLI and was verified end-to-end on **read-only copies** of real stores — source files stayed byte-identical (sha256 + mtime unchanged after every run).
+[Verified] Migration is implemented in the CLI and was verified end-to-end on **read-only copies** of real stores — source files stayed byte-identical (sha256 + mtime unchanged after every run). The `import auto`, `import md`, `import claude` and relaxed `import json` paths are covered by CLI end-to-end tests (`packages/cli/test/`) against synthetic fixtures. See [`design/10-migration-onboarding.md`](design/10-migration-onboarding.md) for the design and the [FAQ](faq.md#migration) for common questions.
+
+Start with the scanner if you are not sure what you have:
 
 ```powershell
-harnmem import dsh             # dry-run by default (no writes)
-harnmem import dsh --apply     # write, back up the source, record a ledger, verify hashes
+harnmem import auto                  # dry-run: probes the known memory stores and prints a plan
+harnmem import auto --apply          # one run per source; asks y/N in a terminal
+harnmem import auto --apply --yes    # non-interactive (CI, scripts)
+```
+
+`auto` only probes *memory stores*: DSH (`$DSH_HOME/memory`), pi (`$PI_AGENT_DIR/memory`), ZCode (`$ZCODE_HOME/cli`) and Claude Code (`$CLAUDE_CONFIG_DIR` or `~/.claude`). It never imports `CLAUDE.md`/`AGENTS.md`/IDE rule files — their host still reads them directly, and a copy would be injected twice.
+
+Per-system importers, for control over one source:
+
+```powershell
+harnmem import dsh                       # dry-run by default (no writes)
+harnmem import dsh --apply               # backup -> import -> ledger -> verify hashes
 harnmem import pi --path "~/.pi/agent/memory"
-harnmem import zcode --apply   # optional; absent stores are skipped
-harnmem import json --path file.json   # ImportRecord[] round-trip
+harnmem import zcode --apply             # optional; absent stores are skipped
+harnmem import claude --apply            # ~/.claude/projects/<slug>/*.md + legacy ~/.claude/memory
+harnmem import md --path ./notes --apply # any Markdown tree (.md/.mdc/.mdx/.txt)
+harnmem import md --path ./vault --mode heading --apply   # one record per H1/H2 section
+```
+
+`import md` works with any folder of notes (Obsidian, memory-bank, docs trees, exported chats): frontmatter is honoured, otherwise the file name or first heading becomes the title, type is inferred from frontmatter/tags/path, and each file is attributed to the nearest git repository (no repository → `user` scope, with a warning). `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.cursorrules` and `MEMORY.md` are skipped by default; pass `--include-all` to import them. Note: a dry-run may register discovered projects in `<home>/projects.json`; no memories or ledgers are written.
+
+Any other app: export to JSON (or JSONL) and use the relaxed JSON contract, or let your agent do the conversion.
+
+```powershell
+harnmem import json --path export.json      # arrays, {records|memories|data|results|items}, field aliases
+harnmem import json --path export.jsonl     # JSONL/NDJSON (also: --jsonl)
+cat export.json | harnmem import json --path -   # stdin
+```
+
+The JSON importer accepts common field aliases (`name`→`title`, `text`/`memory`/`body`→`content`, `created_at`/`date`→`created`, `score`→`importance`, …), infers a missing `type` from tags (defaulting to `reference`) and a missing title from the first heading/line. Unparseable *files* are a usage error; individual bad records go to the unresolved bucket and the rest import normally. Run `harnmem import unresolved` to inspect them.
+
+For stores no parser understands (cloud memory services, chat transcripts, PDF/OCR text), use the shipped migration recipe with your own agent: point it at the source and `prompts/migrate.md` (deployed to `<home>/prompts/migrate.md`), let it produce an `ImportRecord[]` JSON file, then run `harnmem import json --path <file> --apply --verify`. The recipe keeps conclusions (rules, decisions, preferences, pitfalls) rather than copying documents.
+
+Lifecycle commands apply to every source:
+
+```powershell
 harnmem import list            # recorded runs
 harnmem import verify [runId]  # re-read ids + confirm sources untouched
 harnmem import rollback [runId]  # hard-forget the ids from one run
@@ -243,12 +276,13 @@ harnmem import unresolved      # buckets that could not be attributed
 
 When running from a checkout without the `harnmem` bin on PATH, use `node packages/cli/dist/main.js import ...` (the whole project requires Node.js 22.15+, see §1).
 
-Sources and verified results (2026-10-20):
+Sources and verified results:
 
-- **dsh**: 28 memories imported (19 project / 5 feedback / 2 reference / 2 user); a second run added 0 and skipped 28 (idempotent); rollback removed all 28 and re-import worked.
-- **pi**: 10 user memories from `MEMORY.md` imported; 22 daily entries are unresolved by default (session logs carry no session→cwd mapping) and can be attributed with `--project <id|path>` or `--path-map key=id|path`.
+- **dsh** (2026-10-20, real store): 28 memories imported (19 project / 5 feedback / 2 reference / 2 user); a second run added 0 and skipped 28 (idempotent); rollback removed all 28 and re-import worked.
+- **pi** (2026-10-20, real store): 10 user memories from `MEMORY.md` imported; 22 daily entries are unresolved by default (session logs carry no session→cwd mapping) and can be attributed with `--project <id|path>` or `--path-map key=id|path`.
 - **zcode**: importer implemented but has not been verified with real data (no ZCode data exists on the test machine).
-- **json**: `harnmem import json --path file.json` round-trips `ImportRecord[]`.
+- **claude** (2026-10-25, fixture): `projects/<slug>/*.md` attributed from the session JSONL `cwd`, legacy `~/.claude/memory` as `user` scope, `MEMORY.md` used only for title/description; second run imported 0.
+- **json / md / auto** (2026-10-25, fixtures): aliases + JSONL + stdin round-trip; Markdown tree in `file` and `heading` modes with git-repo attribution; `auto` produced one ledger per source, rerun imported 0, and each run can be rolled back independently.
 
 Safety: dry-run is the default; `--apply` backs up the source first, writes a ledger, and verifies source mtimes/hashes afterwards. `--path-map` accepts a project id already registered in `<home>/projects.json` or an existing directory path. Do not hand-rewrite `MEMORY.md` files to migrate.
 
@@ -270,6 +304,7 @@ Safety: dry-run is the default; `--apply` backs up the source first, writes a le
 | `harnmem` not found | The CLI bin is not on PATH | Run the entry point directly from the checkout: `node packages/cli/dist/main.js <command>` |
 | Import reports unresolved records | No project attribution (no session→cwd mapping) | Inspect `harnmem import unresolved`, then re-run with `--project <id|path>` and/or `--path-map` |
 | Import wrote nothing | Dry-run is the default | Add `--apply`; then confirm with `harnmem import verify <runId>` |
+| Need a different question answered | — | See the [FAQ](faq.md) and [adapter authoring guide](adapter-authoring.md) |
 
 ## 10. Backup, privacy, and deletion
 
@@ -302,7 +337,8 @@ Store: ~/.harnmem    Logs: <home>/logs/pi.jsonl    Status: /memory status
 CLI: harnmem --help   (npm install -g @harnmem/cli; or node packages/cli/dist/main.js from a checkout)
 CLI: harnmem stats | harnmem search "<query>" | harnmem forget <id>
 Synonyms: harnmem synonyms list | suggest [--write] [--llm-url <url>] | check
-Migration: harnmem import dsh|pi|zcode|json   (dry-run by default; add --apply)
+Migration: harnmem import auto   (probe known stores; dry-run by default, add --apply)
+           harnmem import dsh|pi|zcode|claude|md|json   (md/json need --path)
 Migration checks: harnmem import list | verify <runId> | rollback <runId> | unresolved
 ```
 

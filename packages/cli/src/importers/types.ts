@@ -44,6 +44,8 @@ export interface DiscoverResult {
 export interface DiscoverOptions {
   /** Directory/file the user pointed at (`--path`, or a harness default). */
   sourcePath: string;
+  /** Display/idempotency label when `sourcePath` is a materialized stdin file (`-`). */
+  sourceLabel?: string;
   /** Legacy session-log root used for cwd recovery; undefined disables it. */
   sessionsRoot?: string;
   /** Explicit legacy-key → projectId|path overrides from `--path-map`. */
@@ -55,6 +57,14 @@ export interface DiscoverOptions {
   home: string;
   /** Import pi daily notes (default true). */
   includeDaily: boolean;
+  /** JSON source: force JSONL parsing even when the file is named `.json`. */
+  jsonl?: boolean;
+  /** Markdown source: `file` (default) or `heading` splitting. */
+  mdMode?: "file" | "heading";
+  /** Markdown source: hard file cap (default 5000). */
+  maxFiles?: number;
+  /** Markdown source: include host instruction files / memory indexes. */
+  includeAll?: boolean;
 }
 
 export const MAX_CONTENT_CHARS = 60_000;
@@ -148,6 +158,147 @@ export function typeFromLegacyTags(tags: string[]): MemoryType | undefined {
   if (has("user", "用户")) return "user";
   if (has("reference", "资料")) return "reference";
   return undefined;
+}
+
+/**
+ * Single declared type value → unified type. Accepts the four canonical names
+ * plus the vocabulary legacy stores use in frontmatter (`decision`, `rule`,
+ * `preference`, `lesson`, `pitfall`, `adr`, …); unknown words are ignored so
+ * callers can fall back to tag/path inference.
+ */
+const DECLARED_TYPES: Record<string, MemoryType> = {
+  user: "user",
+  profile: "user",
+  用户: "user",
+  feedback: "feedback",
+  rule: "feedback",
+  rules: "feedback",
+  preference: "feedback",
+  preferences: "feedback",
+  workflow: "feedback",
+  workflows: "feedback",
+  convention: "feedback",
+  conventions: "feedback",
+  policy: "feedback",
+  policies: "feedback",
+  guideline: "feedback",
+  guidelines: "feedback",
+  规则: "feedback",
+  偏好: "feedback",
+  红线: "feedback",
+  p0: "feedback",
+  project: "project",
+  projects: "project",
+  decision: "project",
+  decisions: "project",
+  adr: "project",
+  rfc: "project",
+  rfcs: "project",
+  项目: "project",
+  决策: "project",
+  reference: "reference",
+  lesson: "reference",
+  lessons: "reference",
+  pitfall: "reference",
+  pitfalls: "reference",
+  tooling: "reference",
+  troubleshoot: "reference",
+  troubleshooting: "reference",
+  note: "reference",
+  notes: "reference",
+  教训: "reference",
+  坑: "reference",
+  工具: "reference",
+  资料: "reference",
+};
+
+export function declaredType(value: unknown): MemoryType | undefined {
+  if (typeof value !== "string") return undefined;
+  return DECLARED_TYPES[value.trim().toLowerCase()];
+}
+
+/** String list from an array of strings or a comma/semicolon-separated string. */
+export function asStringArray(value: unknown): string[] {
+  const raw = Array.isArray(value) ? value : typeof value === "string" ? [value] : [];
+  const out: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== "string") continue;
+    for (const part of item.split(/[,;]/)) {
+      const text = part.trim().replace(/^#+/, "").trim();
+      if (text) out.push(text);
+    }
+  }
+  return [...new Set(out)];
+}
+
+export function asNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value.trim());
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
+/** Loose boolean for legacy stores (`true`, `"yes"`, `1`, `"on"`). */
+export function asBoolean(value: unknown): boolean | undefined {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") {
+    const text = value.trim().toLowerCase();
+    if (["true", "yes", "y", "1", "on", "starred", "pinned"].includes(text)) return true;
+    if (["false", "no", "n", "0", "off"].includes(text)) return false;
+  }
+  return undefined;
+}
+
+/** First Markdown heading (outside fenced code blocks), decorations stripped. */
+export function firstHeading(text: string): string | undefined {
+  let fenced = false;
+  for (const line of text.split(/\r?\n/)) {
+    if (/^\s*(```|~~~)/.test(line)) {
+      fenced = !fenced;
+      continue;
+    }
+    if (fenced) continue;
+    const match = /^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$/.exec(line);
+    if (!match) continue;
+    const title = collapseWhitespace(stripMarkdownDecorations(match[1] ?? ""));
+    if (title) return title;
+  }
+  return undefined;
+}
+
+/** First prose line (no headings, fences, tables, quotes, rules). */
+export function firstProseLine(text: string): string | undefined {
+  let fenced = false;
+  for (const line of text.split(/\r?\n/)) {
+    if (/^\s*(```|~~~)/.test(line)) {
+      fenced = !fenced;
+      continue;
+    }
+    if (fenced) continue;
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (/^#{1,6}\s/.test(trimmed)) continue;
+    if (/^[|>]/.test(trimmed)) continue;
+    if (/^([-*_]\s*){3,}$/.test(trimmed)) continue;
+    const prose = collapseWhitespace(stripMarkdownDecorations(trimmed));
+    if (prose) return prose;
+  }
+  return undefined;
+}
+
+/** `2026-10-25-deploy-notes.md` → `deploy notes` (title fallback for file names). */
+export function humanizeStem(stem: string): string {
+  const cleaned = stem
+    .replace(/\.(md|mdx|mdc|markdown|txt)$/i, "")
+    .replace(/^\d{4}[-_]?\d{2}[-_]?\d{2}[-_]?/, "")
+    .replace(/^\d+[-_ ]+/, "")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned || "untitled";
 }
 
 /**

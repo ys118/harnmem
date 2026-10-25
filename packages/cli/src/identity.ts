@@ -120,7 +120,8 @@ async function readRemotes(gitDir: string): Promise<Array<{ name: string; url: s
   return remotes;
 }
 
-async function findGitRepoRoot(start: string): Promise<string | null> {
+/** Nearest ancestor (inclusive) containing a `.git` directory or gitfile. */
+export async function findGitRepoRoot(start: string): Promise<string | null> {
   let current = resolve(start);
   for (;;) {
     try {

@@ -25,7 +25,7 @@ database, no embedding model, and no runtime dependencies in the engine.
 - **License:** MIT.
 - **Status:** v0.2.0 — core, CLI/migration, the pi adapter and the DSH adapter
   are usable and tested end to end; the Claude Code adapter is designed but not
-  built.
+  built, and its memory store can already be migrated with `harnmem import claude`.
 
 ## Why another memory plugin?
 
@@ -70,9 +70,10 @@ the local process, and lifecycle decisions are explainable and reversible.**
 - **Measured, not asserted.** A deterministic evaluation harness covers 12
   scenario suites with hard functional gates and advisory performance gates;
   ablations show which retrieval signals matter.
-- **Safe migration.** Importers for DSH, pi, ZCode and JSON default to dry-run,
-  back up the source, record a ledger, verify source integrity, and support
-  rollback.
+- **Safe migration.** Importers for DSH, pi, ZCode, Claude Code and Markdown trees
+  (plus a relaxed JSON/JSONL/stdin contract) default to dry-run, back up the source,
+  record a ledger, verify source integrity, and support per-run rollback. Not sure what
+  you have? `harnmem import auto` probes the known stores and prints a plan.
 
 ## Quick start
 
@@ -82,7 +83,7 @@ Requirements: **Node.js 22.15+** and **pnpm 10** (`corepack enable`).
 corepack enable
 pnpm install
 pnpm -r build
-pnpm test            # core test suite (node --test)
+pnpm test            # core + CLI test suites (node --test)
 ```
 
 ### pi adapter
@@ -130,8 +131,10 @@ node packages/cli/dist/main.js write --type feedback \
   --content "Why: shared repo. How to apply: open a PR." --importance 7
 
 # Migrate legacy memories: dry-run by default, then --apply
+node packages/cli/dist/main.js import auto          # probe known stores (DSH/pi/ZCode/Claude Code)
 node packages/cli/dist/main.js import dsh
-node packages/cli/dist/main.js import pi --apply
+node packages/cli/dist/main.js import md --path ./notes --apply   # any Markdown tree
+node packages/cli/dist/main.js import json --path export.json      # any JSON/JSONL export
 
 # Grow the local synonym table from your own memories (nothing is auto-applied)
 node packages/cli/dist/main.js synonyms list
@@ -283,7 +286,7 @@ the roadmap. Details, per-suite numbers, ablations and gate definitions are in
 | pi 1.3.0 | **Supported** | Extension with injection, tools, `/memory`, session-end extraction; verified end to end |
 | DeepSeek Harness 0.2.1 | **Supported** (0.2.x) | Cordis plugin (`dsh-harnmem`); verified against the desktop runtime with a disposable profile and a local mock endpoint |
 | CLI (any harness) | **Supported** | `harnmem` commands read/write the same store |
-| Claude Code | Design | [`docs/design/09-claude-adapter.md`](docs/design/09-claude-adapter.md) (MCP stdio server + hooks) |
+| Claude Code | Design (migration available) | [`docs/design/09-claude-adapter.md`](docs/design/09-claude-adapter.md) (MCP stdio server + hooks); `harnmem import claude` migrates its existing memory store today |
 | Other harnesses | Welcome | See the adapter contract and `CONTRIBUTING.md` |
 
 ## Documentation
@@ -291,12 +294,15 @@ the roadmap. Details, per-suite numbers, ablations and gate definitions are in
 Start with the [documentation index](docs/README.md). Highlights:
 
 - [User guide](docs/user-guide.md)
+- [FAQ](docs/faq.md)
 - [Design overview](docs/design/00-overview.md)
 - [Data model](docs/design/02-data-model.md)
 - [Retrieval](docs/design/03-retrieval.md)
 - [Write lifecycle](docs/design/04-write-and-lifecycle.md)
 - [Evaluation](docs/design/05-evaluation.md)
 - [Adapter contract](docs/design/07-adapter-contract.md)
+- [Migration onboarding](docs/design/10-migration-onboarding.md)
+- [Adapter authoring guide](docs/adapter-authoring.md)
 
 ## Roadmap
 

@@ -303,6 +303,12 @@ When the process unloads with a still-pending journal, the next open catches up.
 ## 7. Migration importer (`harnmem import`, idempotent/rollbackable)
 
 > **Implementation note (v0.1):** the shipped CLI implements this design as `harnmem import dsh|pi|zcode|json` (dry-run by default; `--apply`, `--path-map`, `--project`, `--verify`, `--rollback`) in `packages/cli`; Claude Code import is designed here but not shipped yet. Where this design section and `packages/cli/README.md` disagree, the CLI README and `--help` output are authoritative. The design below is kept for the phase semantics and the migration gates.
+>
+> **Update (2026-10-25):** migration onboarding is now implemented per
+> [`10-migration-onboarding.md`](10-migration-onboarding.md) — `harnmem import claude`
+> (Claude Code project + legacy memory files, cwd recovered from session JSONL), `import md`,
+> relaxed `import json` (JSONL/stdin/aliases) and `import auto`; the CLI README and
+> `harnmem import help` are the authoritative surface.
 
 Sources and field mapping are specified in `02-data-model.md` §5; this section covers only the **runtime gates** shared by the importer and the dsh adapter. Core constraint: **ADD-only + explicit SUPERSEDE** (`04-write-and-lifecycle.md`); migration must not physically delete or overwrite old files either.
 

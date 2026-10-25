@@ -1,5 +1,7 @@
 /** Project attribution for legacy records (explicit map → session cwd → guessed path). */
 
+import type { HarnessId } from "@harnmem/core";
+
 import { isExistingDir } from "./session-cwd.js";
 import { detectProject, registerProject, resolveProjectArgument, type ProjectInfo } from "./identity.js";
 
@@ -27,14 +29,14 @@ export async function resolveFromPathMap(
 }
 
 /** Resolve and register a project from a recovered cwd. */
-export async function resolveFromCwd(cwd: string, home: string, harness: "dsh" | "pi" | "zcode" | "cli" = "cli"): Promise<ProjectInfo> {
+export async function resolveFromCwd(cwd: string, home: string, harness: HarnessId = "cli"): Promise<ProjectInfo> {
   const info = await detectProject(cwd);
   await registerProject(home, info, harness);
   return info;
 }
 
 /** Accept a decoded legacy directory name only when the path exists on disk. */
-export async function resolveFromGuessedPath(path: string, home: string, harness: "dsh" | "pi" | "zcode"): Promise<ProjectInfo | undefined> {
+export async function resolveFromGuessedPath(path: string, home: string, harness: HarnessId): Promise<ProjectInfo | undefined> {
   if (!isExistingDir(path)) return undefined;
   return resolveFromCwd(path, home, harness);
 }
@@ -49,7 +51,7 @@ export async function attributeProject(options: {
   pathMap: Record<string, string>;
   home: string;
   cwd: string;
-  harness: "dsh" | "pi" | "zcode";
+  harness: HarnessId;
   sessionCwd?: string;
   decodedPath?: string;
   fallback?: ProjectInfo;

@@ -165,3 +165,43 @@ export function fmArray(data: Record<string, FrontmatterValue>, key: string): st
   if (typeof value === "string" && value.trim() !== "") return [value];
   return [];
 }
+
+/**
+ * Read a value from a nested mapping such as `metadata:\n  type: rule`.
+ *
+ * `parseFrontmatter` only parses top-level keys, so indentation-nested maps are
+ * recovered from the raw text. Inline-JSON parents (`metadata: {"type": "rule"}`)
+ * are already objects in `data` and are handled first.
+ */
+export function fmNestedString(
+  data: Record<string, FrontmatterValue>,
+  raw: string,
+  parent: string,
+  child: string,
+): string | undefined {
+  const direct = data[parent];
+  if (direct && typeof direct === "object" && !Array.isArray(direct)) {
+    const value = (direct as Record<string, unknown>)[child];
+    if (typeof value === "string" && value.trim() !== "") return value;
+  }
+  const lines = raw.replace(/^\uFEFF/, "").split(/\r?\n/);
+  let parentIndent = -1;
+  for (const line of lines) {
+    if (line.trim() === "") continue;
+    const indent = (/^\s*/.exec(line) ?? [""])[0]?.length ?? 0;
+    if (parentIndent < 0) {
+      const parentMatch = /^\s*([A-Za-z_][A-Za-z0-9_.-]*)\s*:\s*$/.exec(line);
+      if (parentMatch && parentMatch[1] === parent) parentIndent = indent;
+      continue;
+    }
+    if (indent <= parentIndent) break;
+    const childMatch = /^\s*([A-Za-z_][A-Za-z0-9_.-]*)\s*:\s*(.+)$/.exec(line);
+    if (childMatch && childMatch[1] === child) {
+      const value = parseScalar(childMatch[2] ?? "");
+      if (typeof value === "string" && value.trim() !== "") return value;
+      if (typeof value === "number") return String(value);
+      return undefined;
+    }
+  }
+  return undefined;
+}
