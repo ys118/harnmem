@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and usage help
+    url: https://github.com/ys118/harnmem/discussions/categories/q-a
+    about: Ask setup, configuration and usage questions in Discussions Q&A instead of opening an issue.
+  - name: Ideas and early proposals
+    url: https://github.com/ys118/harnmem/discussions/categories/ideas
+    about: Discuss a proposal before it becomes an issue. Early proposals and approval questions belong here.
+  - name: Report a vulnerability
+    url: https://github.com/ys118/harnmem/security/policy
+    about: Do not open a public issue for security problems. Report privately through the Security tab as described in SECURITY.md.

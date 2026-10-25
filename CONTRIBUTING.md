@@ -1,124 +1,242 @@
 # Contributing to HarnMem
 
-Thanks for your interest. HarnMem is a small, deliberately boring system: plain
-files in a home directory, a deterministic local retrieval engine, and thin
-adapters for coding harnesses. That shape is a design constraint, not an
-accident, so contributions that keep it simple are especially welcome.
+This guide exists to save both sides time.
 
-By participating you agree to follow our [Code of Conduct](CODE_OF_CONDUCT.md).
-Please report security issues privately as described in [SECURITY.md](SECURITY.md).
+HarnMem is cross-harness, file-native agent memory: one local Markdown/JSON
+store under `~/.harnmem/`, shared by pi, DeepSeek Harness (DSH) and future
+harnesses. No services, no vector database, no embedding model: retrieval is a
+deterministic local index over plain files.
+
+Start with [README](README.md) for the overview,
+[docs/user-guide.md](docs/user-guide.md) for installation and use,
+[SECURITY.md](SECURITY.md) for private vulnerability reporting,
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for expected behavior,
+[docs/ROADMAP.md](docs/ROADMAP.md) for plans, and
+[Discussions](https://github.com/ys118/harnmem/discussions) for questions.
+
+## Philosophy
+
+HarnMem's core is deliberately small: one storage layout, one deterministic
+retrieval engine, one write and consolidation lifecycle. The source of truth is
+the file system, retrieval happens in the local process, and lifecycle decisions
+stay explainable and reversible; that shape is a design constraint.
+
+- Local-first, plain files: memories are Markdown with YAML frontmatter;
+  indexes are derived and rebuildable.
+- No services, daemons, vector databases or embedding models.
+- `@harnmem/core` and `@harnmem/cli` have zero runtime dependencies and must
+  stay that way.
+- Adapters are thin. New harness adapters, retrieval/lifecycle improvements and
+  eval coverage are welcome; core bloat is not.
+
+If a feature does not belong in the core, it belongs in an adapter, the CLI or
+an eval suite. PRs that bloat the core will likely be rejected.
+
+## The One Rule
+
+**You must understand your code.** If you cannot explain what your change does
+and how it interacts with the rest of the system, your PR will be closed.
+
+Using AI to write code is fine. Submitting AI-generated changes you cannot
+explain is not. Label AI-generated issue or PR text.
+
+## Contribution gate
+
+All issues and PRs from new contributors are closed automatically by default.
+This is a buffer, not a verdict: maintainers review auto-closed items daily and
+reopen the ones that meet the quality bar; items that do not meet the bar will
+not be reopened and may not receive a reply.
+
+Approval happens through a maintainer reply on an issue:
+
+- `lgtmi`: your future issues stay open.
+- `lgtm`: your future issues and PRs stay open.
+
+The command must be at the start of the reply (optionally after one or more
+`@username` mentions) or at the end; `lgtmi` does not grant PR rights and only
+`lgtm` does. The maintainer issuing the command must have write access to the
+repository.
+
+Approvals are recorded in `.github/APPROVED_CONTRIBUTORS` through an automation
+pull request. The approval applies to future submissions once that pull request
+is merged.
+
+The gate is enforced by the `Issue gate`, `PR gate` and `Approve contributor`
+GitHub Actions workflows.
+
+## Quality bar for issues
+
+Use one of the issue templates, and:
+
+- Keep it to one screen. If it does not fit, it is too long.
+- Write in your own voice; disclose AI-drafted text and keep it concrete.
+- State the bug or request clearly and explain why it matters.
+- Say whether you want to implement the change yourself.
+- Never paste secrets, tokens, credentials or real personal memory content.
+  Redact usernames, home paths and machine names from logs.
+
+## Before opening a PR
+
+Open an issue first. Do not open a PR until a maintainer has approved it with
+`lgtm` in the command position above. Then:
+
+1. Branch from `master` and keep the diff focused: one concern per PR.
+2. Add or update tests. Tests must be deterministic: no network, no LLM calls,
+   and no wall-clock dependence where it can be avoided (inject the clock).
+3. Run and pass `pnpm -r build`, `pnpm -r typecheck` and `pnpm test`. If you
+   touched the DSH adapter, also run `pnpm --filter dsh-harnmem test`.
+4. For retrieval, write, consolidation, extraction or scoring changes, run
+   `pnpm eval:gate`. Eval corpora are generated, not committed: run
+   `node evals/gen/generate.mjs` once after a fresh clone, then `pnpm eval`.
+   Update `docs/design/03-retrieval.md`, `docs/design/05-evaluation.md` and
+   `evals/results/eval-report.md` (regenerate with `pnpm eval:report`) together
+   in the same PR.
+5. Do not edit `CHANGELOG.md`: maintainers own it.
+6. Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`,
+   `fix:`, `docs:`, `test:`, `refactor:`, `chore:`).
+7. Keep repository text English. CJK is allowed only as data: evaluation
+   lexicons, synonym tables, fixtures and CJK tokenization tests. No CJK prose.
+8. Never commit a real `~/.harnmem` store, journal, log or personal data, and
+   keep `@harnmem/core` and `@harnmem/cli` free of runtime dependencies; new
+   dependencies need a discussion first.
+
+## Merge policy
+
+`master` is PR-only for everyone; direct pushes are not allowed, including for
+maintainers' own changes. A PR is mergeable only when it has an approving review
+from the repository owner (@ys118) and all required CI checks are green. Branch
+protection is enforced by GitHub rulesets. Required checks run on ubuntu-latest
+and windows-latest with Node 22, plus an eval-gate job on ubuntu-latest.
+
+The repository owner keeps the repository-admin bypass, because GitHub does not
+allow approving your own pull request: the owner merges their own pull requests
+with the bypass once required checks are green. The bypass is also the documented
+escape hatch for emergencies; it never replaces review for outside
+contributions.
+
+Approval bookkeeping pull requests that only update
+`.github/APPROVED_CONTRIBUTORS` are opened with the repository `GITHUB_TOKEN`
+and therefore trigger no CI checks; the owner merges them with the bypass. They
+only record an approval that was already granted in an issue comment.
 
 ## Project layout
 
+All four packages are published on npm at version 0.2.0.
+
 | Path | Package | What it is |
 | ---- | ------- | ---------- |
-| `packages/core` | `@harnmem/core` | Harness-agnostic memory engine: storage, indexing, retrieval, writing, consolidation, extraction, evaluation hooks. Zero runtime dependencies. |
-| `packages/cli` | `@harnmem/cli` | The `harnmem` command: inspect/manage the store and migrate legacy harness memories. Depends only on `@harnmem/core`. |
-| `packages/pi-harnmem` | `pi-harnmem` | pi coding-agent extension: context injection, memory tools, `/memory` command, session-end extraction. |
-| `evals` | - | Deterministic evaluation corpora (S1-S12), metrics, gate and ablation runner. |
-| `prompts` | - | Extraction/consolidation prompt assets deployed to `~/.harnmem/prompts/` on first run. |
-| `data` | - | Synonym tables and other data assets. |
-| `docs` | - | Design docs, research notes, and the user guide. |
+| `packages/core` | `@harnmem/core` | Harness-agnostic engine: storage, indexing, retrieval, writing, consolidation, extraction, evaluation hooks. Zero runtime dependencies. |
+| `packages/cli` | `@harnmem/cli` | The `harnmem` command: manage the store and migrate legacy harness memories. Depends only on `@harnmem/core`. |
+| `packages/pi-harnmem` | `pi-harnmem` | pi extension: context injection, memory tools, `/memory`, session-end extraction. |
+| `packages/dsh-harnmem` | `dsh-harnmem` | DSH plugin: system-prompt injection, `harnmem_*` tools, bounded session-end extraction. |
+| `evals` | - | Deterministic evaluation corpora (S1-S12), metrics, gates and ablation runner. |
+| `prompts`, `data` | - | Prompt assets and synonym tables deployed to `~/.harnmem/` on first run. |
+| `docs` | - | Design docs, research notes, roadmap and user guide. |
 
-Future adapters (DSH, Claude Code) are designed in `docs/design/08` and `09`;
-their packages are not implemented yet.
+Adapter packages follow the `<harness>-harnmem` convention (`pi-harnmem`,
+`dsh-harnmem`, future `opencode-harnmem`, `claude-harnmem`); harness-neutral
+packages live under the `@harnmem` scope. The Claude Code adapter is design-only
+(`docs/design/09-claude-adapter.md`).
 
 ## Development setup
 
-Requirements:
-
-- Node.js **22.15+** (the core engine supports 18+, but the CLI needs
-  `node:zlib` zstd for DSH session logs, and the pi extension targets the pi
-  runtime).
-- pnpm 10 via `corepack enable` (the exact version is pinned by the
-  `packageManager` field).
+- Node.js 22.15+ (the CLI migration path needs `node:zlib` zstd for DSH session
+  logs).
+- pnpm 10 via `corepack enable`; the exact version is pinned by the
+  `packageManager` field. Do not use npm or yarn for this repository.
 
 ```bash
 corepack enable
 pnpm install
 pnpm -r build
 pnpm -r typecheck
-pnpm test            # builds @harnmem/core, then runs node --test (19 tests)
+pnpm test
 ```
 
-Evaluation (deterministic, no network, no LLM):
+`pnpm test` builds `@harnmem/core` and runs its `node --test` suite. Adapter
+packages have their own tests and READMEs.
 
-```bash
-node evals/gen/generate.mjs --check   # verify generated corpora match the committed generator
-pnpm eval                             # all suites, report to stdout
-pnpm eval:gate                        # fail on hard gate regressions; perf gates are advisory
-```
+## Code conventions
 
-The evaluation harness is part of the contract: a change that lowers recall,
-leaks memories across scopes, or breaks KV-cache stability should show up there
-and should be called out in the PR.
+- TypeScript ESM, `strict` plus `noUncheckedIndexedAccess`; each package builds
+  with plain `tsc` against `tsconfig.base.json`.
+- Public API surface (`@harnmem/core` exports) and configuration keys are
+  contracts: document and test changes to them.
+- The store stays human-editable: Markdown entries with YAML frontmatter;
+  indexes must be rebuildable from plain files.
+- Do not log secrets or full memory bodies. Store and logs are user data.
 
-## Making a change
-
-1. Open an issue for anything non-trivial (bug reports and feature requests
-   have templates). Small fixes can go straight to a PR.
-2. Branch from `main` and keep the diff focused.
-3. Add or update tests. Tests must be deterministic: no network, no LLM calls,
-   no dependence on wall-clock time where it can be avoided (inject `now`).
-4. Update documentation when behavior or config keys change. Docs are written
-   in English.
-5. Run `pnpm -r build && pnpm -r typecheck && pnpm test` and, for changes that
-   touch retrieval/writing/consolidation, `pnpm eval:gate`.
-6. Use [Conventional Commits](https://www.conventionalcommits.org/) for commit
-   messages (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`).
-
-### Code conventions
-
-- TypeScript, ESM, `strict` plus `noUncheckedIndexedAccess`.
-- `@harnmem/core` and `@harnmem/cli` must stay free of runtime dependencies
-  (Node.js built-ins only). New dependencies need a discussion first: the
-  zero-dependency property is a feature.
-- Repository text (docs, comments, log/error messages, issue templates) is
-  English. CJK strings are allowed where they are *data*: evaluation lexicons,
-  synonym tables, and tests that specifically exercise CJK tokenization or
-  retrieval. Do not add CJK prose.
-- Never log secrets or full memory bodies. User data stays local; do not commit
-  a real `~/.harnmem` store or copies of real harness memory files (the
-  `.gitignore` covers the common cases).
-- Keep the memory store human-editable: memory entries are Markdown with YAML
-  frontmatter; derived indexes must be rebuildable from the plain files.
-
-### Adding a harness adapter
+## Adding a harness adapter
 
 Read [`docs/design/07-adapter-contract.md`](docs/design/07-adapter-contract.md)
-first. An adapter should:
+first, and open an issue before writing. An adapter:
 
-- construct `HarnMem` with a `harness` id, `cwd`, session id, and an optional
-  LLM callback;
-- inject the result of `ensureContext()` into the harness's system context in a
-  byte-stable way (rebuild only on session start, compaction, memory writes,
-  and day rollover);
-- register the five tool semantics (`write`, `search`, `read`, `forget`,
-  `status`) and map them to `HarnMem` methods;
-- call `sessionEnd()` at the end of a session and keep extraction strictly
-  bounded (self-timeout) and read-only for subagents;
-- ship a package README with install instructions and an e2e verification note.
+- constructs the engine with a `harness` id, `cwd`, session id and optional LLM
+  callback;
+- injects `ensureContext()` into the harness system context byte-stably
+  (rebuild only on session start, compaction, memory writes and day rollover);
+- registers the five tool semantics (`write`, `search`, `read`, `forget`,
+  `status`) and maps them to engine methods;
+- calls `sessionEnd()` at session end, keeps extraction bounded (self-timeout)
+  and read-only for subagents, and ships a README with install instructions and
+  an end-to-end verification note.
 
-## Pull request checklist
+The design-only Claude Code adapter (`docs/design/09-claude-adapter.md`) is the
+natural starting point for a new harness.
 
-- [ ] Tests pass locally (`pnpm test`), eval gate passes for retrieval changes.
-- [ ] New behavior is documented and, when user-visible, in `CHANGELOG.md`.
-- [ ] No personal data, secrets, absolute local paths, or CJK prose added.
-- [ ] Public interfaces (`@harnmem/core` exports) are intentional and typed.
-- [ ] Commits follow Conventional Commits.
+## Blocking
 
-## Release process (maintainers)
+Accounts are blocked for spam, high-volume agent-generated issue or PR traffic,
+ignoring this document twice, or abusing maintainers and contributors.
 
-1. Update `CHANGELOG.md`, bump versions in the affected `package.json` files.
-2. Commit `chore(release): vX.Y.Z`, tag `vX.Y.Z`, push the tag.
-3. The release workflow builds, tests, and publishes the packages
-   (`@harnmem/core`, `@harnmem/cli`, `pi-harnmem`) with npm provenance enabled.
-   Publishing requires membership in the `@harnmem` npm org and an `NPM_TOKEN`
-   repository secret.
+## Maintainer process
+
+PR-first flow: open a branch, push it, open a PR against `master`; the repository
+owner (@ys118) approves it when it meets the bar and CI is green; squash and
+merge unless the individual commits carry information worth preserving.
+
+Approval comments (`lgtmi` / `lgtm`) are recorded by the automation workflow
+described in [Contribution gate](#contribution-gate); merge the generated
+bookkeeping pull request to activate the approval.
+
+Releases: update `CHANGELOG.md` (`Added`, `Changed`, `Fixed`, `Removed`) and bump
+all four package versions in sync; merge the release PR, then tag `vX.Y.Z` and
+push the tag. The release workflow builds, tests and publishes all four packages
+from GitHub Actions with npm provenance enabled; release notes come from the
+CHANGELOG section.
+
+## FAQ
+
+### Why are new issues and PRs auto-closed?
+
+The tracker receives more than maintainers can review, and some reports are
+agent-slung rather than shaped by the submitter. Auto-closing is a buffer so
+maintainers can review in batches and reopen what is worthwhile.
+
+### Why might a reply take time?
+
+Triage and review happen in batches; expect days, not minutes. If something is
+urgent, say so in the issue and keep it short, reproducible and free of personal
+data.
+
+### Why do some issues get no reply?
+
+Unclear, duplicate or low-signal issues may be closed without discussion; that
+protects time for reproducible bugs and thoughtful requests.
+
+### Is this hostile to contributors?
+
+No. It is a guardrail against burnout and tracker spam: short, concrete,
+reproducible issues and thoughtful contributions are welcome; automated slop,
+entitlement and high-volume low-effort reports are not.
+
+### How is AI-generated text treated?
+
+AI-assisted work is acceptable if a human understands and stands behind it.
+Label AI-generated issue or PR text, and do not submit changes you cannot
+explain; the One Rule applies to code and prose alike.
 
 ## License
 
 By contributing you agree that your contributions are licensed under the
 [MIT License](LICENSE).
-Adapter package naming follows the <harness>-harnmem convention (pi-harnmem, dsh-harnmem, opencode-harnmem, claude-harnmem), mirroring ecosystem naming such as pi-memory and dsh-auto-memory. Harness-neutral packages live under the @harnmem scope (@harnmem/core, @harnmem/cli, and a future @harnmem/mcp).
-

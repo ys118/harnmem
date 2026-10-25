@@ -1,0 +1,8 @@
+# Reviewers required for every change.
+#
+# GitHub resolves the most specific pattern last: `*` applies to all files and
+# must stay listed first. Until there is a second maintainer, @ys118 is the only
+# code owner; the branch ruleset requires an approving review from a code owner
+# before a pull request can merge into `master`.
+
+* @ys118

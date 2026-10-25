@@ -6,28 +6,32 @@ body:
   - type: markdown
     attributes:
       value: |
-        HarnMem optimizes for local-first simplicity: plain files, no services,
-        no embedding model, no runtime dependencies in the engine and CLI.
-        Proposals that preserve that shape are easiest to accept.
+        **Before you start:** Read [CONTRIBUTING.md](https://github.com/ys118/harnmem/blob/master/CONTRIBUTING.md).
+
+        New issues from new contributors are closed automatically by default. Maintainers review auto-closed issues daily and reopen the ones that meet the quality bar. Issues that do not meet the bar will not be reopened or receive a reply.
+
+        Keep this short: if it does not fit on one screen, it is too long. Write in your own voice. If you use an AI to draft, keep the report concrete and say so.
+
+        HarnMem optimizes for local-first simplicity: plain files, no services, no daemon, no embedding model, and zero runtime dependencies in the engine and CLI. Proposals that preserve that shape are easiest to accept.
   - type: textarea
     id: problem
     attributes:
       label: Problem
-      description: What user-facing problem are you trying to solve?
+      description: What user-facing problem are you trying to solve, and why does it matter?
     validations:
       required: true
   - type: textarea
     id: proposal
     attributes:
       label: Proposed solution
-      description: Describe the behavior and which package/adapter is affected.
+      description: Describe the behavior and which package or adapter is affected.
     validations:
       required: true
   - type: textarea
     id: alternatives
     attributes:
       label: Alternatives considered
-      description: Existing tools, workarounds, or simpler designs.
+      description: Existing tools, workarounds, or simpler designs you considered.
     validations:
       required: false
   - type: dropdown

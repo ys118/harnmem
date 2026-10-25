@@ -7,6 +7,8 @@
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)
 ![Status: v0.2.0](https://img.shields.io/badge/status-v0.2.0-blue.svg)
+![CI](https://github.com/ys118/harnmem/actions/workflows/ci.yml/badge.svg)
+![npm](https://img.shields.io/npm/v/@harnmem/core?label=npm)
 ![Runtime deps: 0](https://img.shields.io/badge/runtime%20deps-0-brightgreen.svg)
 ![Node](https://img.shields.io/badge/node-%E2%89%A522.15-blue.svg)
 
@@ -17,9 +19,9 @@ harness session. The same store is readable by every adapter and by the CLI, so
 a memory written in one harness is available in another — no server, no vector
 database, no embedding model, and no runtime dependencies in the engine.
 
-- **Package:** `@harnmem/core` (engine), `@harnmem/cli` (`harnmem` command),
-  `pi-harnmem` (pi extension), `dsh-harnmem` (DSH plugin). Not published to npm
-  yet; build from a checkout.
+- **Packages:** `@harnmem/core` (engine), `@harnmem/cli` (`harnmem` command),
+  `pi-harnmem` (pi extension), `dsh-harnmem` (DSH plugin) — all published on
+  npm at 0.2.0. Install the CLI with `npm install -g @harnmem/cli`.
 - **License:** MIT.
 - **Status:** v0.2.0 — core, CLI/migration, the pi adapter and the DSH adapter
   are usable and tested end to end; the Claude Code adapter is designed but not
@@ -80,7 +82,7 @@ Requirements: **Node.js 22.15+** and **pnpm 10** (`corepack enable`).
 corepack enable
 pnpm install
 pnpm -r build
-pnpm test            # core test suite: node --test, 52 tests
+pnpm test            # core test suite (node --test)
 ```
 
 ### pi adapter
@@ -254,9 +256,9 @@ Retrieval is deliberately local and explainable:
 The formula and its calibration are documented in
 [`docs/design/03-retrieval.md`](docs/design/03-retrieval.md).
 
-## Evaluation results (v0.1.0)
+## Evaluation results
 
-The harness is deterministic (no LLM, no network) and runs in about a minute:
+The harness is deterministic (no LLM, no network) and runs in about a minute; the numbers below come from the tracked [`eval-report.md`](evals/results/eval-report.md):
 
 | Metric | Result |
 | --- | --- |
@@ -304,7 +306,8 @@ numbers, the running trial, known issues) and the ordered next steps.
 - Implement the Claude Code adapter (MCP stdio + hooks).
 - Persist and incrementally update indexes so large stores warm up faster;
   reduce index size.
-- Publish the packages to npm and validate installs on Linux/macOS/Windows.
+- Validate npm installs on Linux/macOS/Windows and publish provenance for
+  every release.
 - Harden concurrent writes across harnesses sharing one home.
 - Add an optional, opt-in reranker or LLM selector for ambiguous recalls
   (never required for basic use).
@@ -324,8 +327,13 @@ delete and an audit log; see the design docs for details.
 
 Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), follow
 the [Code of Conduct](CODE_OF_CONDUCT.md), and run `pnpm test` and
-`pnpm eval:gate` before opening a pull request. Security issues go through the
-private process in [SECURITY.md](SECURITY.md).
+`pnpm eval:gate` before opening a pull request. Note the contribution gate:
+issues and pull requests from new contributors are auto-closed by default and
+reopened once a maintainer approves them with `lgtmi` (issues) or `lgtm`
+(issues and pull requests). Merging `master` is PR-only and requires the owner's
+approval. Questions and ideas are welcome in
+[Discussions](https://github.com/ys118/harnmem/discussions). Security issues go
+through the private process in [SECURITY.md](SECURITY.md).
 
 ## License
 

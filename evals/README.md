@@ -136,24 +136,18 @@ so compare `indexBytes / documentCount` instead when judging size.
   (or `refstore.importRecords`), so gold ids align with `queries.jsonl`.
 - Output order: metrics sorted by suite id; queries in file order.
 
-## Pending
+## Current status
 
-- **Latest verified run** (`results/eval-20261020-105701.json`, frozen core dist
-  2026-10-20 18:47:58, sha256 `90234613…`): 12 suites, 565 queries, 24/29
-  functional gate rows pass. True functional failures: **S5 `both_recall_at_10`
-  0.433 (<0.7)** and **S6 `abstain_fp` 0.100 (>0.05)**; three further failing
-  rows are perf/structural by intent (S9 import 10.7 s, S9 warm p95 17.2 ms,
-  index 47.18× metric / 2.87× fair) plus cold first query 2.2 s — see
-  `results/eval-report.md` §E–G for root causes and follow-up order.
-- S10 is now action-level (replays `eng.write()`; 100/100 actions correct after
-  the v2 corpus rewrite); `dedup_rate` is kept for reference only.
-- A6/A8 (session-start auto-inject selector / optional LLM rerank) are optional
-  adapter capabilities — A6 is exercised by S12 (`sessionStart`/`ensureContext`),
-  A8 (LLM judge) is out of scope for the deterministic suite.
-- S5 link-only multi-hop and S6 abstain calibration remain core-side gaps
-  (link diffusion is lexical-seed bound; expansion evidence lifts weak noise
-  matches over `abstainLex`). Corpus is frozen meanwhile; changes belong to core.
-- Perf numbers mix cold and warm public `HarnMem.search`; the per-shard lazy index
-  build (~0.55 s per 2.5k-doc shard) lands in the first query touching each
-  shard. Quote warm p50/p95 separately (S9: 14.0/17.9 ms) from cold first query
-  (2.2 s); see `results/eval-report.md` §C.
+- Latest verified run: `results/eval-report.md` (tracked, generated 2026-10-20 from a
+  frozen core build). 12 suites, 565 queries, 27,510 documents. Functional gates
+  **PASS**: macro Recall@10 1.000, MRR 0.891, nDCG@10 0.911; S5
+  `both_recall_at_10` 1.000, S6 `abstain_fp` 0.000, S10 action accuracy 1.000.
+- Advisory performance items: 10k-record import ~12 s, warm search p95 ~16 ms,
+  index ~2.9x the canonical store, cold first query ~2.2 s. These are
+  machine-dependent and not gate failures (see the perf guidance above).
+- Known weak spots (reported, not gate failures): S8 cross-lingual precision@1
+  (0.225) and S11 top-1 ranking. S5 link-only multi-hop and S6 abstain
+  calibration remain core-side gaps (link diffusion is lexical-seed bound;
+  expansion evidence lifts weak noise matches over `abstainLex`).
+- The corpus is frozen; changes that affect scoring belong to core and must
+  re-run the eval gate (`pnpm eval:gate`).

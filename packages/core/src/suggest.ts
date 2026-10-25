@@ -11,8 +11,8 @@
  * (the same contract extraction uses), so the CLI can bridge to any
  * OpenAI-compatible endpoint while adapters reuse their host model.
  *
- * Why the model, not statistics: the pairs worth adding (打板 ↔ 涨停板,
- * 割肉 ↔ 止损) share no characters, so co-occurrence mining cannot discover
+ * Why the model, not statistics: the pairs worth adding (降级 ↔ 兜底,
+ * 灰度 ↔ 分批发布) share no characters, so co-occurrence mining cannot discover
  * them. Precision is the risk, so the output is a proposal list — never an
  * automatic edit — and every group is validated against the corpus first.
  */
@@ -31,7 +31,7 @@ Return JSON only:
 
 Rules:
 1. Every term must occur in the samples or the candidate terms. Never invent vocabulary.
-2. A group means the entries are interchangeable for searching: a query using one should find memories that use another. Rewrites with no shared characters are the most valuable (e.g. 打板 -> 涨停板, 割肉 -> 止损).
+2. A group means the entries are interchangeable for searching: a query using one should find memories that use another. Rewrites with no shared characters are the most valuable (e.g. 降级 -> 兜底, 灰度 -> 分批发布).
 3. Do not propose synonyms that merely share a character or a substring, are grammatical variants of the same word, or are generic hypernyms. Ranking words (best, top, latest) and UI labels are not synonyms.
 4. 2-5 terms per group; canonical is the term most likely used in a search query.
 5. Skip anything already covered by the existing table.

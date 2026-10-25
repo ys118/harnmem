@@ -9,11 +9,11 @@ Last updated: **2026-10-25** (N1 trial closed; N7 npm publish shipped — 4 pack
 
 | Item | State |
 | --- | --- |
-| Repository | `github.com/ys118/harnmem` (private), branch `master`, CI green on `19c7e2d` |
-| Latest release | `v0.2.0` tag on `19c7e2d` (DSH adapter + write-silence fix + resume catch-up + single-store migration) |
-| Commits after `v0.1.0` | `3203871..19c7e2d` — DSH adapter and cold-start fix, toolPrefix/order coexistence, the DSH write-silence fix, resume catch-up, and the N4/N5 single-store migration |
-| Packages (all `0.2.0`, unpublished) | `@harnmem/core`, `@harnmem/cli`, `pi-harnmem`, `dsh-harnmem` |
-| Core tests | 29/29 pass (`node --test packages/core/test/*.test.mjs`); adapter 28/28 (`pnpm --filter dsh-harnmem test`) |
+| Repository | `github.com/ys118/harnmem` (private until the N8 flip), branch `master`, CI green on `a731f2f` |
+| Latest release | `v0.2.0` tag on `a731f2f` (DSH adapter + write-silence fix + resume catch-up + single-store migration) |
+| Commits after `v0.1.0` | `b872c86..a731f2f` — DSH adapter and cold-start fix, toolPrefix/order coexistence, the DSH write-silence fix, resume catch-up, and the N4/N5 single-store migration |
+| Packages (all `0.2.0`, published on npm) | `@harnmem/core`, `@harnmem/cli`, `pi-harnmem`, `dsh-harnmem` |
+| Core tests | 52/52 pass (`node --test packages/core/test/*.test.mjs`); adapter 58/58 (`pnpm --filter dsh-harnmem test`) |
 | Evaluation | functional gates PASS; macro R@10 1.000, MRR 0.891, nDCG@10 0.911; 5 advisory perf gates (see §3) |
 | Real trial | N1 closed 2026-10-25, verdict **useful**; single store since 2026-10-24: legacy memories migrated (N4/N5), `dsh-auto-memory`/`pi-memory` disabled and their stores later deleted, HarnMem is the memory SSOT (user decision 2026-10-25) |
 | Environment | Windows 11, Node 24.9.0, pnpm 10.33.2, pi 1.3.0, DeepSeek Harness 0.2.1-rc.2 |
@@ -184,9 +184,9 @@ Check boxes as items land, and update this file when the status changes.
   sessions) and N12 (project identity split).)*
   Use pi and DSH normally for 2–3 days (both plugins on). Look at:
   ```powershell
-  node packages/cli/dist/main.js stats --home C:\Users\<user>\.harnmem
-  Get-Content C:\Users\<user>\.harnmem\state\audit.jsonl -Tail 20
-  Get-Content C:\Users\<user>\.harnmem\logs\pi.jsonl -Tail 20
+  node packages/cli/dist/main.js stats --home $HOME\.harnmem
+  Get-Content $HOME\.harnmem\state\audit.jsonl -Tail 20
+  Get-Content $HOME\.harnmem\logs\pi.jsonl -Tail 20
   ```
   Record: injection bytes per session (audit `bytes`), token overhead, whether
   any memory was captured and whether any recall was actually useful.
@@ -203,12 +203,12 @@ Check boxes as items land, and update this file when the status changes.
   once (`sessions/20261023/*.jsonl`, mtime `13:33:15.16–.20Z`; this session's
   200-line transcript is one of them) — the dispose chain ran, but extraction
   did not finish or log before the host exited. The 21:52:46 restart left no
-  dispose trace at all (hard quit). Since 575d900 the quit path is closed by
+  dispose trace at all (hard quit). Since 6cea64f the quit path is closed by
   deferred catch-up — verified on the real store (2026-10-24, trial notes
   below): a resumed session logged `digest.hydrated {userMessages:4}` →
   `extract.catchup {status:"done", added:4}` → `session.end
   skipReason:"already_extracted"`. **Still to observe:** the desktop-GUI attach
-  path once the app restarts onto 575d900 (open an old session whose journal
+  path once the app restarts onto 6cea64f (open an old session whose journal
   has ≥3 user messages, or accumulate ≥3 prompts before quitting), and the
   2–3 day usefulness verdict.
   *Acceptance:* a short trial note in this file (append under §5) with numbers
@@ -251,11 +251,11 @@ Check boxes as items land, and update this file when the status changes.
   `pi-memory` (pi). *Execution deferred to N4 completion; apply the config
   changes then.*
   *Executed 2026-10-24 (N4 done):* removed `dsh-auto-memory` from
-  `C:\Users\<user>\.dsh\profiles\desktop\package.json` (both the dependency and
+  `~/.dsh/profiles/desktop/package.json` (both the dependency and
   the `dsh.profile.bundles` row) and its `- id: auto-memory` override from that
   profile's `cordis.patch.yml`; removed `npm:pi-memory` from
-  `C:\Users\<user>\.pi\agent\settings.json` and re-enabled `autoExtract` for
-  `pi-harnmem` (`C:\Users\<user>\.pi\agent\harnmem.json`). Pre-change copies are
+  `~/.pi/agent/settings.json` and re-enabled `autoExtract` for
+  `pi-harnmem` (`~/.pi/agent/harnmem.json`). Pre-change copies are
   in `.tmp/n3-backup-20261024-1205/` (restore them to roll back). Takes effect
   on the next DSH/pi start: confirm `plugin.apply` no longer lists
   `dsh-auto-memory` and that only `harnmem_*` memory tools remain.
@@ -265,13 +265,13 @@ Check boxes as items land, and update this file when the status changes.
   warnings. `~/.dsh/memory/audit.jsonl` (auto-memory's own injection audit)
   stayed frozen at 12:01 — it recorded nothing after the restart, so the plugin
   is not loaded. Single-store runtime confirmed: user 14 / <project-a> 23 /
-  downloads 4 / harnmem 10, index fresh, 0 duplicate candidates, 0 orphans.
+  <project-b> 4 / harnmem 10, index fresh, 0 duplicate candidates, 0 orphans.
   Old chat sessions may keep the tool list they were created with; open a new
   session to see the `harnmem_*` tools.
   *Cleaned up 2026-10-24 (legacy files):* the leftover desktop-profile
   `node_modules` copy was pruned with `dsh plugin --profile desktop install`
   (5 packages removed: `dsh-auto-memory` and its deps; lockfile references 0),
-  and `C:\Users\<user>\.dsh\memory` (35 files, 131 KB) was deleted after the N4
+  and `~/.dsh/memory` (35 files, 131 KB) was deleted after the N4
   import backups under `~/.harnmem/state/backups/mig-*` were verified to hold
   full source copies and the merged store was spot-checked. Remaining textual
   mentions are intentional: the disabled-plugin breadcrumb in the profile's
@@ -302,7 +302,7 @@ Check boxes as items land, and update this file when the status changes.
   `import verify` passes, rollback (`import rollback <runId>`) works on a
   scratch home.
 
-  *Done (2026-10-24).* Real apply on `C:\Users\<user>\.harnmem`: `import dsh`
+  *Done (2026-10-24).* Real apply on `~/.harnmem`: `import dsh`
   imported 30 records (21 project / 5 feedback / 2 reference / 2 user; by
   project: <project-a>-<project-id> 23, <project-b>-<project-id> 4,
   harnmem-438dc3c76d 1, user 2) and `import pi` imported 10 user-scope
@@ -329,7 +329,7 @@ Check boxes as items land, and update this file when the status changes.
   judged useful by hand.
 
   *Done (2026-10-24).* `harnmem stats` after the import: user 14 / harnmem 9 /
-  <project-a> 23 / downloads 4 active records, index rebuilt, 0 orphans.
+  <project-a> 23 / <project-b> 4 active records, index rebuilt, 0 orphans.
   Scope spot checks: from `<repo>`, `search pnpm` returns only
   user-scope + harnmem hits (no foreign-project leak); `search data/` returns
   one user-scope global memory (legitimately visible everywhere);
@@ -350,7 +350,7 @@ Check boxes as items land, and update this file when the status changes.
   fail without npm credentials).
   *Acceptance:* tag on a green commit; `git log v0.1.0..v0.2.0` tells the story.
   *Done 2026-10-24:* bumped all four packages to `0.2.0` and dated
-  `CHANGELOG.md` as `[0.2.0] - 2026-10-24` (commit `19c7e2d`), tagged
+  `CHANGELOG.md` as `[0.2.0] - 2026-10-24` (commit `a731f2f`), tagged
   `v0.2.0` and pushed `master` + the tag. CI run
   [40060992327](https://github.com/ys118/harnmem/actions/runs/40060992327) is
   green; the tag-triggered Release run
@@ -365,9 +365,9 @@ Check boxes as items land, and update this file when the status changes.
   [@harnmem/cli](https://www.npmjs.com/package/@harnmem/cli),
   [pi-harnmem](https://www.npmjs.com/package/pi-harnmem),
   [dsh-harnmem](https://www.npmjs.com/package/dsh-harnmem).
-  Pre-publish fixes: pi peer ranges widened to `>=1.3.0 <2` (7420f61; upstream
+  Pre-publish fixes: pi peer ranges widened to `>=1.3.0 <2` (0e7005f; upstream
   pi is at 1.4.0 and the adapter is verified there), `publishConfig.provenance`
-  removed from all four (4cfaec3; local publish cannot mint provenance — CI's
+  removed from all four (8fafaf6; local publish cannot mint provenance — CI's
   explicit `--provenance` in release.yml is unaffected). Publishing required
   the maintainer's terminal: account 2FA is auth-and-writes, so chat-relayed
   TOTP codes expired in transit (`EOTP` ×2); the interactive browser-OTP flow
@@ -380,9 +380,13 @@ Check boxes as items land, and update this file when the status changes.
   lead with npm install docs ✓.
 
 - [ ] **N8. Repository visibility and release notes.**
-  Decide public vs private (public unlocks provenance, issues, stars);
-  add a GitHub release for `v0.2.0` from the changelog; only then add badges
-  that point at CI.
+  Decision: make the repository public (2026-10-25). Repository prep is done:
+  docs/memory provenance sweep, full git-history rewrite (old SHAs and tags
+  rebuilt), pi-style contribution gate (issue/PR auto-close, `lgtmi`/`lgtm`
+  approvals, `CODEOWNERS`), and the branch/tag rulesets are ready to apply.
+  Remaining after owner sign-off: flip visibility, add the GitHub release for
+  `v0.2.0` from the changelog, enable Discussions and the security features,
+  then confirm the CI badges render.
 
 ### Phase D — Claude Code adapter
 
@@ -440,7 +444,7 @@ Check boxes as items land, and update this file when the status changes.
 | 2026-10-24 | Extraction failures are visible: LLM errors bubble to `status:"failed"` and short digests skip as `digest_too_small` | `runExtraction` used to swallow both as an empty result, so a dead bridge logged `done added:0` — exactly the silence the trial is meant to remove |
 | 2026-10-24 | Extraction budget 20 s → 60 s | Desktop-GUI catch-up of a 6,000-char digest on `<provider>/<model>` took 33.3 s and logged `extract.catchup {status:"failed", error:"extraction timed out after 20000ms"}`; the catch-up runs in the background and never blocks a turn, so a larger budget only helps, and a `failed` row does not advance the watermark so the next open retries |
 | 2026-10-24 | Journal readers tolerate a leading UTF-8 BOM | PowerShell 5.1 `Set-Content -Encoding utf8` prepends a BOM; the first line was silently dropped, hydration lost one user prompt (5 entries/2 users instead of 6/3) and the catch-up gate did not fire |
-| — | **Pending:** repo visibility + v0.2.0 release, Claude adapter timing | Need release step |
+| — | **Pending:** repo visibility flip + v0.2.0 release, Claude adapter timing | Open-source prep is ready; flip awaits owner sign-off |
 
 ### Trial notes (N1)
 
@@ -487,23 +491,23 @@ Check boxes as items land, and update this file when the status changes.
   headless CLI does not keep the process alive for it; the desktop app process
   persists, so this is CLI-only.
   *Desktop note:* the currently resumed tabs have only 0–1 user messages in
-  their journals (`<session-id>`: 1, `<session-id>`: 0), so a plain restart will hydrate
+  their journals (one has 1, the other 0), so a plain restart will hydrate
   below `minUserMessages`; to watch catch-up in the GUI, open a session whose
-  journal has ≥3 users (e.g. `<session-id>` or `<session-id>`, four each) or accumulate
+  journal has ≥3 users (two candidate sessions have four each) or accumulate
   three prompts before quitting.
 
 - **2026-10-24 11:23 — desktop GUI restarted onto the catch-up build.** The
   quit of the old instance (11:22:52) logged five `session.end` lines (dispose
   ran; all `too_few_messages`) — the quit moment itself still cannot call a
   model, as designed. On launch the app hydrated and started the catch-up:
-  `digest.hydrated {entries:200, userMessages:3}` for this session
-  (`<session-id>`; the 200-event digest of the quit plus today's prompts, including
-  the user-preserving eviction) and `llm.call` fired immediately. The call took
+  `digest.hydrated {entries:200, userMessages:3}` for this session (the 200-event
+  digest of the quit plus today's prompts, including the user-preserving
+  eviction) and `llm.call` fired immediately. The call took
   33.3 s on `<provider>/<model>` (1,645 chars + 5,582 reasoning
   chars) and crossed the 20 s budget, so it logged `extract.catchup
   {status:"failed", error:"extraction timed out after 20000ms"}` — visible, not a
   silent `done added:0` — and the watermark stayed put, so the next open retries.
-  A small session (`<session-id>`, 12 entries / 5 users) finished in 14.3 s:
+  A small session (12 entries / 5 users) finished in 14.3 s:
   `extract.catchup {status:"done", added:1}`, the first desktop-GUI catch-up
   write. Follow-up landed: after the restart with the 60 s build
   (`plugin.apply llmTimeoutMs:60000`), the same session retried on open —
@@ -511,8 +515,10 @@ Check boxes as items land, and update this file when the status changes.
   {chars:2598, reasoningChars:3453, finish:"stop"}` after 37.3 s →
   `extract.catchup {status:"done", added:3}`; `audit.jsonl` gained three `write`
   events and `extract done added:3 messages:200 userMessages:4`, and three
-  memory files appeared (titles: "DSH 补写抽取预算 20s 提升到 60s",
-  "桌面端补写真机验证：小会话成功、大会话 20s 超时", "补写失败要显式报错且不推进水位").
+  memory files appeared (titles: "raise the DSH catch-up extraction budget
+  from 20 s to 60 s", "desktop catch-up verified: small sessions succeed,
+  large sessions hit the 20 s timeout", "catch-up failures must be reported
+  explicitly and must not advance the watermark").
 
 - **2026-10-25 — N1 wrap-up: trial closed, verdict useful.** Trial window
   2026-10-21 → 10-25 on the real `~/.harnmem`, pi and the DSH desktop app in
@@ -524,15 +530,15 @@ Check boxes as items land, and update this file when the status changes.
     injected over the whole trial.
   - Captures: 32 `write` events (28 NEW incl. supersedes, 3 LINK, 1 MERGE);
     28 record files created since 10-24 across user scope and 4 projects.
-    All write paths fired: desktop catch-up extraction +8 (`<session-id>` +4/+1,
-    `<session-id>` +3), explicit model tool calls (pi 8 NEW + 1 LINK, dsh
+    All write paths fired: desktop catch-up extraction +8 (two sessions,
+    +4/+1 and +3), explicit model tool calls (pi 8 NEW + 1 LINK, dsh
     10 NEW + 2 LINK), CLI 3 NEW.
   - Extraction: 60 `extract` events — 3 done (+8 records), 4 failed, 50
     skipped (`too_few_messages` 35, `already_extracted` 8, `model_wrote` 3,
     `read_only` 4). Every failure was visible, never a silent `done added:0`:
     1×20 s timeout (old build; retried successfully on reopen), 3×
     `NO_ADAPTER` at quit dispose (expected; watermark not advanced). Two
-    sessions (`<session-id>` 4 user msgs, `<session-id>` 10 user msgs) still await
+    sessions (4 and 10 user messages) still await
     their catch-up on next open — concrete N13 examples of the
     never-reopened gap.
   - Recall in real use: pi `harnmem_search` ×5 with real queries (cf CLI
@@ -543,10 +549,10 @@ Check boxes as items land, and update this file when the status changes.
     re-deriving them).
   - Health at close: `harnmem stats` — 70 records / 62 active, 0 duplicate
     candidates, 0 orphans, `extract pending 0, failed 0`; pi 1.4.0 (10-25)
-    loads the adapter fine with the root-entry fix (`f528dc6`).
+    loads the adapter fine with the root-entry fix (`2e78bc3`).
   - Residuals (not N1 blockers): one cross-scope duplicate family
-    ("Node/npm 工具链基线" ×3 across user+project — dedupe is per-scope by
-    design); <project-a> carries two project identities (`<project-id>`
+    ("Node/npm toolchain baseline" ×3 across user+project — dedupe is per-scope
+    by design); <project-a> carries two project identities (`<project-id>`
     23 records vs `<project-id>` 3) — the known path-key/git-key split. Both
     are N12 doctor/normalize fodder.
 
@@ -556,7 +562,7 @@ Check boxes as items land, and update this file when the status changes.
   `mig-20261024T035400Z-xu092w.json`, idempotent re-run 30 skipped) and
   pi-memory 10/10 (`mig-20261024T035400Z-ek35re.json`, re-run 10 skipped);
   all 40 migrated ids verified live in `~/.harnmem/memories`, none in `trash/`.
-- Gap found and closed: `daily/2026-10-17.md` (session `<session-id>`, lesson-2
+- Gap found and closed: `daily/2026-10-17.md` (a session with lesson-2
   delivery stats) had no `imports/unresolved` record; appended as a third
   record into `unresolved/<session-id>/records.json` (count 2 -> 3, JSON validated).
 - User decision: **HarnMem is the single source of truth (SSOT) for all memory
@@ -576,16 +582,16 @@ Check boxes as items land, and update this file when the status changes.
 # from <repo>
 pnpm -r build
 pnpm -r typecheck
-pnpm test                                   # core 29/29
-node --test packages/dsh-harnmem/test/*.test.mjs   # adapter 28/28
+pnpm test                                   # core 52/52
+node --test packages/dsh-harnmem/test/*.test.mjs   # adapter 58/58
 node evals/gen/generate.mjs --check         # 36 files byte-identical
 node evals/run.mjs --engine core --gate     # functional PASS; 5 advisory
 
 # store inspection
 node packages/cli/dist/main.js stats
 node packages/cli/dist/main.js search "some query" --json
-Get-Content C:\Users\<user>\.harnmem\state\audit.jsonl -Tail 5
-Get-Content C:\Users\<user>\.harnmem\logs\dsh.jsonl -Tail 20
+Get-Content $HOME\.harnmem\state\audit.jsonl -Tail 5
+Get-Content $HOME\.harnmem\logs\dsh.jsonl -Tail 20
 ```
 
 **Guardrails when continuing** (do not regress):

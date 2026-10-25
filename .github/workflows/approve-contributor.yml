@@ -1,0 +1,274 @@
+name: Approve contributor
+
+# Maintainers approve contributors by replying to an issue with `lgtmi` or
+# `lgtm` in the command position (see CONTRIBUTING.md). This workflow records
+# the approval in .github/APPROVED_CONTRIBUTORS through a pull request, because
+# `master` is PR-only and protected by a ruleset.
+#
+# The automation PR is created with the repository `GITHUB_TOKEN`, so it does
+# not trigger other workflows (including CI). It is bookkeeping for an approval
+# already granted in the comment; maintainers merge it with the repository-admin
+# bypass.
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  approve:
+    name: record approval
+    if: ${{ !github.event.issue.pull_request }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record approval and open pull request
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const APPROVALS_PATH = '.github/APPROVED_CONTRIBUTORS';
+            const APPROVAL_BRANCH = 'automation/approve-contributors';
+            const VALID_CAPABILITIES = new Set(['issue', 'pr']);
+            const MAINTAINER_PERMISSIONS = ['admin', 'maintain', 'write'];
+            const PLACEHOLDER = '# No approved contributors yet.';
+
+            // Command position: at the start (optionally after @mentions) or at
+            // the end of the comment. Mirrors the checks documented in
+            // CONTRIBUTING.md.
+            const APPROVAL_AT_START =
+              /^[\s.]*(?:@[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\s*,\s*|[.:]\s*|\s+))*(lgtmi|lgtm)(?=$|[\s]|[^\p{L}\p{N}_\s])/iu;
+            const APPROVAL_AT_END =
+              /(?:^|[\s.])(lgtmi|lgtm)\s*(?:[^\p{L}\p{N}_\s])?\s*$/iu;
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issue = context.payload.issue;
+            const comment = context.payload.comment;
+            const defaultBranch = context.payload.repository.default_branch;
+
+            const match =
+              comment.body.match(APPROVAL_AT_START) || comment.body.match(APPROVAL_AT_END);
+            if (!match) {
+              core.info('No approval command in the command position.');
+              return;
+            }
+            const capability = match[1].toLowerCase() === 'lgtm' ? 'pr' : 'issue';
+
+            let permission = null;
+            try {
+              permission = (
+                await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner,
+                  repo,
+                  username: comment.user.login,
+                })
+              ).data.permission;
+            } catch (error) {
+              core.warning(
+                `Cannot read repository permission for ${comment.user.login}: ${error.message}`,
+              );
+            }
+            if (!permission || !MAINTAINER_PERMISSIONS.includes(permission)) {
+              core.info(`${comment.user.login} has no maintainer access; ignoring approval command.`);
+              return;
+            }
+
+            const mentioned = [];
+            const mentionPattern = /(^|[^\w/])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?)(?![\w/])/gu;
+            for (const found of comment.body.matchAll(mentionPattern)) {
+              if (found[2] && !mentioned.includes(found[2])) mentioned.push(found[2]);
+            }
+            const targets = mentioned.length > 0 ? mentioned : [issue.user.login];
+
+            // Base the change on the pending automation branch when it exists so
+            // approvals recorded before the bookkeeping PR is merged accumulate.
+            let baseSha = null;
+            try {
+              const { data } = await github.rest.git.getRef({
+                owner,
+                repo,
+                ref: `heads/${APPROVAL_BRANCH}`,
+              });
+              baseSha = data.object.sha;
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+
+            const base = baseSha
+              ? baseSha
+              : (await github.rest.repos.getBranch({ owner, repo, branch: defaultBranch })).data
+                  .commit.sha;
+
+            let file;
+            try {
+              file = (
+                await github.rest.repos.getContent({
+                  owner,
+                  repo,
+                  path: APPROVALS_PATH,
+                  ref: base,
+                })
+              ).data;
+            } catch (error) {
+              core.setFailed(`Cannot read ${APPROVALS_PATH} from ${base}: ${error.message}`);
+              return;
+            }
+            const lines = Buffer.from(file.content, 'base64').toString('utf8').split(/\r?\n/);
+
+            const entries = [];
+            lines.forEach((line, index) => {
+              const trimmed = line.trim();
+              if (!trimmed || trimmed.startsWith('#')) return;
+              const tokens = trimmed.split(/\s+/);
+              if (tokens.length !== 2) return;
+              const entryCapability = tokens[1].toLowerCase();
+              if (!VALID_CAPABILITIES.has(entryCapability)) return;
+              entries.push({ index, username: tokens[0], capability: entryCapability });
+            });
+
+            const changes = [];
+            const already = [];
+            for (const target of targets) {
+              const existing = entries.find(
+                (entry) => entry.username.toLowerCase() === target.toLowerCase(),
+              );
+              if (existing) {
+                if (existing.capability === 'pr' || existing.capability === capability) {
+                  already.push(target);
+                  continue;
+                }
+                lines[existing.index] = `${existing.username} ${capability}`;
+                existing.capability = capability;
+                changes.push({ username: existing.username, capability, upgraded: true });
+              } else {
+                lines.push(`${target} ${capability}`);
+                changes.push({ username: target, capability, upgraded: false });
+              }
+            }
+
+            if (changes.length === 0) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issue.number,
+                body: [
+                  `Already approved: ${already.map((user) => '@' + user).join(', ')}.`,
+                  '',
+                  'The approved-contributors list is unchanged. See `.github/APPROVED_CONTRIBUTORS`.',
+                ].join('\n'),
+              });
+              return;
+            }
+
+            const hasEntries = lines.some((line) => {
+              const trimmed = line.trim();
+              if (!trimmed || trimmed.startsWith('#')) return false;
+              return VALID_CAPABILITIES.has((trimmed.split(/\s+/)[1] || '').toLowerCase());
+            });
+            const finalContent =
+              lines
+                .filter((line) => !(hasEntries && line.trim() === PLACEHOLDER))
+                .join('\n')
+                .replace(/\s+$/, '') + '\n';
+
+            const blob = await github.rest.git.createBlob({
+              owner,
+              repo,
+              content: finalContent,
+              encoding: 'utf8',
+            });
+            const baseCommit = await github.rest.git.getCommit({
+              owner,
+              repo,
+              commit_sha: base,
+            });
+            const tree = await github.rest.git.createTree({
+              owner,
+              repo,
+              base_tree: baseCommit.data.tree.sha,
+              tree: [{ path: APPROVALS_PATH, mode: '100644', type: 'blob', sha: blob.data.sha }],
+            });
+            const commit = await github.rest.git.createCommit({
+              owner,
+              repo,
+              message: `chore: approve contributors from issue #${issue.number}`,
+              tree: tree.data.sha,
+              parents: [base],
+            });
+            if (baseSha) {
+              await github.rest.git.updateRef({
+                owner,
+                repo,
+                ref: `heads/${APPROVAL_BRANCH}`,
+                sha: commit.data.sha,
+              });
+            } else {
+              await github.rest.git.createRef({
+                owner,
+                repo,
+                ref: `refs/heads/${APPROVAL_BRANCH}`,
+                sha: commit.data.sha,
+              });
+            }
+
+            const description = (value) =>
+              value === 'pr' ? 'issues and PRs (`lgtm`)' : 'issues (`lgtmi`)';
+            const summary = changes
+              .map(
+                (change) =>
+                  `- @${change.username}: ${description(change.capability)}${
+                    change.upgraded ? ' (upgraded)' : ''
+                  }`,
+              )
+              .join('\n');
+            const pullBody = [
+              `Records the maintainer approval from #${issue.number}:`,
+              '',
+              summary,
+              '',
+              '`lgtmi` grants future issues; `lgtm` grants future issues and PRs.',
+              '',
+              'This pull request was created with the repository `GITHUB_TOKEN`, so it does not',
+              'trigger CI. It only records an approval already granted in the issue comment;',
+              'merge it with the repository-admin bypass after review.',
+            ].join('\n');
+
+            const openPulls = await github.rest.pulls.list({
+              owner,
+              repo,
+              head: `${owner}:${APPROVAL_BRANCH}`,
+              state: 'open',
+            });
+            let pull = openPulls.data[0];
+            if (!pull) {
+              pull = (
+                await github.rest.pulls.create({
+                  owner,
+                  repo,
+                  base: defaultBranch,
+                  head: APPROVAL_BRANCH,
+                  title: `chore: approve contributors from issue #${issue.number}`,
+                  body: pullBody,
+                })
+              ).data;
+            }
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issue.number,
+              body: [
+                `Approval recorded for ${changes.map((change) => '@' + change.username).join(', ')}:`,
+                '',
+                summary,
+                '',
+                `The change is in #${pull.number} and takes effect after a maintainer merges it.`,
+                '',
+                'See [CONTRIBUTING.md](' +
+                  `${context.payload.repository.html_url}/blob/${defaultBranch}/CONTRIBUTING.md` +
+                  ') for the approval rules.',
+              ].join('\n'),
+            });
