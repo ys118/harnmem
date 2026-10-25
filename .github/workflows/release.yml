@@ -1,6 +1,6 @@
 name: Release
 
-# Publishes @harnmem/core, @harnmem/cli and pi-harnmem on a version tag.
+# Publishes @harnmem/core, @harnmem/cli, pi-harnmem and dsh-harnmem on a version tag.
 # Requirements before the first release:
 #   - the @harnmem npm org exists and the maintainer can publish to it;
 #   - repository secret NPM_TOKEN contains an automation token with publish rights.
