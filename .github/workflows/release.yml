@@ -20,11 +20,16 @@ permissions:
 
 jobs:
   publish:
-    # Manual runs are restricted to the repository owner: write collaborators
-    # must not be able to start a publish. Tag pushes are limited to admins by
-    # the "Protect release tags" ruleset (tag creation requires an admin
-    # bypass), so this `if` only guards the workflow_dispatch entry point.
-    if: github.event_name != 'workflow_dispatch' || github.actor == 'ys118'
+    # Manual runs and re-runs are restricted to the repository owner: write
+    # collaborators must not be able to start (or re-start) a publish. Tag
+    # pushes are limited to admins by the "Protect release tags" ruleset (tag
+    # creation requires an admin bypass), so this guard covers the
+    # workflow_dispatch entry point and re-run attempts of a release run.
+    # github.actor keeps the original actor on re-runs, while
+    # github.triggering_actor is the user who actually started the re-run.
+    if: >-
+      (github.event_name != 'workflow_dispatch' || github.actor == 'ys118') &&
+      (github.run_attempt == 1 || github.triggering_actor == 'ys118')
     runs-on: ubuntu-latest
     env:
       NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
