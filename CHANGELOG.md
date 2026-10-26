@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-26
+
 ### Added
 
 - `@harnmem/core`: synonym-suggestion engine API (`harvestTerms`,
@@ -60,6 +62,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so adding a language is a data-only change. The English rows moved out of the
   Chinese table into `data/synonyms.en.txt` (164 entries in effect: 129 zh + 35
   en), and the shipped tables were reduced to deliberately generic vocabulary.
+
+### Fixed
+
+- `@harnmem/cli`: `harnmem --version` and the startup banner report the version
+  from the installed package manifest instead of the stale hard-coded `0.1.0`.
+- `@harnmem/core`: the npm tarball now ships `prompts/` and `data/`, so an npm
+  install deploys the same editable assets to `<home>/prompts` and `<home>/data`
+  (including `prompts/migrate.md`) as a repository checkout. Previously the
+  first run created those directories empty.
 
 ## [0.2.0] - 2026-10-24
 

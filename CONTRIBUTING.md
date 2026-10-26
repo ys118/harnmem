@@ -121,7 +121,7 @@ only record an approval that was already granted in an issue comment.
 
 ## Project layout
 
-All four packages are published on npm at version 0.2.0.
+All four packages are published on npm at version 0.3.0.
 
 | Path | Package | What it is |
 | ---- | ------- | ---------- |
@@ -205,8 +205,12 @@ bookkeeping pull request to activate the approval.
 Releases: update `CHANGELOG.md` (`Added`, `Changed`, `Fixed`, `Removed`) and bump
 all four package versions in sync; merge the release PR, then tag `vX.Y.Z` and
 push the tag. The release workflow builds, tests and publishes all four packages
-from GitHub Actions with npm provenance enabled; release notes come from the
-CHANGELOG section.
+from GitHub Actions with npm provenance enabled when the repository secret
+`NPM_TOKEN` is configured. Without that secret the workflow still runs every
+check, skips publishing with a warning, and a maintainer publishes from a
+trusted checkout instead: `npm login` once, then
+`pnpm -r publish --access public --no-git-checks` from the tag. Release notes
+come from the CHANGELOG section.
 
 ## FAQ
 
