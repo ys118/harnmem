@@ -6,7 +6,7 @@
 > One user, one machine, one memory store — shared by every coding agent you use.
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)
-![Status: v0.2.0](https://img.shields.io/badge/status-v0.2.0-blue.svg)
+![Status: v0.3.0](https://img.shields.io/badge/status-v0.3.0-blue.svg)
 ![CI](https://github.com/ys118/harnmem/actions/workflows/ci.yml/badge.svg)
 ![npm](https://img.shields.io/npm/v/@harnmem/core?label=npm)
 ![Runtime deps: 0](https://img.shields.io/badge/runtime%20deps-0-brightgreen.svg)
@@ -21,9 +21,9 @@ database, no embedding model, and no runtime dependencies in the engine.
 
 - **Packages:** `@harnmem/core` (engine), `@harnmem/cli` (`harnmem` command),
   `pi-harnmem` (pi extension), `dsh-harnmem` (DSH plugin) — all published on
-  npm at 0.2.0. Install the CLI with `npm install -g @harnmem/cli`.
+  npm at 0.3.0. Install the CLI with `npm install -g @harnmem/cli`.
 - **License:** MIT.
-- **Status:** v0.2.0 — core, CLI/migration, the pi adapter and the DSH adapter
+- **Status:** v0.3.0 — core, CLI/migration, the pi adapter and the DSH adapter
   are usable and tested end to end; the Claude Code adapter is designed but not
   built, and its memory store can already be migrated with `harnmem import claude`.
 

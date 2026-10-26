@@ -5,6 +5,9 @@ name: Release
 #   - the @harnmem npm org exists and the maintainer can publish to it;
 #   - repository secret NPM_TOKEN contains an automation token with publish rights.
 # Provenance is enabled via the id-token permission below.
+# When NPM_TOKEN is missing the workflow still runs the full check suite and
+# skips publishing (with a warning) instead of failing with ENEEDAUTH; a
+# maintainer then publishes locally — see CONTRIBUTING.md.
 
 on:
   push:
@@ -18,6 +21,8 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -31,7 +36,9 @@ jobs:
       - run: pnpm -r typecheck
       - run: pnpm test
       - run: pnpm eval:gate
+      - name: Warn when publishing is skipped
+        if: env.NODE_AUTH_TOKEN == ''
+        run: echo "::warning::NPM_TOKEN is not configured; the packages were not published. Publish locally with 'pnpm -r publish --access public --no-git-checks' (see CONTRIBUTING.md)."
       - name: Publish packages
+        if: env.NODE_AUTH_TOKEN != ''
         run: pnpm -r publish --access public --no-git-checks --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

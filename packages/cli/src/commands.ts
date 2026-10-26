@@ -6,7 +6,7 @@
  * code; `main.ts` turns thrown errors into diagnostics.
  */
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
@@ -46,7 +46,23 @@ import { asMemoryType, type DiscoverResult, type DiscoverOptions } from "./impor
 
 export const EXIT = { OK: 0, FAIL: 1, USAGE: 2 } as const;
 
-export const VERSION = "0.1.0";
+/**
+ * Version of the running package. Read from `package.json` next to `dist/` so a
+ * release only bumps the manifest — an installed CLI never reports a stale
+ * hard-coded version. Falls back to `0.0.0` when the manifest is unavailable
+ * (for example a single-file bundle).
+ */
+function readPackageVersion(): string {
+  try {
+    const manifest = new URL("../package.json", import.meta.url);
+    const parsed = JSON.parse(readFileSync(manifest, "utf8")) as { version?: unknown };
+    return typeof parsed.version === "string" ? parsed.version : "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
+
+export const VERSION = readPackageVersion();
 
 // ------------------------------------------------------------------ env/home
 

@@ -13,6 +13,7 @@
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm --filter @harnmem/core build && pnpm --filter @harnmem/cli build && node --test packages/core/test/*.test.mjs packages/cli/test/*.test.mjs",
+    "sync-assets": "node scripts/sync-assets.mjs",
     "eval": "node evals/run.mjs",
     "eval:gate": "node evals/run.mjs --gate",
     "eval:report": "node evals/run.mjs --report"
