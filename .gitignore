@@ -5,6 +5,10 @@ dist/
 *.tgz
 .pnpm-store/
 
+# Prompt/data copies prepared for the npm tarball by scripts/sync-assets.mjs
+packages/core/prompts/
+packages/core/data/
+
 # Local scratch state
 .cache/
 .tmp/
