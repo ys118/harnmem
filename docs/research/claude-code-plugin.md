@@ -152,14 +152,14 @@ marketplace 侧：主仓根加 `.claude-plugin/marketplace.json`（或独立 har
 
 ---
 
-## 5. 遗留待验证（实现期逐条关闭）
+## 5. 遗留待验证（2026-10-27 复核：1/4/6 已关闭，其余降级为低优先级观测项）
 
-1. **子代理语义**：Task 工具的 subagent 会话里 SessionStart 是否携带 `agent_type`、hooks 是否逐个触发 → 决定只读降级的判定点（09 遗留项）。
-2. **PreCompact 输入/输出实测**：trigger=manual/auto 的 stdin 形状、custom_instructions 有无。
-3. **UserPromptSubmit recall 的成本**：per-turn hook 增加的延迟与 token；默认关闭（HARNMEM_CLAUDE_RECALL=off）的决策保持。
-4. **MCP 25k token 输出上限**与 MAX_MCP_OUTPUT_TOKENS 环境变量在插件的传播。
+1. **子代理语义 — ✅ 已关闭（2.1.310 实测）**：Task 子代理**完全不触发** SessionStart/SessionEnd hook（沙箱库 audit.jsonl 只有主会话的 1 次 inject + 1 次 extract，子代理回复 SUBAGENT-OK-42 期间零 hook 事件）。只读契约天然成立；`agent_type`/`isSidechain` 守卫保留为未来版本安全网。子代理 transcript 以 sidechain 形式并在主会话内，解析层已跳过。
+2. **PreCompact 输入/输出实测**：v1 不注册 PreCompact（compact 后重发 SessionStart(source=compact) 已重建快照），关闭此观测项的必要性随之消失。
+3. **UserPromptSubmit recall 的成本**：默认关闭（HARNMEM_CLAUDE_RECALL=off）的决策保持，待有真实需求再实测。
+4. **MCP 25k token 输出上限 — ✅ 已关闭（防御实现）**：`lib/format.mjs` 每个 formatter 输出 clip 在 12k 字符（与 pi 完全对齐），`mcp/mcp.mjs` 的 `textResult` 对错误路径再兜底同一上限；12k 字符 ≈ 3–12k token，即使 CJK 满载也远低于 25k-token 客户端上限。回归测试 `test/format.test.mjs`（50 个 64KB 命中、64KB 单条、400 分片 stats 均不越界）。
 5. **resume 重放 additionalContext** 的 staleness 表现（09 已设计免责行，实测确认渲染位置）。
-6. `claude plugin install` 在 monorepo marketplace + git-subdir path 下的真实拉取行为（发版前用本地 path marketplace 验证）。
+6. **monorepo marketplace 的 GitHub 拉取 — ✅ 已关闭（真机验证）**：`claude plugin marketplace add ys118/harnmem` → HTTPS clone → 校验根 `.claude-plugin/marketplace.json` → `plugin install harnmem@harnmem-marketplace` 全绿。前置条件：仓库已推送（未推送时 clone 为空目录，报 "Marketplace file not found"）。验证后已还原本地 path marketplace（live checkout 开发模式）。
 
 ## 6. 实现（packages/claude-harnmem，2026-10-26 落地）
 
