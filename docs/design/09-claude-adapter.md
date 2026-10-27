@@ -3,6 +3,37 @@
 > Claude Code has no npm plugin API. Our integration surface is only the two official extension points: **hooks** (process-level event callbacks) and an **MCP server** (stdio tools/resources). This adapter = `@harnmem/mcp` (a zero-dependency MCP server + hook entry points) reusing the `@harnmem/core` facade; no tokenizer, model, or database is introduced.
 > This document distinguishes three evidence levels: **✅ verified against official docs** (fetched 2026-10-20, URLs in §12), **△ inferred** (derived from verified facts or this implementation), **? unverified** (no Claude Code installed on this machine, see §11).
 
+> **STATUS (2026-10-26): IMPLEMENTED** as a native plugin package —
+> [`packages/claude-harnmem`](../../packages/claude-harnmem/README.md) — replacing the
+> bare `@harnmem/mcp` npm-package form this doc originally specified. First-hand
+> evidence and the deviations below are recorded in
+> [`research/claude-code-plugin.md`](../research/claude-code-plugin.md). Deviations from
+> the original design, all verified on Claude Code 2.1.310:
+> 1. **Ship as a plugin, not an npm package**: `.claude-plugin/plugin.json` +
+>    `hooks/hooks.json` + in-plugin `.mcp.json` + `/harnmem:memory` command;
+>    `@harnmem/core` is vendored into `vendor/core/` at build time so the
+>    installed directory is self-contained. No `claude mcp add` / user
+>    `settings.json` edits are needed.
+> 2. **MCP tool names are prefixed**: a plugin MCP server's tools are exposed
+>    as `mcp__plugin_harnmem_harnmem__memory_*` (server key `harnmem` inside
+>    plugin `harnmem`), not `mcp__harnmem__memory_*`.
+> 3. **`PreCompact` is not registered**: Claude Code keeps the transcript file
+>    across compaction and re-fires `SessionStart(source=compact)`, which
+>    already rebuilds the snapshot — the cursor handoff (§5) is unnecessary.
+>    `UserPromptSubmit` recall (§4) is likewise deferred (per-turn injection
+>    breaks KV-caching; revisit behind `HARNMEM_CLAUDE_RECALL` later).
+> 4. **`SessionEnd` spawns a detached child** (stdio `"ignore"` + `unref` +
+>    immediate `exit 0`) because plugin hook `timeout` declarations are not
+>    honored (claude-remember #561) and any inherited stdout pipe blocks the
+>    host until EOF (#646). Extraction payloads round-trip through
+>    `%TMP%/harnmem-claude/*.json`; `HARNMEM_EXTRACT_SYNC=1` is a deterministic
+>    test seam that runs the extraction phase inline.
+> 5. **Subagent read-only** is keyed off `agent_type` being a non-empty string;
+>    subagent `SessionEnd`s are skipped before journalling.
+> 6. Windows: every JSON file must be written without UTF-8 BOM (validator
+>    rejects BOM outright); `claude plugin validate <path>` is part of the
+>    checklist (`√ Validation passed`, only the optional icon warning remains).
+
 ## 1. Constraints and design goals
 
 | Constraint | Design choice |

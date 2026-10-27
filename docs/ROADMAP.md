@@ -169,7 +169,10 @@ Ordered by impact; **do not silently skip these**.
    the `@harnmem` scope exist; provenance signing also requires a public repo.
 9. **Dependabot `npm_and_yarn` job fails** on workspace `link:` dependencies —
    harmless; ignore or disable that ecosystem in `.github/dependabot.yml`.
-10. **Claude Code adapter** is design-only ([`design/09-claude-adapter.md`](design/09-claude-adapter.md)).
+10. **Claude Code adapter** is implemented as a plugin package
+   ([`packages/claude-harnmem`](../packages/claude-harnmem/README.md), 2026-10-26);
+   see [`design/09-claude-adapter.md`](design/09-claude-adapter.md) and
+   [`research/claude-code-plugin.md`](research/claude-code-plugin.md).
 
 ## 4. Next steps
 
@@ -388,13 +391,20 @@ Check boxes as items land, and update this file when the status changes.
 
 ### Phase D — Claude Code adapter
 
-- [ ] **N9. Implement `@harnmem/mcp` + hooks** per
-  [`design/09-claude-adapter.md`](design/09-claude-adapter.md):
-  zero-dependency stdio JSON-RPC MCP server exposing the 5 tools, plus
-  `SessionStart` (`additionalContext`, ≤10 KB, byte-stable), `UserPromptSubmit`,
-  `SessionEnd` (bounded extraction), `PreCompact` hooks.
-  *Acceptance:* `claude mcp add --transport stdio harnmem -- …` works; a real
-  Claude Code session writes and recalls; adapter tests; docs + npm publish.
+- [x] **N9. Implement the Claude Code plugin `claude-harnmem`** (2026-10-26),
+  shipped as a native plugin package instead of a bare `@harnmem/mcp` npm
+  package: `.claude-plugin/plugin.json` + `hooks/` (SessionStart injection,
+  SessionEnd detached extraction) + in-plugin stdio MCP server (5 tools) +
+  `/harnmem:memory` command + repo-root marketplace manifest. `UserPromptSubmit`
+  recall and `PreCompact` are intentionally not registered in v1 (compact
+  re-fires `SessionStart(source=compact)`; per-turn injection breaks
+  KV-caching). *Acceptance:* `claude plugin validate` ✓; real Claude Code
+  2.1.310 session injects a seeded marker and the model reads it back ✓; the
+  model stores a memory through `mcp__plugin_harnmem_harnmem__memory_write` and
+  the record lands on disk ✓; `/harnmem:memory search` hits through the same
+  store ✓; 8 deterministic adapter tests (`node --test
+  packages/claude-harnmem/test/*.test.mjs`) ✓. Remaining for npm publish: bump
+  to a release version and publish alongside `@harnmem/core`.
 
 ### Phase E — scale and quality (v0.3, when the store grows past ~5k)
 

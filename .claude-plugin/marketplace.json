@@ -1,0 +1,14 @@
+{
+  "name": "harnmem-marketplace",
+  "owner": {
+    "name": "ys118"
+  },
+  "plugins": [
+    {
+      "name": "harnmem",
+      "description": "Cross-harness persistent memory for Claude Code: stable session-start injection, five memory tools over MCP, /harnmem:memory command. Same store as the pi and DSH adapters.",
+      "source": "./packages/claude-harnmem",
+      "category": "memory"
+    }
+  ]
+}
