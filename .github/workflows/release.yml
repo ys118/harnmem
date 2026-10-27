@@ -51,4 +51,22 @@ jobs:
         run: echo "::warning::NPM_TOKEN is not configured; the packages were not published. Publish locally with 'pnpm -r publish --access public --no-git-checks' (see CONTRIBUTING.md)."
       - name: Publish packages
         if: env.NODE_AUTH_TOKEN != ''
-        run: pnpm -r publish --access public --no-git-checks --provenance
+        # Skip packages whose exact version is already on the registry: a
+        # maintainer may have published locally (with OTP) right after tagging,
+        # and pnpm -r publish would otherwise die on EPUBLISHCONFLICT and paint
+        # the release tag red even though the release itself succeeded.
+        run: |
+          published=0
+          for pkg in packages/*/; do
+            name=$(node -p "require('./' + process.argv[1] + 'package.json').name" "$pkg")
+            version=$(node -p "require('./' + process.argv[1] + 'package.json').version" "$pkg")
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "::notice::$name@$version is already published; skipping."
+            else
+              pnpm --filter "$name" publish --access public --no-git-checks --provenance
+              published=$((published + 1))
+            fi
+          done
+          if [ "$published" -eq 0 ]; then
+            echo "::notice::Nothing to publish — every package version is already on the registry."
+          fi
