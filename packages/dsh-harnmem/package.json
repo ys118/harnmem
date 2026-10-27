@@ -43,16 +43,16 @@
     "@harnmem/core": "workspace:*"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-client-locale": "^0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-ui-layout": "^0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-ui-primitives": "^0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-ui-sidebar": "^0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-ui-slots": "^0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-locale": "^0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-layout": "^0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-primitives": "^0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-sidebar": "^0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-slots": "^0.2.0-rc.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "react": "^19.3.0",
     "react-dom": "19.3.1",
-    "tsdown": "^0.22.2"
+    "tsdown": "^0.23.2"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.2 <5.0.0",
