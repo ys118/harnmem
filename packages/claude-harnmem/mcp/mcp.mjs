@@ -21,7 +21,7 @@ import { openEngine } from "../lib/engine.mjs";
 import { resolveSettings } from "../lib/settings.mjs";
 import { formatForget, formatRead, formatSearch, formatStats, formatWrite } from "../lib/format.mjs";
 
-const SERVER_INFO = { name: "harnmem", version: "0.3.0" };
+const SERVER_INFO = { name: "harnmem", version: "0.4.0" };
 const PROTOCOL_VERSION = "2024-11-05";
 
 // Hard ceiling for any tool output (formatters already clip, but error paths

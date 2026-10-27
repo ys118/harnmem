@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-27
+
+### Added
+
+- `claude-harnmem`: native Claude Code plugin — a `SessionStart` hook injects the
+  byte-stable memory snapshot (empty store injects zero bytes; deterministic
+  line-based truncation under Claude's 10,000-character `additionalContext`
+  cap), a bundled zero-dependency stdio MCP server exposes
+  `memory_search`/`memory_read`/`memory_write`/`memory_forget`/`memory_status`
+  (tool outputs clipped at 12k chars, far under the 25k-token client cap), and a
+  `/harnmem:memory` slash command gives the operator manual search/read/write/
+  forget/status. Session-end extraction journals the transcript tail and
+  re-processes it in a detached child (plugin hook timeout declarations are not
+  honored upstream and background children must not inherit the hook's stdout —
+  claude-remember #561/#646). Subagent sessions stay read-only and never
+  extract; on Claude Code 2.1.310 Task subagents fire no session hooks at all,
+  so the guards are a forward-compatible safety net. The repo root doubles as a
+  Claude Code marketplace (`.claude-plugin/marketplace.json` →
+  `packages/claude-harnmem`); `@harnmem/core` is vendored so the installed
+  plugin directory is self-contained. Verified end-to-end against Claude Code
+  2.1.310 (injection, MCP round-trip, command, real-store attach).
+- `docs/research/claude-code-plugin.md`: first-hand research on the Claude Code
+  plugin system (plugin/marketplace structure, hooks + `additionalContext`,
+  in-plugin MCP, Windows pitfalls like UTF-8 BOM rejection and the 15-minute
+  MCP failure cache) with the `claude-remember` post-mortem and the e2e
+  evidence behind the adapter design.
+
 ## [0.3.0] - 2026-10-26
 
 ### Added
