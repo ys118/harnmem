@@ -6,7 +6,7 @@
 > One user, one machine, one memory store — shared by every coding agent you use.
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)
-![Status: v0.3.0](https://img.shields.io/badge/status-v0.3.0-blue.svg)
+![Status: v0.4.0](https://img.shields.io/badge/status-v0.4.0-blue.svg)
 ![CI](https://github.com/ys118/harnmem/actions/workflows/ci.yml/badge.svg)
 ![npm](https://img.shields.io/npm/v/@harnmem/core?label=npm)
 ![Runtime deps: 0](https://img.shields.io/badge/runtime%20deps-0-brightgreen.svg)
@@ -20,12 +20,13 @@ a memory written in one harness is available in another — no server, no vector
 database, no embedding model, and no runtime dependencies in the engine.
 
 - **Packages:** `@harnmem/core` (engine), `@harnmem/cli` (`harnmem` command),
-  `pi-harnmem` (pi extension), `dsh-harnmem` (DSH plugin) — all published on
-  npm at 0.3.0. Install the CLI with `npm install -g @harnmem/cli`.
+  `pi-harnmem` (pi extension), `dsh-harnmem` (DSH plugin), `claude-harnmem`
+  (Claude Code plugin) — all published on npm at 0.4.0. Install the CLI with
+  `npm install -g @harnmem/cli`.
 - **License:** MIT.
-- **Status:** v0.3.0 — core, CLI/migration, the pi adapter and the DSH adapter
-  are usable and tested end to end; the Claude Code adapter is designed but not
-  built, and its memory store can already be migrated with `harnmem import claude`.
+- **Status:** v0.4.0 — the engine, the CLI/migration tooling and all three
+  adapters (pi, DeepSeek Harness, Claude Code) are published and tested end to
+  end. Next up: a Codex adapter.
 
 ## Why another memory plugin?
 
@@ -43,8 +44,8 @@ the local process, and lifecycle decisions are explainable and reversible.**
 ## Features
 
 - **Cross-harness by construction.** The store and data model are
-  harness-agnostic; adapters are thin. The pi adapter is the first one, and the
-  CLI can read the same store without any harness.
+  harness-agnostic; adapters are thin. The same store is shared by the pi,
+  DeepSeek Harness and Claude Code adapters and by the CLI without any harness.
 - **File-native SSOT.** One memory per Markdown file with YAML frontmatter.
   Indexes and digests are derived and rebuildable; a corrupt index costs a
   rebuild, never data.
@@ -79,6 +80,28 @@ the local process, and lifecycle decisions are explainable and reversible.**
 
 Requirements: **Node.js 22.15+** and **pnpm 10** (`corepack enable`).
 
+### Install
+
+```bash
+# CLI (works with every harness, no adapter needed)
+npm install -g @harnmem/cli
+
+# pi extension
+pi install npm:pi-harnmem
+
+# DSH plugin
+dsh plugin --profile desktop add dsh-harnmem
+
+# Claude Code plugin (the repo root is a Claude Code marketplace)
+claude plugin marketplace add ys118/harnmem
+claude plugin install harnmem@harnmem-marketplace
+```
+
+All adapters read and write the same `~/.harnmem/` store, so installing two of
+them shares one memory. Every install runs fully local; nothing phones home.
+
+### Build from source
+
 ```bash
 corepack enable
 pnpm install
@@ -92,7 +115,7 @@ pnpm test            # core + CLI test suites (node --test)
 # Try it without installing: load the built extension in a one-shot pi session.
 pi -e ./packages/pi-harnmem/dist/index.js -p "Remember: I prefer pnpm over npm."
 
-# Install it as a persistent pi extension.
+# From a checkout: install the local path instead of npm:pi-harnmem.
 pi install ./packages/pi-harnmem
 ```
 
@@ -104,6 +127,7 @@ Configuration lives in `~/.harnmem/config.json` (or `$HARNMEM_HOME/config.json`)
 ### DSH adapter
 
 ```bash
+# From a checkout (instead of the published package in Install above):
 pnpm --filter dsh-harnmem build
 dsh plugin --profile desktop add ./packages/dsh-harnmem
 ```
@@ -119,6 +143,30 @@ through the host LLM service. Lifecycle and extraction decisions are written to
 extraction outcome is emitted as a `kind:"extract"` event in
 `~/.harnmem/state/audit.jsonl`. It requires DSH 0.2.x and never opens a network
 connection of its own.
+
+### Claude Code adapter
+
+Installed via the marketplace commands above (requires Claude Code 2.1.x,
+verified against 2.1.310). The plugin:
+
+- injects the hot index through a `SessionStart` hook — byte-stable between
+  turns, an empty store injects zero bytes, and output is deterministically
+  truncated under Claude's 10,000-character `additionalContext` cap;
+- exposes the five memory tools through a bundled, zero-dependency stdio MCP
+  server (`memory_search`, `memory_read`, `memory_write`, `memory_forget`,
+  `memory_status`; tool outputs are clipped well under the client's 25k-token
+  cap);
+- adds a `/harnmem:memory` slash command for manual search/read/write/forget/
+  status;
+- runs session-end extraction in a detached child process (plugin hook timeout
+  declarations are not honored upstream, so the hook must return immediately);
+- keeps subagent sessions read-only (Task subagents fire no session hooks on
+  2.1.310; the guards are a forward-compatible safety net).
+
+`@harnmem/core` is vendored into the plugin package, so the installed plugin
+directory is self-contained. For development against a checkout,
+`claude plugin marketplace add D:\projects\harnmem` (or the equivalent POSIX
+path) reads the repo live — code changes apply on the next session.
 
 ### CLI
 
@@ -158,13 +206,13 @@ flowchart LR
   subgraph Harnesses
     PI[pi extension]
     DSH[DSH plugin]
-    CC[Claude Code adapter - design]
+    CC[Claude Code plugin]
   end
   CLI[harnmem CLI + migration]
   CORE["@harnmem/core<br/>store · retrieval · writing · lifecycle · extraction"]
   PI --> CORE
   DSH --> CORE
-  CC -.-> CORE
+  CC --> CORE
   CLI --> CORE
   CORE --> STD[(~/.harnmem plain files)]
   CORE --> IDX[(rebuildable BM25F index)]
@@ -286,7 +334,8 @@ the roadmap. Details, per-suite numbers, ablations and gate definitions are in
 | pi 1.3.0 | **Supported** | Extension with injection, tools, `/memory`, session-end extraction; verified end to end |
 | DeepSeek Harness 0.2.1 | **Supported** (0.2.x) | Cordis plugin (`dsh-harnmem`); verified against the desktop runtime with a disposable profile and a local mock endpoint |
 | CLI (any harness) | **Supported** | `harnmem` commands read/write the same store |
-| Claude Code | Design (migration available) | [`docs/design/09-claude-adapter.md`](docs/design/09-claude-adapter.md) (MCP stdio server + hooks); `harnmem import claude` migrates its existing memory store today |
+| Claude Code 2.1.x | **Supported** | `claude-harnmem` plugin (SessionStart hook + stdio MCP + `/harnmem:memory`); verified end to end against 2.1.310; `harnmem import claude` migrates existing stores |
+| Codex | **Planned — next** | Same store, same adapter contract; design to follow [`docs/design/09-claude-adapter.md`](docs/design/09-claude-adapter.md) |
 | Other harnesses | Welcome | See the adapter contract and `CONTRIBUTING.md` |
 
 ## Documentation
@@ -309,7 +358,9 @@ Start with the [documentation index](docs/README.md). Highlights:
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the current status (verified
 numbers, the running trial, known issues) and the ordered next steps.
 
-- Implement the Claude Code adapter (MCP stdio + hooks).
+- **Next: a Codex adapter** — one more thin adapter over the same store and
+  contract; the Claude Code work (hooks + MCP, no runtime plugin API) maps
+  most directly onto it.
 - Persist and incrementally update indexes so large stores warm up faster;
   reduce index size.
 - Validate npm installs on Linux/macOS/Windows and publish provenance for
