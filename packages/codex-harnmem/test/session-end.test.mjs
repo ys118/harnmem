@@ -31,8 +31,19 @@ test("memory_session_end (sync): journals the rollout and consumes the payload",
   const home = await mkdtemp(path.join(os.tmpdir(), "harnmem-cx-end-"));
   const codexHome = await mkdtemp(path.join(os.tmpdir(), "harnmem-cx-codehome-"));
   try {
-    const dayDir = path.join(codexHome, "sessions", "2026", "10", "28");
+    // The worker's findRolloutFile scans today/yesterday with the REAL clock,
+    // so the fixture must derive its date dirs and filename from now too —
+    // hardcoding a date would make this test silently expire.
+    const now = new Date();
+    const stamp = (d) => ({
+      y: String(d.getFullYear()),
+      m: String(d.getMonth() + 1).padStart(2, "0"),
+      d: String(d.getDate()).padStart(2, "0"),
+    });
+    const t = stamp(now);
+    const dayDir = path.join(codexHome, "sessions", t.y, t.m, t.d);
     mkdirSync(dayDir, { recursive: true });
+    const fileStamp = `${t.y}-${t.m}-${t.d}T10-59-00`;
     const rollout = [
       rolloutLine("session_meta", { id: THREAD }, "2026-10-28T02:59:00.000Z"),
       userMsg("<environment_context>\n  cwd: somewhere\n</environment_context>"),
@@ -43,7 +54,7 @@ test("memory_session_end (sync): journals the rollout and consumes the payload",
         "2026-10-28T03:01:00.000Z",
       ),
     ].join("\n");
-    writeFileSync(path.join(dayDir, `rollout-2026-10-28T10-59-00-${THREAD}.jsonl`), rollout, "utf8");
+    writeFileSync(path.join(dayDir, `rollout-${fileStamp}-${THREAD}.jsonl`), rollout, "utf8");
 
     const child = spawn(process.execPath, [mcpPath], {
       cwd: pkgRoot,
@@ -114,9 +125,8 @@ test("memory_session_end (sync): journals the rollout and consumes the payload",
 
       // The session journal recorded the user prompt:
       // sessions/<YYYYMMDD>/codex_<threadId>.jsonl with {ts, role, text}.
-      const now = new Date();
-      const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
-      const journalPath = path.join(home, "sessions", stamp, `codex_${THREAD}.jsonl`);
+      const dayStamp = `${t.y}${t.m}${t.d}`;
+      const journalPath = path.join(home, "sessions", dayStamp, `codex_${THREAD}.jsonl`);
       assert.ok(existsSync(journalPath), `session journal must exist at ${journalPath}`);
       const journal = readFileSync(journalPath, "utf8")
         .replace(/^\uFEFF/, "")

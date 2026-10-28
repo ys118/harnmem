@@ -33,7 +33,7 @@ const TAIL = 400;
 const HARNESS_PREFIXES = [
   "<environment_context>",
   "<user_instructions>",
-  "<permissions ",
+  "<permissions ", // trailing space is intentional: the tag carries attributes (<permissions sandbox_mode=...>)
   "<apps_instructions>",
   "<skills_instructions>",
   "<plugins_instructions>",
@@ -67,9 +67,10 @@ function joinContent(content, textType) {
 export function parseCodexTranscript(raw) {
   if (typeof raw !== "string" || !raw.trim()) return [];
   const messages = [];
-  const lines = raw.split(/\r?\n/);
-  const slice = lines.length > TAIL ? lines.slice(-TAIL) : lines;
-  for (const line of slice) {
+  // Filter FIRST, tail by message count second: rollouts interleave many
+  // non-message lines (event_msg, turn_context, token counts), so tailing the
+  // raw lines could keep only boilerplate and drop every real message.
+  for (const line of raw.split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed) continue;
     let entry;
@@ -93,7 +94,7 @@ export function parseCodexTranscript(raw) {
       ts: Number.isFinite(ts) ? ts : null,
     });
   }
-  return messages;
+  return messages.length > TAIL ? messages.slice(-TAIL) : messages;
 }
 
 function sanitizeSessionId(sessionId) {
@@ -119,8 +120,11 @@ export function findRolloutFile(codexHome, sessionId, now = new Date()) {
   const sessionsRoot = path.join(codexHome, "sessions");
   if (!existsSync(sessionsRoot)) return undefined;
   const candidates = [];
+  // Date-component arithmetic (not ms offsets): adding 86_400_000 ms drifts
+  // across DST boundaries, which would scan the wrong date directories.
+  const shiftLocal = (base, offsetDays) => new Date(base.getFullYear(), base.getMonth(), base.getDate() + offsetDays);
   for (const offsetDays of [0, -1]) {
-    const dir = path.join(sessionsRoot, localDateDir(new Date(now.getTime() + offsetDays * 86_400_000)));
+    const dir = path.join(sessionsRoot, localDateDir(shiftLocal(now, offsetDays)));
     if (!existsSync(dir)) continue;
     let names;
     try {

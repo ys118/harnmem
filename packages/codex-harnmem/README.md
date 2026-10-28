@@ -48,7 +48,7 @@ Same priority chain as the other adapters: `~/.harnmem/config.json` → `<cwd>/.
 | --- | --- |
 | `HARNMEM_HOME` | Store root (default `~/.harnmem`) |
 | `HARNMEM_CODEX_MAX_INJECT_TOKENS` | Snapshot token budget (default `1200`) |
-| `HARNMEM_DISABLED` / `HARNMEM_READONLY` / `HARNMEM_INJECT` | Kill switches (`1`/`0`) |
+| `HARNMEM_DISABLED` / `HARNMEM_READONLY` / `HARNMEM_INJECT` | Kill switches (`1`/`0`). `READONLY` suppresses the LLM extraction pass but session journals are still captured (same semantics as the Claude adapter) |
 | `HARNMEM_DEBUG` | Engine + server logs on stderr |
 | `HARNMEM_EXTRACT_SYNC` | Run extraction inline instead of detached (debugging) |
 | `CODEX_HOME` | Where to look for rollouts (default `~/.codex`) |
@@ -59,7 +59,7 @@ Injection is additionally capped at 10,000 characters with deterministic line-ba
 
 ```
 pnpm --filter codex-harnmem build   # vendor @harnmem/core into vendor/core/
-pnpm --filter codex-harnmem test    # 9 deterministic tests, no Codex needed
+pnpm --filter codex-harnmem test    # 11 deterministic tests, no Codex needed
 ```
 
 Tests spawn the real MCP server over stdio (initialization, tool round-trips, byte-stable injection, rollout parsing, payload journaling) against a temporary store. Design notes and the full probe record live in [`docs/research/codex-plugin.md`](../../docs/research/codex-plugin.md).

@@ -61,6 +61,25 @@ test("parseCodexTranscript: empty and garbage input yield empty arrays", () => {
   assert.deepEqual(parseCodexTranscript(undefined), []);
 });
 
+test("parseCodexTranscript: tail budget counts messages, not raw lines", () => {
+  // Real rollouts interleave many event_msg/turn_context lines; a session
+  // whose only real messages sit before 600 such lines must still yield them
+  // (tailing raw lines would keep only boilerplate and drop every message).
+  const lines = [];
+  for (let i = 0; i < 600; i++) {
+    lines.push(line({ timestamp: "2026-10-28T03:00:00.000Z", type: "event_msg", payload: { type: "token_count" } }));
+  }
+  lines.push(line(msg("user", "早期但唯一的一条真实用户消息")));
+  lines.push(line(msg("assistant", "唯一的一条助手回复")));
+  for (let i = 0; i < 500; i++) {
+    lines.push(line({ timestamp: "2026-10-28T03:01:00.000Z", type: "turn_context", payload: {} }));
+  }
+  const messages = parseCodexTranscript(lines.join("\n"));
+  assert.equal(messages.length, 2, "both real messages survive the non-message noise");
+  assert.ok(messages[0].text.includes("早期但唯一"));
+  assert.equal(messages[1].role, "assistant");
+});
+
 test("findRolloutFile: matches the thread id in today/yesterday dirs, newest wins", () => {
   const home = mkdtempSyncUnder(os.tmpdir(), "harnmem-cx-roll-");
   try {

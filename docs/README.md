@@ -48,6 +48,7 @@ specifications; the design docs above are the source of truth.
 | [`research/dsh-plugin-and-migration.md`](research/dsh-plugin-and-migration.md) | DSH plugin architecture and a per-harness migration mapping |
 | [`research/dsh-impl-notes.md`](research/dsh-impl-notes.md) | DSH implementation notes: verified / inferred / unverified |
 | [`research/prompt-review.md`](research/prompt-review.md) | Rationale and failure modes for the extraction/consolidation prompts |
+| [`research/codex-plugin.md`](research/codex-plugin.md) | Codex plugin system (mcp servers + hooks + skills), real-machine probe evidence, codex-harnmem architecture |
 
 ## Operations and evaluation
 

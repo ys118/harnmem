@@ -191,7 +191,17 @@ async function callTool(name, args, ctx) {
   const incoming = typeof args.session_id === "string" && args.session_id.trim() ? args.session_id.trim() : undefined;
   if (incoming && !ctx.sessionId) {
     ctx.sessionId = incoming;
-    if (typeof args.cwd === "string" && args.cwd.trim()) ctx.cwd = args.cwd.trim();
+    if (typeof args.cwd === "string" && args.cwd.trim()) {
+      const nextCwd = args.cwd.trim();
+      if (nextCwd !== ctx.cwd) {
+        ctx.cwd = nextCwd;
+        // The server process runs from the plugin directory, so the startup
+        // settings resolved against the wrong project. Only the hook template
+        // knows the session working directory — re-resolve on anchor so
+        // project-level .harnmem.json takes effect.
+        ctx.settings = resolveSettings(nextCwd, process.env);
+      }
+    }
   }
   const { settings, sessionId, cwd } = ctx;
   switch (name) {
@@ -362,14 +372,19 @@ async function handleRequest(msg, ctx) {
 }
 
 async function main() {
-  const cwd = process.cwd();
-  const sessionId = process.env.HARNMEM_SESSION_ID || undefined;
+  const cwd = process.cwd(); // plugin dir until the SessionStart hook anchors the real one
   const settings = resolveSettings(cwd, process.env);
-  const ctx = { settings, sessionId, cwd };
+  const ctx = { settings, sessionId: undefined, cwd };
   if (settings.debug) process.stderr.write(`[harnmem:mcp] starting, home=${path.resolve(settings.home)}\n`);
 
   let buffer = "";
   process.stdin.setEncoding("utf8");
+  // The client may kill this process at any moment (hook timeout, crash):
+  // a broken stdout pipe raises EPIPE, which must not surface as a crash.
+  process.stdout.on("error", (err) => {
+    if (err && err.code === "EPIPE") return;
+    throw err;
+  });
   const write = (obj) => {
     if (obj) process.stdout.write(JSON.stringify(obj) + "\n");
   };
@@ -395,8 +410,17 @@ async function main() {
 
   await new Promise((resolve) => {
     let pending = Promise.resolve();
+    // A well-formed client sends ndjson lines; a runaway peer without any
+    // newline must not grow the buffer without bound. 8 MB is orders above
+    // any legitimate request (the largest tool schema ~4 KB).
+    const MAX_BUFFER_CHARS = 8 * 1024 * 1024;
     process.stdin.on("data", (chunk) => {
       buffer += chunk;
+      if (buffer.length > MAX_BUFFER_CHARS && !buffer.includes("\n")) {
+        buffer = "";
+        write({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "request too large" } });
+        return;
+      }
       let idx;
       while ((idx = buffer.indexOf("\n")) >= 0) {
         const line = buffer.slice(0, idx);

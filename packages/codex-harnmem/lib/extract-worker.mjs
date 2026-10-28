@@ -63,7 +63,12 @@ function safeId(sessionId) {
 /** Persist one session-end payload; returns the file path. */
 export function writePayload(payload, dir = PAYLOAD_DIR) {
   mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, `session-end-${safeId(payload.sessionId)}-${Date.now()}.json`);
+  // pid + random suffix: two ends of the same session can land in the same
+  // millisecond (sync mode), and a colliding name would silently overwrite.
+  const file = path.join(
+    dir,
+    `session-end-${safeId(payload.sessionId)}-${Date.now()}-${process.pid}-${Math.random().toString(36).slice(2, 8)}.json`,
+  );
   writeFileSync(file, JSON.stringify(payload), "utf8");
   return file;
 }
@@ -97,10 +102,12 @@ export function spawnDetachedExtract(payloadPath, env = process.env) {
   const child = spawn(process.execPath, [SELF, payloadPath], {
     detached: true,
     stdio: "ignore",
-    env: { ...env, HARNMEM_EXTRACT_PHASE: "1" },
+    env,
   });
-  child.on("error", () => {
-    // Spawn failures (rare) leave the payload for the TTL sweep.
+  child.on("error", (err) => {
+    // Spawn failures are rare but must not be fully silent: the payload stays
+    // for the TTL sweep, and this line explains why nothing was extracted.
+    log(`detached spawn failed for ${payloadPath}: ${String(err?.message || err)} (payload kept for sweep)`);
   });
   child.unref();
   return child;
@@ -134,8 +141,23 @@ export async function runExtractPhase(payloadPath) {
       return "skipped: no session id";
     }
     const codexHome = payload.codexHome || defaultCodexHome(process.env);
+    let outcomeSuffix = "";
     const rollout = findRolloutFile(codexHome, sessionId);
-    const raw = rollout ? readFileSync(rollout, "utf8") : "";
+    let raw = "";
+    if (rollout) {
+      try {
+        raw = readFileSync(rollout, "utf8");
+      } catch (err) {
+        if (err && err.code === "ENOENT") {
+          // The file vanished between find and read (user cleanup): degrade to
+          // the audited "no rollout" skip, not a failure.
+          raw = "";
+          outcomeSuffix = " (rollout not found)";
+        } else {
+          throw err;
+        }
+      }
+    }
     const messages = parseCodexTranscript(raw);
     const settings = resolveSettings(typeof cwd === "string" && cwd ? cwd : process.cwd(), process.env);
     if (settings.enabled === false) {
@@ -151,11 +173,15 @@ export async function runExtractPhase(payloadPath) {
         reason: "session_end",
         messages,
       });
-      outcome = result?.status ? `${result.status}${Array.isArray(result.added) && result.added.length ? ` added:${result.added.length}` : ""}` : "done";
+      const added = Array.isArray(result?.added) && result.added.length ? ` added:${result.added.length}` : "";
+      outcome = result?.status ? `${result.status}${added}` : "done";
+      // Surface why nothing was extracted (skip reason or failure detail).
+      const detail = result?.error || result?.skipReason;
+      if (detail) outcome += ` (${detail})`;
     } finally {
       await eng.close().catch(() => {});
     }
-    if (!rollout) outcome += " (rollout not found)";
+    outcome += outcomeSuffix;
     rmSync(payloadPath, { force: true });
     sweepStalePayloads();
     log(`${sessionId}: ${outcome}`);

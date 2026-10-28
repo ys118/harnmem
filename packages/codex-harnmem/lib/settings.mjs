@@ -32,6 +32,26 @@ function truthy(value) {
   return true;
 }
 
+/**
+ * Expand a leading `~` to the user home (core does the same for its own home
+ * resolution). Must run BEFORE path.resolve: resolving first would turn the
+ * literal `~` segment into a real (wrong) directory and core would never see
+ * it. Applies to HARNMEM_HOME and config-file "home" values alike.
+ */
+function expandHome(value) {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  if (trimmed === "~") return homedir();
+  if (trimmed.startsWith("~/") || trimmed.startsWith("~\\")) return path.join(homedir(), trimmed.slice(2));
+  return value;
+}
+
+/** Coerce maxInjectTokens to a positive integer, regardless of source. */
+function normalizeMaxInjectTokens(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined;
+}
+
 function readSettingsFile(file) {
   if (!existsSync(file)) return undefined;
   try {
@@ -57,12 +77,18 @@ function pickKnown(source) {
 }
 
 export function resolveSettings(cwd = process.cwd(), env = process.env) {
-  const baseHome =
-    env.HARNMEM_HOME && env.HARNMEM_HOME.trim() ? path.resolve(env.HARNMEM_HOME) : path.join(homedir(), ".harnmem");
+  const homeFromEnv = env.HARNMEM_HOME && env.HARNMEM_HOME.trim() ? path.resolve(expandHome(env.HARNMEM_HOME)) : undefined;
+  const baseHome = homeFromEnv || path.join(homedir(), ".harnmem");
 
   let settings = { ...DEFAULTS };
   settings = { ...settings, ...pickKnown(readSettingsFile(path.join(baseHome, "config.json"))) };
   settings = { ...settings, ...pickKnown(readSettingsFile(path.join(cwd, ".harnmem.json"))) };
+
+  // Config files have no schema: normalize the one numeric key that must not
+  // reach core as a string ("1200" would poison token budget arithmetic).
+  if (settings.maxInjectTokens !== DEFAULTS.maxInjectTokens) {
+    settings.maxInjectTokens = normalizeMaxInjectTokens(settings.maxInjectTokens) ?? DEFAULTS.maxInjectTokens;
+  }
 
   const disabled = truthy(env.HARNMEM_DISABLED);
   if (disabled !== undefined) settings.enabled = !disabled;
@@ -74,17 +100,12 @@ export function resolveSettings(cwd = process.cwd(), env = process.env) {
   if (ae !== undefined) settings.autoExtract = ae;
   const inj = truthy(env.HARNMEM_INJECT);
   if (inj !== undefined) settings.inject = inj;
-  if (env.HARNMEM_CODEX_MAX_INJECT_TOKENS) {
-    const n = Number(env.HARNMEM_CODEX_MAX_INJECT_TOKENS);
-    if (Number.isFinite(n) && n > 0) settings.maxInjectTokens = Math.floor(n);
-  }
+  const fromEnvTokens = env.HARNMEM_CODEX_MAX_INJECT_TOKENS ? normalizeMaxInjectTokens(env.HARNMEM_CODEX_MAX_INJECT_TOKENS) : undefined;
+  if (fromEnvTokens !== undefined) settings.maxInjectTokens = fromEnvTokens;
 
   const home =
-    env.HARNMEM_HOME && env.HARNMEM_HOME.trim()
-      ? path.resolve(env.HARNMEM_HOME)
-      : typeof settings.home === "string" && settings.home.trim()
-        ? path.resolve(settings.home)
-        : baseHome;
+    homeFromEnv ||
+    (typeof settings.home === "string" && settings.home.trim() ? path.resolve(expandHome(settings.home)) : baseHome);
 
   return { ...settings, home };
 }
