@@ -1,0 +1,28 @@
+{
+  "name": "codex-harnmem",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "Codex plugin for HarnMem: byte-stable memory injection (SessionStart mcp_tool hook), session-end extraction from Codex rollouts, and seven memory tools over a bundled MCP stdio server.",
+  "license": "MIT",
+  "files": [
+    ".codex-plugin/",
+    ".mcp.json",
+    "mcp/",
+    "skills/",
+    "lib/",
+    "vendor/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node scripts/vendor.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "@harnmem/core": "workspace:*"
+  },
+  "engines": {
+    "node": ">=22.15"
+  }
+}

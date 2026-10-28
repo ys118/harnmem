@@ -3,7 +3,7 @@
 Single source of truth for **where the project stands and what to do next**.
 Design intent lives in [`design/`](design/); this file tracks execution state.
 
-Last updated: **2026-10-25** (N1 trial closed; N7 npm publish shipped — 4 packages at 0.2.0).
+Last updated: **2026-10-28** (N15 codex-harnmem shipped: implementation + real-machine acceptance complete).
 
 ## 1. Snapshot
 
@@ -437,6 +437,35 @@ Check boxes as items land, and update this file when the status changes.
   README, [`faq.md`](faq.md), [`adapter-authoring.md`](adapter-authoring.md), a
   five-layer docs index and a refreshed [`README.md`](../README.md);
   `packages/cli/test/` covers the new import paths end to end.
+
+### Phase G — Codex CLI adapter
+
+- [x] **N15. Implement the Codex plugin `codex-harnmem`.** Research of record:
+  [`research/codex-plugin.md`](research/codex-plugin.md) (2026-10-28, probe
+  verified end-to-end on Codex desktop 26.1021 / CLI 0.164.0-alpha.11.1):
+  one in-plugin stdio MCP server carries all four contract layers — the five
+  canonical memory tools plus two internal hook tools; `SessionStart` runs as a
+  `mcp_tool` hook whose tool return text is injected by Codex as a developer
+  message (`hooks.additional_context`, probe-verified); `SessionEnd` spawns the
+  detached extract worker from the same server (Codex hook timeouts are 1–3 s);
+  the transcript parser reads Codex rollout JSONL
+  (`~/.codex/sessions/YYYY/MM/DD/rollout-*-<threadId>.jsonl`). Repo-root
+  marketplace manifest `.agents/plugins/marketplace.json` (local source,
+  ON_INSTALL). *Acceptance (all met 2026-10-28):* 9 deterministic tests green;
+  real `codex exec` injected the seeded snapshot via
+  `hooks.additional_context` (developer message) and the model answered from
+  it (`PM=pnpm`), called `mcp__harnmem__memory_write` → `stored mem_… (NEW)`
+  landed in the shared store with `source.harness="codex"` anchored to the
+  real thread id; uninstall restored `config.toml` byte-identical. Known
+  upstream limits recorded in the package README: Codex skips `SessionEnd`
+  MCP hooks for now (declaration kept, warning harmless), unattended exec
+  needs `--dangerously-bypass-hook-trust`, and MCP write tools need an
+  approval mode that allows them.
+- [ ] **N16. Post-install polish:** verify the desktop-app trust flow and the
+  GitHub marketplace path (`codex plugin marketplace add ys118/harnmem --sparse
+  packages/codex-harnmem`), decide per-event hook coverage
+  (`UserPromptSubmit`/`PostCompact`) against KV-cache stability, npm publish
+  alongside `@harnmem/core`.
 
 ## 5. Decision log
 

@@ -1,0 +1,58 @@
+{
+  "name": "harnmem",
+  "version": "0.1.0",
+  "description": "HarnMem for Codex: byte-stable cross-harness memory injection at session start, deferred session-end extraction from Codex rollouts, and seven memory tools (search/read/write/forget/status + two internal hook targets) over a bundled MCP stdio server.",
+  "author": {
+    "name": "HarnMem contributors"
+  },
+  "license": "MIT",
+  "keywords": [
+    "memory",
+    "codex",
+    "mcp",
+    "cross-harness"
+  ],
+  "homepage": "https://github.com/ys118/harnmem",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ys118/harnmem"
+  },
+  "mcpServers": "./.mcp.json",
+  "skills": "./skills/",
+  "hooks": {
+    "hooks": {
+      "SessionStart": [
+        {
+          "hooks": [
+            {
+              "type": "mcp_tool",
+              "server": "harnmem",
+              "tool": "memory_context",
+              "input": {
+                "hook_event_name": "${hook_event_name}",
+                "session_id": "${session_id}",
+                "cwd": "${cwd}"
+              }
+            }
+          ]
+        }
+      ],
+      "SessionEnd": [
+        {
+          "hooks": [
+            {
+              "type": "mcp_tool",
+              "server": "harnmem",
+              "tool": "memory_session_end",
+              "input": {
+                "hook_event_name": "${hook_event_name}",
+                "session_id": "${session_id}",
+                "cwd": "${cwd}"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

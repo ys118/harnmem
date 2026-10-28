@@ -1,0 +1,30 @@
+{
+  "mcpServers": {
+    "harnmem": {
+      "command": "node",
+      "args": ["mcp/mcp.mjs"],
+      "cwd": ".",
+      "enabled": true,
+      "env_vars": [
+        "PATH",
+        "SYSTEMROOT",
+        "COMSPEC",
+        "PATHEXT",
+        "TEMP",
+        "TMP",
+        "USERPROFILE",
+        "HARNMEM_HOME",
+        "HARNMEM_DISABLED",
+        "HARNMEM_READONLY",
+        "HARNMEM_INJECT",
+        "HARNMEM_DEBUG",
+        "HARNMEM_AUTO_EXTRACT",
+        "HARNMEM_CODEX_MAX_INJECT_TOKENS",
+        "HARNMEM_EXTRACT_SYNC",
+        "CODEX_HOME"
+      ],
+      "startup_timeout_sec": 10,
+      "tool_timeout_sec": 30
+    }
+  }
+}
