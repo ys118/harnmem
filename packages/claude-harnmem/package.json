@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "claude-harnmem",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": false,
   "type": "module",
   "description": "Claude Code plugin for HarnMem: byte-stable memory injection (SessionStart hook), five memory tools over a bundled MCP stdio server, and a /memory slash command.",

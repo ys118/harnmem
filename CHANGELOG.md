@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-28
+
+### Fixed
+
+- `claude-harnmem`, `pi-harnmem`, `dsh-harnmem`: expand a leading `~` in
+  `HARNMEM_HOME` and config-file `home` values before resolution (the same
+  `expandHome` semantics core and the CLI already use). A literal `~/.harnmem`
+  previously created a wrong store directory — and in the DSH adapter, where
+  the value was never resolved at all, even a relative path could. Patch
+  release: all three adapters bump to 0.4.1 with dedicated regression tests;
+  no protocol or store-format changes.
+
 ## [0.5.0] - 2026-10-28
 
 ### Added

@@ -184,13 +184,25 @@ function mergeSettings(base: PiHarnMemSettings, override: PiHarnMemSettings | un
   return merged;
 }
 
+/**
+ * Expand a leading `~` to the real home directory. Applies to HARNMEM_HOME
+ * and config-file "home" values alike (core's resolveHome does the same; a
+ * literal `~` here would otherwise create a wrong store directory).
+ */
+function expandHome(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed === "~") return homedir();
+  if (trimmed.startsWith("~/") || trimmed.startsWith("~\\")) return path.join(homedir(), trimmed.slice(2));
+  return value;
+}
+
 export function resolveSettings(cwd: string, env: NodeJS.ProcessEnv = process.env): EffectiveSettings {
   const warnings: string[] = [];
   const sources: string[] = [];
   const agentDir = resolveAgentDir(env);
 
   // 1. ~/.harnmem/config.json (or $HARNMEM_HOME/config.json when the env var is set).
-  const baseHome = env.HARNMEM_HOME && env.HARNMEM_HOME.trim() ? path.resolve(env.HARNMEM_HOME) : path.join(homedir(), ".harnmem");
+  const baseHome = env.HARNMEM_HOME && env.HARNMEM_HOME.trim() ? path.resolve(expandHome(env.HARNMEM_HOME)) : path.join(homedir(), ".harnmem");
   let settings = mergeSettings({}, readSettingsFile(path.join(baseHome, "config.json"), warnings, sources));
 
   // 2. project config
@@ -213,7 +225,7 @@ export function resolveSettings(cwd: string, env: NodeJS.ProcessEnv = process.en
   if (env.HARNMEM_TOOL_PREFIX !== undefined) envPatch.toolPrefix = env.HARNMEM_TOOL_PREFIX;
   settings = mergeSettings(settings, envPatch);
 
-  const home = env.HARNMEM_HOME && env.HARNMEM_HOME.trim() ? path.resolve(env.HARNMEM_HOME) : settings.home ? path.resolve(settings.home) : path.join(homedir(), ".harnmem");
+  const home = env.HARNMEM_HOME && env.HARNMEM_HOME.trim() ? path.resolve(expandHome(env.HARNMEM_HOME)) : settings.home ? path.resolve(expandHome(settings.home)) : path.join(homedir(), ".harnmem");
 
   const debug = settings.debug ?? DEFAULTS.debug;
   const log: LogMode = settings.log ?? DEFAULTS.log;

@@ -5,7 +5,7 @@
  */
 
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import Schema from "@deepseek-ai/schemastery";
 
 /** File-log verbosity: `off` = no file, `errors` = error-only, `on` = debug+. */
@@ -119,6 +119,19 @@ function toLogMode(value: unknown, fallback: LogMode): LogMode {
 }
 
 /**
+ * Normalize a configured store root: expand a leading `~` and resolve against
+ * the process cwd. Without this a literal `~/.harnmem` becomes a wrong store
+ * directory (or even a path-relative one) — core's resolveHome does the same.
+ */
+function resolveHome(value: string | undefined): string {
+  const trimmed = value?.trim();
+  if (!trimmed) return join(homedir(), ".harnmem");
+  if (trimmed === "~") return homedir();
+  if (trimmed.startsWith("~/") || trimmed.startsWith("~\\")) return resolve(join(homedir(), trimmed.slice(2)));
+  return resolve(trimmed);
+}
+
+/**
  * Resolve effective settings. Priority (07-adapter-contract §7):
  * `HARNMEM_HOME` > config `home` > `~/.harnmem`; `HARNMEM_TOOL_PREFIX` and
  * `HARNMEM_LOG` override the matching config keys.
@@ -128,7 +141,7 @@ export function resolveSettings(
   env: Record<string, string | undefined> = process.env,
 ): EffectiveSettings {
   const input: Record<string, unknown> = isRecord(raw) ? raw : {};
-  const home = firstNonEmpty(env["HARNMEM_HOME"], input["home"]) ?? join(homedir(), ".harnmem");
+  const home = resolveHome(firstNonEmpty(env["HARNMEM_HOME"], input["home"]));
   return {
     home,
     injectMaxTokens: toInt(input["injectMaxTokens"], DEFAULT_SETTINGS.injectMaxTokens, 200, 8000),

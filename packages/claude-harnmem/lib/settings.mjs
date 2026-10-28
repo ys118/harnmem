@@ -57,9 +57,23 @@ function pickKnown(source) {
   return out;
 }
 
+/**
+ * Expand a leading `~` to the real home directory. Applies to HARNMEM_HOME
+ * and config-file "home" values alike (core's resolveHome does the same; a
+ * literal `~` here would otherwise create a wrong store directory).
+ */
+function expandHome(value) {
+  const trimmed = value.trim();
+  if (trimmed === "~") return homedir();
+  if (trimmed.startsWith("~/") || trimmed.startsWith("~\\")) return path.join(homedir(), trimmed.slice(2));
+  return value;
+}
+
 export function resolveSettings(cwd = process.cwd(), env = process.env) {
   const baseHome =
-    env.HARNMEM_HOME && env.HARNMEM_HOME.trim() ? path.resolve(env.HARNMEM_HOME) : path.join(homedir(), ".harnmem");
+    env.HARNMEM_HOME && env.HARNMEM_HOME.trim()
+      ? path.resolve(expandHome(env.HARNMEM_HOME))
+      : path.join(homedir(), ".harnmem");
 
   let settings = { ...DEFAULTS };
   settings = { ...settings, ...pickKnown(readSettingsFile(path.join(baseHome, "config.json"))) };
@@ -82,9 +96,9 @@ export function resolveSettings(cwd = process.cwd(), env = process.env) {
 
   const home =
     env.HARNMEM_HOME && env.HARNMEM_HOME.trim()
-      ? path.resolve(env.HARNMEM_HOME)
+      ? path.resolve(expandHome(env.HARNMEM_HOME))
       : typeof settings.home === "string" && settings.home.trim()
-        ? path.resolve(settings.home)
+        ? path.resolve(expandHome(settings.home))
         : baseHome;
 
   return { ...settings, home };

@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "dsh-harnmem",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "HarnMem memory plugin for the DSH (DeepSeek Harness) agent: byte-stable hot-index injection, memory tools, session-end extraction, and a read-only memory browser panel.",
   "license": "MIT",
   "type": "module",
