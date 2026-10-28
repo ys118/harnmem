@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-28
+
+### Added
+
+- `codex-harnmem`: Codex CLI adapter — a `SessionStart` `mcp_tool` hook injects
+  the byte-stable memory snapshot (empty store injects zero bytes; deterministic
+  line-based truncation under the same 10,000-byte cap), and one bundled
+  zero-dependency stdio MCP server carries seven tools: the five canonical
+  memory tools plus two internal hook targets, `memory_context` (injection) and
+  `memory_session_end` (capture). Session-end capture persists a payload file
+  and a detached worker parses the Codex rollout JSONL
+  (`$CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl`), dropping harness
+  boilerplate envelopes and applying the same budgets as the Claude adapter
+  (4,000-char clip, last 400 messages). Only the hook templates carry the real
+  Codex thread id, so the server anchors on the first `session_id` and every
+  later session-less model write lands with thread-scoped provenance
+  (`source: {harness: codex, session: <threadId>}`). The repo root doubles as a
+  Codex marketplace (`.agents/plugins/marketplace.json` →
+  `packages/codex-harnmem`); `@harnmem/core` is vendored so the installed
+  plugin directory is self-contained. Verified end-to-end against
+  codex-cli 0.164.0-alpha.11.1 on Windows (`exec` injection, model write-back,
+  clean uninstall restoring `config.toml` byte-identical). Upstream codex
+  currently skips `SessionEnd` MCP hooks ("not supported"); the hook is
+  declared anyway as forward-compat, and extraction also runs whenever the
+  upstream ships support.
+- `docs/research/codex-plugin.md`: first-hand research on the Codex plugin
+  system (plugin manifests, MCP registration with `env_vars` allowlists, the
+  hooks framework and hook trust, the rollout session data plane) with the
+  real-machine probe evidence behind the adapter design.
+- `docs/ROADMAP.md`: Phase G — N15 (this adapter) done; N16 backlog: desktop
+  trust flow, GitHub sparse marketplace install, per-event hooks, npm release.
+
 ## [0.4.0] - 2026-10-27
 
 ### Added
