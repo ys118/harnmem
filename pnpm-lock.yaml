@@ -27,6 +27,12 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/codex-harnmem:
+    devDependencies:
+      '@harnmem/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/core: {}
 
   packages/dsh-harnmem:
