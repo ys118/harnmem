@@ -1,13 +1,15 @@
 name: Release
 
-# Publishes @harnmem/core, @harnmem/cli, pi-harnmem and dsh-harnmem on a version tag.
+# Publishes @harnmem/core, @harnmem/cli, pi-harnmem and dsh-harnmem on a version tag,
+# then creates the matching GitHub release from the CHANGELOG section.
 # Requirements before the first release:
 #   - the @harnmem npm org exists and the maintainer can publish to it;
 #   - repository secret NPM_TOKEN contains an automation token with publish rights.
 # Provenance is enabled via the id-token permission below.
 # When NPM_TOKEN is missing the workflow still runs the full check suite and
 # skips publishing (with a warning) instead of failing with ENEEDAUTH; a
-# maintainer then publishes locally — see CONTRIBUTING.md.
+# maintainer then publishes locally — see CONTRIBUTING.md. The GitHub release
+# is created either way: the checks gate it, the npm publish does not.
 
 on:
   push:
@@ -15,7 +17,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 jobs:
@@ -69,4 +71,32 @@ jobs:
           done
           if [ "$published" -eq 0 ]; then
             echo "::notice::Nothing to publish — every package version is already on the registry."
+          fi
+      - name: Create the GitHub release
+        # Tag pushes only: a workflow_dispatch run has no release tag. The
+        # release notes are the CHANGELOG section for the tagged version; a
+        # missing or empty section is a hard error so a release can never be
+        # cut with wrong notes. Creation is skipped when the release already
+        # exists (re-runs stay green).
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          notes=$(mktemp)
+          awk -v section="## [$version]" \
+            'found && /^## \[/ { exit } index($0, section) == 1 { found=1 } found { print }' \
+            CHANGELOG.md > "$notes"
+          if [ ! -s "$notes" ]; then
+            echo "::error::CHANGELOG.md has no '## [$version]' section (or it is empty); refusing to create a release with wrong notes."
+            exit 1
+          fi
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::notice::Release $GITHUB_REF_NAME already exists; skipping creation."
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "HarnMem $GITHUB_REF_NAME" \
+              --notes-file "$notes" \
+              --latest
           fi
