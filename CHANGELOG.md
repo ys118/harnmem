@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-29
+
+### Added
+
+- `opencode-harnmem` 0.1.0: opencode v2 adapter — the fifth harness. A single-file
+  plugin (`export default { id: "opencode-harnmem", setup(ctx) }`) uses the
+  v2 domain API probed against the real v2.1.4 binary: `session.hook("context")`
+  injects the byte-stable memory snapshot once per session (empty store injects
+  zero bytes; per-session caching keeps every LLM request byte-identical),
+  `tool.transform` registers the five canonical memory tools as native tools
+  (flat JSON-Schema args, async execute, no zod), and a `session.hook("prompt")`
+  journals the previous turn's transcript into the core session journal after
+  every user turn, so no-LLM extraction still lands and a later session can
+  catch up. Engines open per `(mode, cwd, session)` with LRU eviction and
+  concurrent-open dedup; subagent (`parentID`) sessions map to read-only
+  engines and never poison the parent's write path. `HARNMEM_HOME` /
+  `HARNMEM_DISABLED` / `HARNMEM_READONLY` / `HARNMEM_INJECT` /
+  `HARNMEM_AUTO_EXTRACT` / `HARNMEM_DEBUG` and the usual config files all
+  apply; `~` in home paths expands before resolution. Requires opencode >= 2.x
+  (a version gate refuses to load on 1.x). `@harnmem/core` is vendored with its
+  prompts and synonym data so the installed plugin directory is self-contained.
+  Verified end-to-end on opencode v2.1.4 (`run --standalone`,
+  `opencode-go/glm-5.3-flash`): plugin load, empty-store zero-byte injection,
+  real-store injection quoting live pinned memories, write → cross-run search
+  round trip, read/status (parallel tool calls included), multi-turn journal
+  persistence, and friendly fallback text on invalid tool calls. Research and
+  probe history: `docs/research/opencode-plugin.md`.
+
+### Fixed
+
+- CI now runs the `codex-harnmem` and `opencode-harnmem` test suites via the
+  root `pnpm test` (previously only core, cli and claude ran on CI), and the
+  codex rollout fixture no longer depends on the wall clock (dirs, filenames
+  and the scan window all derive from one fixed instant; it started failing
+  when the calendar moved past its hardcoded dates).
+
 ## [0.5.1] - 2026-10-28
 
 ### Fixed

@@ -49,6 +49,7 @@ specifications; the design docs above are the source of truth.
 | [`research/dsh-impl-notes.md`](research/dsh-impl-notes.md) | DSH implementation notes: verified / inferred / unverified |
 | [`research/prompt-review.md`](research/prompt-review.md) | Rationale and failure modes for the extraction/consolidation prompts |
 | [`research/codex-plugin.md`](research/codex-plugin.md) | Codex plugin system (mcp servers + hooks + skills), real-machine probe evidence, codex-harnmem architecture |
+| [`research/opencode-plugin.md`](research/opencode-plugin.md) | opencode v2 domain plugin API (`{id, setup(ctx)}`), real-machine probe evidence, opencode-harnmem architecture |
 
 ## Operations and evaluation
 

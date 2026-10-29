@@ -21,14 +21,18 @@ database, no embedding model, and no runtime dependencies in the engine.
 
 - **Packages:** `@harnmem/core` (engine), `@harnmem/cli` (`harnmem` command),
   `pi-harnmem` (pi extension), `dsh-harnmem` (DSH plugin), `claude-harnmem`
-  (Claude Code plugin) — all published on npm at 0.4.0. Install the CLI with
+  (Claude Code plugin) — all published on npm. Install the CLI with
   `npm install -g @harnmem/cli`. `codex-harnmem` (Codex CLI plugin) ships from
   the repo marketplace (npm release pending, ROADMAP N16).
+  `opencode-harnmem` (opencode v2 plugin) is verified end to end on the
+  opencode 2.1.4 binary (injection, native tools, per-turn journaling;
+  12/12 unit tests); ships with the v0.6.0 release.
 - **License:** MIT.
-- **Status:** v0.4.0 — the engine, the CLI/migration tooling and the adapters
+- **Status:** v0.6.0 — the engine, the CLI/migration tooling and the adapters
   (pi, DeepSeek Harness, Claude Code) are published and tested end to end; the
-  Codex adapter is verified end to end on the CLI (injection, tools, model
-  write-back, clean uninstall).
+  Codex adapter is verified end to end on the CLI and desktop (injection,
+  tools, model write-back, clean uninstall); the opencode v2 adapter is
+  verified end to end on the 2.1.4 binary.
 
 ## Why another memory plugin?
 

@@ -83,7 +83,10 @@ test("parseCodexTranscript: tail budget counts messages, not raw lines", () => {
 test("findRolloutFile: matches the thread id in today/yesterday dirs, newest wins", () => {
   const home = mkdtempSyncUnder(os.tmpdir(), "harnmem-cx-roll-");
   try {
-    const { yesterday, today } = twoLocalDates();
+    // Fixed clock: dirs, fixture filenames and the scan window must all derive
+    // from the same instant, or the test breaks whenever the real date moves.
+    const now = new Date(2026, 9, 28, 12, 0, 0);
+    const { yesterday, today } = twoLocalDates(now);
     for (const d of [yesterday, today]) {
       const dir = path.join(home, "sessions", d.y, d.m, d.d);
       mkdirSync(dir, { recursive: true });
@@ -93,7 +96,7 @@ test("findRolloutFile: matches the thread id in today/yesterday dirs, newest win
     writeFileSync(path.join(yDir, `rollout-2026-10-27T20-00-00-${THREAD}.jsonl`), "{}\n");
     writeFileSync(path.join(tDir, `rollout-2026-10-28T09-30-00-${THREAD}.jsonl`), "{}\n");
     writeFileSync(path.join(tDir, `rollout-2026-10-28T10-00-00-other.jsonl`), "{}\n");
-    const found = findRolloutFile(home, THREAD, new Date(2026, 9, 28, 12, 0, 0));
+    const found = findRolloutFile(home, THREAD, now);
     assert.ok(found, "rollout must be found");
     assert.ok(found.includes("2026-10-28T09-30-00"), "newest match wins");
 
