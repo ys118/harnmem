@@ -21,18 +21,18 @@ database, no embedding model, and no runtime dependencies in the engine.
 
 - **Packages:** `@harnmem/core` (engine), `@harnmem/cli` (`harnmem` command),
   `pi-harnmem` (pi extension), `dsh-harnmem` (DSH plugin), `claude-harnmem`
-  (Claude Code plugin) — all published on npm. Install the CLI with
-  `npm install -g @harnmem/cli`. `codex-harnmem` (Codex CLI plugin) ships from
-  the repo marketplace (npm release pending, ROADMAP N16).
+  (Claude Code plugin), `codex-harnmem` (Codex CLI plugin) — all published on
+  npm. Install the CLI with `npm install -g @harnmem/cli`.
   `opencode-harnmem` (opencode v2 plugin) is verified end to end on the
   opencode 2.1.4 binary (injection, native tools, per-turn journaling;
   12/12 unit tests); ships with the v0.6.0 release.
 - **License:** MIT.
 - **Status:** v0.6.0 — the engine, the CLI/migration tooling and the adapters
-  (pi, DeepSeek Harness, Claude Code) are published and tested end to end; the
-  Codex adapter is verified end to end on the CLI and desktop (injection,
-  tools, model write-back, clean uninstall); the opencode v2 adapter is
-  verified end to end on the 2.1.4 binary.
+  (pi, DeepSeek Harness, Claude Code, Codex) are published and tested end to
+  end; the Codex adapter additionally covers the CLI TUI trust flow and Codex
+  Desktop, and backfills sessions from `~/.codex/sessions` until Codex ships
+  SessionEnd hooks; the opencode v2 adapter is verified end to end on the
+  2.1.4 binary.
 
 ## Why another memory plugin?
 
@@ -102,6 +102,10 @@ dsh plugin --profile desktop add dsh-harnmem
 # Claude Code plugin (the repo root is a Claude Code marketplace)
 claude plugin marketplace add ys118/harnmem
 claude plugin install harnmem@harnmem-marketplace
+
+# Codex CLI plugin (the repo root is also a Codex marketplace)
+codex plugin marketplace add ys118/harnmem
+codex plugin add harnmem@harnmem-marketplace
 ```
 
 All adapters read and write the same `~/.harnmem/` store, so installing two of
@@ -175,6 +179,28 @@ directory is self-contained. For development against a checkout,
 `claude plugin marketplace add D:\projects\harnmem` (or the equivalent POSIX
 path) reads the repo live — code changes apply on the next session.
 
+### Codex adapter
+
+Installed via the marketplace commands above (requires the codex 0.164/0.165
+alpha engines; verified on Windows). The plugin:
+
+- injects the hot index through a `SessionStart` `mcp_tool` hook — the tool
+  output lands as a developer message, is byte-stable between turns, and an
+  empty store injects nothing;
+- exposes the five memory tools plus two internal hook targets through a
+  bundled, zero-dependency stdio MCP server (7 tools total);
+- ships a skill that teaches the model when to search and when to write;
+- backfills on every session start: rollouts under `~/.codex/sessions` newer
+  than a durable cursor are journaled exactly once, so a session that closed
+  without extraction is still captured. Codex does not support SessionEnd
+  hooks yet — the hook is declared and skipped by current engines;
+- honors the one-time TUI trust ceremony ("Hooks need review"); Codex Desktop
+  follows the same persisted trust state in `config.toml`.
+
+See the [package README](packages/codex-harnmem/README.md) for configuration
+and the [probe record](docs/research/codex-plugin.md) for the full
+verification trail.
+
 ### CLI
 
 ```bash
@@ -214,12 +240,14 @@ flowchart LR
     PI[pi extension]
     DSH[DSH plugin]
     CC[Claude Code plugin]
+    CX[Codex plugin]
   end
   CLI[harnmem CLI + migration]
   CORE["@harnmem/core<br/>store · retrieval · writing · lifecycle · extraction"]
   PI --> CORE
   DSH --> CORE
   CC --> CORE
+  CX --> CORE
   CLI --> CORE
   CORE --> STD[(~/.harnmem plain files)]
   CORE --> IDX[(rebuildable BM25F index)]
@@ -342,7 +370,7 @@ the roadmap. Details, per-suite numbers, ablations and gate definitions are in
 | DeepSeek Harness 0.2.1 | **Supported** (0.2.x) | Cordis plugin (`dsh-harnmem`); verified against the desktop runtime with a disposable profile and a local mock endpoint |
 | CLI (any harness) | **Supported** | `harnmem` commands read/write the same store |
 | Claude Code 2.1.x | **Supported** | `claude-harnmem` plugin (SessionStart hook + stdio MCP + `/harnmem:memory`); verified end to end against 2.1.310; `harnmem import claude` migrates existing stores |
-| Codex CLI 0.164.0-alpha | **Supported** | `codex-harnmem` plugin (SessionStart `mcp_tool` hook → developer-message injection + stdio MCP + skill); verified end to end on the CLI; SessionEnd extraction activates when Codex ships it (see the package README) |
+| Codex CLI 0.164/0.165 alpha | **Supported** (Windows) | `codex-harnmem` plugin (SessionStart `mcp_tool` hook → developer-message injection + stdio MCP + skill + rollout backfill); verified end to end on the CLI, the TUI trust flow and Codex Desktop; extraction is backfilled until Codex ships SessionEnd hooks |
 | Other harnesses | Welcome | See the adapter contract and `CONTRIBUTING.md` |
 
 ## Documentation
