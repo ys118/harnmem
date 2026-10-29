@@ -112,7 +112,7 @@ rollout 的 `skills_instructions` 出现 `harnmem-probe:harnmem-probe`（命名�
 
 ## 7. 风险与待办
 
-- **桌面版真机验证**（本调研用 CLI/exec 验证机制；桌面版共享同一插件子系统，但 UI 信任流程、marketplace 浏览器未验证）——见 N16。
+- ~~桌面版真机验证~~ **已完成（2026-10-29，见 §9）**：desktop 与 CLI 共享 `~/.codex`，信任写入 config.toml 后 desktop 零操作吃到，新会话 hook 注入实证通过。
 - 逐事件验证 `UserPromptSubmit/PreCompact/PostCompact/Stop` 的 mcp_tool 触发与注入表现（机制已由 SessionStart 证实，事件语义需各跑一次探针）——见 N16。
 - 版本升级 UX：`plugin add` 重装即刷新（实测），但官方 upgrade 语义（`marketplace upgrade` 后插件是否自动跟进新版本）未验证。
 - `codex exec` 两个坑已排掉并复用价值高：**必须从存在的工作目录运行**（cwd 不存在时报可执行文件 ENOENT，误导性极强）；模型名必须用账号可用列表（`~\.codex\models_cache.json`，本机为 gpt-6-luna/gpt-5.6-terra/gpt-5.6-luna，二进制内 slug 是内部代号不可用）。
@@ -130,6 +130,23 @@ rollout 的 `skills_instructions` 出现 `harnmem-probe:harnmem-probe`（命名�
 - **session 锚定实证**：hook 模板带入真实 threadId 后，模型写回记录 `source = {harness:"codex", session:"<threadId>"}`——callTool 首个非空 session_id 锚定引擎的方案真机有效。
 - **模型可见性实证**：注入快照后模型正确回答 `PM=pnpm`（仅注入文本含该事实）。
 - 验收命令与产物：备份 `.tmp/codex-config-backup-pre-n15.toml`（安装前后 SHA256 `F38D526F…` 一致）；安装 `codex plugin marketplace add D:\projects\harnmem && codex plugin add harnmem@harnmem-marketplace`。
+
+## 9. Desktop 与 hook 信任流真机验证（2026-10-29）
+
+- **信任仪式在 CLI TUI，不在 desktop**：desktop（ChatGPT.exe，MSIX `OpenAI.Codex 26.1023.6123.0`，壳内引擎 0.165.0-alpha.1.2）对未信任 hook **静默跳过且无任何 UI 提示**——新会话 rollout 无 `hooks.additional_context`，设置→编码→钩子页显示"未找到钩子"（刷新无效），插件详情页可看钩子声明但无信任入口。CLI 裸 TUI（0.165 需 `--no-daemon`）启动即弹 **"Hooks need review — 1 hook is new or changed"**，三选项 Review hooks / Trust all and continue / Continue without trusting；Review 视图给出事件矩阵（8 事件 × Installed/Active/Review 列）并再次警告 SessionEnd mcp_tool 不支持；详情页显示 `MCP Server harnmem / MCP Tool memory_context / Timeout 600s / Trust: Trusted`（**Timeout 默认 600s**）。
+- **信任持久化 = config.toml 的 `[hooks.state]` 表**（CLI/desktop 共享同一 CODEX_HOME）：
+
+  ```toml
+  [hooks.state."harnmem@harnmem-marketplace:plugin.json#hooks[0]:session_start:0:0"]
+  trusted_hash = "sha256:478a…"
+  trusted_content_hash = "sha256:905a…"
+  ```
+
+  键形 `<plugin>@<marketplace>:plugin.json#hooks[<i>]:<event>:<n>:<n>`，双 sha256 基线（声明结构 + 内容）。
+- **信任后的行为（决定性验证）**：`codex exec` 不带 bypass 旗标 → stderr `hook: SessionStart … Completed`，rollout 注入 marker ✓；**desktop 无需重启**，新会话（originator `Codex Desktop`，cwd `~/Documents/Codex/<date>/…`）SessionStart hook 执行、developer message 注入用户级 pinned 快照 ✓。注入不含 project 作用域记录属正确语义（cwd 不同 shard）。
+- 0.165 事件矩阵全集：`PreToolUse, PermissionRequest, PostToolUse, PreCompact, PostCompact, SessionStart, SessionEnd, UserPromptSubmit`（TUI Review 视图展示；此前二进制枚举的 14 个含 Subagent*/Stop/Interrupt，TUI 未列出）。
+- 驱动 desktop UI 的坑（自动化参考）：UIA 后台 invoke 全部无效（必须 foreground）；composer 对合成输入极不友好——剪贴板粘贴只落首字符、type_text 需逐字符且慢，回车发送可靠；TUI alt-screen 使行缓冲终端无法读屏（验证一律走 rollout 数据面）。
+- 版本注意：桌面自动更新会**删除旧引擎目录**（0.164 的 bin 路径一夜失效），脚本一律引用全路径并容忍 hash 目录名变化。
 
 ## 附录：探针产物与可复现命令
 

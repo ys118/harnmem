@@ -461,9 +461,11 @@ Check boxes as items land, and update this file when the status changes.
   MCP hooks for now (declaration kept, warning harmless), unattended exec
   needs `--dangerously-bypass-hook-trust`, and MCP write tools need an
   approval mode that allows them.
-- [ ] **N16. Post-install polish:** verify the desktop-app trust flow and the
-  GitHub marketplace path (`codex plugin marketplace add ys118/harnmem --sparse
-  packages/codex-harnmem`), decide per-event hook coverage
+- [ ] **N16. Post-install polish:** the desktop trust flow and the GitHub
+  marketplace path are verified (2026-10-29: trust persists in
+  `config.toml [hooks.state]`; after trusting via the CLI TUI both `exec`
+  and the desktop app run the SessionStart hook and inject without any
+  bypass flags). Remaining: decide per-event hook coverage
   (`UserPromptSubmit`/`PostCompact`) against KV-cache stability, npm publish
   alongside `@harnmem/core`.
 
