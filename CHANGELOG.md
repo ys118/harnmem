@@ -34,6 +34,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   round trip, read/status (parallel tool calls included), multi-turn journal
   persistence, and friendly fallback text on invalid tool calls. Research and
   probe history: `docs/research/opencode-plugin.md`.
+- `codex-harnmem` 0.2.0: **rollout backfill on session start** — Codex still
+  has no SessionEnd hook, so a crashed or force-killed session previously lost
+  its extraction entirely. The `memory_context` hook target now also scans the
+  last three local date directories under
+  `$CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl` (excluding the live
+  thread), and queues a detached extraction payload for each rollout newer
+  than a persisted high-water marker (newest extracted rollout file name, so
+  re-runs are idempotent; a concurrent-worker race can at worst duplicate one
+  journal, which core's write dedup absorbs). Never blocks injection and never
+  throws. 205-line dedicated test. Already published to npm alongside this
+  release.
+- `codex-harnmem` 0.2.1: report the real package version as the MCP server
+  `serverInfo` (was a hardcoded placeholder). Already published to npm
+  alongside this release.
 
 ### Fixed
 
@@ -42,6 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   codex rollout fixture no longer depends on the wall clock (dirs, filenames
   and the scan window all derive from one fixed instant; it started failing
   when the calendar moved past its hardcoded dates).
+- `dsh-harnmem` repo hygiene: strip a UTF-8 BOM from `package.json` that could
+  confuse strict JSON parsers downstream.
 
 ## [0.5.1] - 2026-10-28
 
