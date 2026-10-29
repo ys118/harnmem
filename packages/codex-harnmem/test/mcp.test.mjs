@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -58,6 +59,10 @@ test("MCP e2e: initialize, tools/list, Chinese write+search, status", async () =
     srv.send({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} });
     const init = await srv.recv(1);
     assert.equal(init.result.serverInfo.name, "harnmem");
+    // serverInfo must report the package version (single source of truth):
+    // 0.2.0 shipped with a stale hardcoded 0.1.0 string.
+    const pkg = JSON.parse(await readFile(path.join(pkgRoot, "package.json"), "utf8"));
+    assert.equal(init.result.serverInfo.version, pkg.version);
     assert.ok(init.result.protocolVersion);
 
     srv.send({ jsonrpc: "2.0", method: "notifications/initialized" });

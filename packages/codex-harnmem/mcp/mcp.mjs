@@ -25,6 +25,7 @@
  *    with a human-readable message instead of crashing the server.
  */
 
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { openEngine } from "../lib/engine.mjs";
@@ -41,7 +42,12 @@ import {
   writePayload,
 } from "../lib/extract-worker.mjs";
 
-const SERVER_INFO = { name: "harnmem", version: "0.1.0" };
+// Single source of truth: the server always reports the package version, so a
+// release bump can never drift (0.2.0 shipped with a stale hardcoded string).
+const SERVER_INFO = {
+  name: "harnmem",
+  version: JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version,
+};
 const PROTOCOL_VERSION = "2024-11-05";
 
 // Hard ceiling for any tool output (formatters already clip, but error paths

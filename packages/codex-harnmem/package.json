@@ -1,6 +1,6 @@
 {
   "name": "codex-harnmem",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": false,
   "type": "module",
   "description": "Codex plugin for HarnMem: byte-stable memory injection (SessionStart mcp_tool hook), rollout backfill/journaling, and seven memory tools over a bundled MCP stdio server.",
