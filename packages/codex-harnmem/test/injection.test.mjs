@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { mkdtempSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -13,12 +14,29 @@ const mcpPath = path.join(pkgRoot, "mcp", "mcp.mjs");
  * Start a fresh server process and call memory_context once. The engine is
  * opened inside the child, so byte-stability across calls is measured across
  * full process lifecycles (the property the contract actually requires).
+ *
+ * The server also runs backfill on every memory_context call, so the sandbox
+ * MUST pin CODEX_HOME and HARNMEM_PAYLOAD_DIR to empty tmp dirs — otherwise
+ * the child scans the developer's real ~/.codex and races the tmp-home cleanup
+ * with detached workers writing markers into it (the flaky ENOTEMPTY rmdir).
  */
 function contextCall(env, args) {
+  const sandboxCodexHome = mkdtempSync(path.join(os.tmpdir(), "harnmem-cx-inj-code-"));
+  const sandboxPayloads = mkdtempSync(path.join(os.tmpdir(), "harnmem-cx-inj-pay-"));
+  const cleanupSandbox = () => {
+    rm(sandboxCodexHome, { recursive: true, force: true }).catch(() => {});
+    rm(sandboxPayloads, { recursive: true, force: true }).catch(() => {});
+  };
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [mcpPath], {
       cwd: pkgRoot,
-      env: { ...process.env, HARNMEM_HOME: env.HARNMEM_HOME, ...(env.extra || {}) },
+      env: {
+        ...process.env,
+        HARNMEM_HOME: env.HARNMEM_HOME,
+        CODEX_HOME: sandboxCodexHome,
+        HARNMEM_PAYLOAD_DIR: sandboxPayloads,
+        ...(env.extra || {}),
+      },
       stdio: ["pipe", "pipe", "pipe"],
     });
     let buffer = "";
@@ -41,6 +59,7 @@ function contextCall(env, args) {
     const finish = (fn) => {
       clearTimeout(timer);
       child.kill();
+      cleanupSandbox();
       fn();
     };
     const step = (id) =>

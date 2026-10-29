@@ -56,6 +56,9 @@ test("memory_session_end (sync): journals the rollout and consumes the payload",
     ].join("\n");
     writeFileSync(path.join(dayDir, `rollout-${fileStamp}-${THREAD}.jsonl`), rollout, "utf8");
 
+    // Private payload dir: concurrent test files must never sweep each
+    // other's in-flight payloads in the shared tmpdir.
+    const payDir = path.join(os.tmpdir(), `harnmem-cx-end-pay-${process.pid}`);
     const child = spawn(process.execPath, [mcpPath], {
       cwd: pkgRoot,
       env: {
@@ -63,6 +66,7 @@ test("memory_session_end (sync): journals the rollout and consumes the payload",
         HARNMEM_HOME: home,
         HARNMEM_EXTRACT_SYNC: "1",
         CODEX_HOME: codexHome,
+        HARNMEM_PAYLOAD_DIR: payDir,
       },
       stdio: ["pipe", "pipe", "pipe"],
     });
@@ -117,9 +121,8 @@ test("memory_session_end (sync): journals the rollout and consumes the payload",
       assert.ok(text.includes("sync"), `outcome should be the sync line, got: ${text}`);
 
       // The payload file was consumed.
-      const payloadDir = path.join(os.tmpdir(), "harnmem-codex");
-      const leftover = existsSync(payloadDir)
-        ? readdirSync(payloadDir).filter((n) => n.startsWith(`session-end-${THREAD}`))
+      const leftover = existsSync(payDir)
+        ? readdirSync(payDir).filter((n) => n.startsWith(`session-end-${THREAD}`))
         : [];
       assert.equal(leftover.length, 0, "payload must be consumed after sync extraction");
 

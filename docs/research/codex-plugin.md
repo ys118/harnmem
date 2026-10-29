@@ -162,3 +162,11 @@ codex exec --skip-git-repo-check --sandbox read-only -m gpt-5.6-terra "Reply wit
 codex plugin remove harnmem-probe@harnmem-probe-market
 codex plugin marketplace remove harnmem-probe-market
 ```
+
+## 10. N16 收尾：UserPromptSubmit 探针与 backfill 抽取通道（2026-10-29，v0.2.0）
+
+- **`UserPromptSubmit` mcp_tool hook 完全支持**（0.165 探针真机实证）：每次用户提交 prompt 都会调用工具，threadId 与 SessionStart 相同；同一 turn 内注入顺序 = SessionStart 探针 → harnmem 快照 → UserPromptSubmit 探针（rollout 出现多条 `hooks.additional_context` developer message），派发顺序 SessionStart → UserPromptSubmit → turn。**但设计上不用于注入**：工具返回文本每 turn 累积注入，破坏字节稳定与 KV 缓存。v0.2 插件未声明该事件。
+- **抽取通道方案 A（SessionStart 延迟补录，backfill）**：因 SessionEnd mcp_tool 在 0.164/0.165 均被跳过，插件在每次 `memory_context` 开头扫 `~/.codex/sessions`（今/昨/前天）找比游标新的 rollout（`findRecentRollouts`，排除当前 thread），逐个写 payload spawn detached worker；worker 以 `reason:"backfill"` 调 `sessionEnd` 写 journal，并推进持久游标 `<home>/state/codex-backfill-marker.json`（`{lastFile,ts}`，rollout 文件名字典序比较，只前进）。效果：上一会话的 transcript 总会被补录；`autoExtract` 默认关时仅 journal（审计+数据面就位），开启后 core 的 LLM 抽取在 journal 上运行。
+- **真机验证**（用户真实 store `~/.harnmem`）：一次 memory_context 将队列中 5 个历史 rollout（含 desktop 会话与 CLI exec 会话）全部补录为 `sessions/<YYYYMMDD>/codex_<threadId>.jsonl`；二次调用零新增（幂等），marker 收敛到最新 rollout 且只前进；detached worker 全部消费 payload（无残留）。
+- **实现要点**：`payload.harnmemHome` 显式 pin store home——detached worker 不一定继承服务器 env（`HARNMEM_HOME` 可能丢失），session cwd 也可能解析到别的项目配置；disabled-skip 与 backfill 成功路径都要推进游标，否则每个新会话都重复排队同一批 rollout。
+- **信任基线含插件内容**：修改插件源文件后 `trusted_content_hash` 失配，hook 回到未信任状态被静默跳过，需在 TUI 重新信任（本地 marketplace 源目录形态开发时尤其注意）。

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -75,15 +75,26 @@ test("hook call anchors the session; session-less writes inherit it; anchored cw
     }
   } finally {
     srv.child.kill();
+    srv.cleanup();
     await rm(home, { recursive: true, force: true });
     await rm(project, { recursive: true, force: true });
   }
 });
 
 function startServer(env) {
+  // Pin CODEX_HOME and the payload dir to empty tmp dirs: memory_context
+  // triggers backfill, which would otherwise scan the developer's real
+  // ~/.codex and race detached workers against the tmp-home cleanup below.
+  const sandboxCodexHome = mkdtempSync(path.join(os.tmpdir(), "harnmem-cx-anchor-code-"));
+  const sandboxPayloads = mkdtempSync(path.join(os.tmpdir(), "harnmem-cx-anchor-pay-"));
   const child = spawn(process.execPath, [mcpPath], {
     cwd: pkgRoot,
-    env: { ...process.env, HARNMEM_HOME: env.HARNMEM_HOME },
+    env: {
+      ...process.env,
+      HARNMEM_HOME: env.HARNMEM_HOME,
+      CODEX_HOME: sandboxCodexHome,
+      HARNMEM_PAYLOAD_DIR: sandboxPayloads,
+    },
     stdio: ["pipe", "pipe", "pipe"],
   });
   let buffer = "";
@@ -104,6 +115,10 @@ function startServer(env) {
   return {
     child,
     send: (msg) => child.stdin.write(JSON.stringify(msg) + "\n"),
+    cleanup: () => {
+      rm(sandboxCodexHome, { recursive: true, force: true }).catch(() => {});
+      rm(sandboxPayloads, { recursive: true, force: true }).catch(() => {});
+    },
     recv: (id, timeoutMs = 20_000) =>
       new Promise((res, rej) => {
         const start = Date.now();

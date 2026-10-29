@@ -30,8 +30,17 @@ import { defaultCodexHome, findRolloutFile, parseCodexTranscript } from "./rollo
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SELF = path.join(here, "extract-worker.mjs");
 
-export const PAYLOAD_DIR = path.join(tmpdir(), "harnmem-codex");
 export const PAYLOAD_TTL_MS = 60 * 60 * 1000; // 1 h, same as the Claude adapter
+
+/**
+ * Payload directory. HARNMEM_PAYLOAD_DIR overrides the default so concurrent
+ * test runs (or sandboxes) never share one directory — a sweep from one run
+ * would otherwise delete another run's in-flight payloads.
+ */
+export function payloadDir(env = process.env) {
+  const override = typeof env.HARNMEM_PAYLOAD_DIR === "string" && env.HARNMEM_PAYLOAD_DIR;
+  return override || path.join(tmpdir(), "harnmem-codex");
+}
 
 /** Hard byte cap for the session-start injection (same budget as Claude's). */
 export const MAX_INJECT_BYTES = 10_000;
@@ -60,8 +69,43 @@ function safeId(sessionId) {
   return String(sessionId || "unknown").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 64) || "unknown";
 }
 
+/**
+ * Backfill cursor: the name of the newest rollout already extracted by the
+ * session-start backfill. One global high-water mark (rollout file names sort
+ * chronologically), stored under the harness home so it survives reboots.
+ * A read-modify-write race between concurrent workers can at worst duplicate
+ * one journal — core's write dedup absorbs that, so no locking is needed.
+ */
+export function backfillMarkerPath(home) {
+  return path.join(home, "state", "codex-backfill-marker.json");
+}
+
+export function readBackfillMarker(home) {
+  try {
+    const raw = JSON.parse(readFileSync(backfillMarkerPath(home), "utf8"));
+    return typeof raw?.lastFile === "string" ? raw.lastFile : "";
+  } catch {
+    return "";
+  }
+}
+
+export function writeBackfillMarker(home, fileName) {
+  try {
+    const file = backfillMarkerPath(home);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, JSON.stringify({ lastFile: fileName, ts: new Date().toISOString() }), "utf8");
+  } catch (err) {
+    log(`backfill marker update failed: ${String(err?.message || err)}`);
+  }
+}
+
+/** Lexical rollout-name comparison proxy: true when a is newer than b. */
+export function isNewerRolloutName(a, b) {
+  return !b || a > b;
+}
+
 /** Persist one session-end payload; returns the file path. */
-export function writePayload(payload, dir = PAYLOAD_DIR) {
+export function writePayload(payload, dir = payloadDir()) {
   mkdirSync(dir, { recursive: true });
   // pid + random suffix: two ends of the same session can land in the same
   // millisecond (sync mode), and a colliding name would silently overwrite.
@@ -74,7 +118,7 @@ export function writePayload(payload, dir = PAYLOAD_DIR) {
 }
 
 /** Delete payload files older than the TTL (crashed workers, skipped ends). */
-export function sweepStalePayloads(dir = PAYLOAD_DIR, now = Date.now()) {
+export function sweepStalePayloads(dir = payloadDir(), now = Date.now()) {
   if (!existsSync(dir)) return;
   let names;
   try {
@@ -160,7 +204,22 @@ export async function runExtractPhase(payloadPath) {
     }
     const messages = parseCodexTranscript(raw);
     const settings = resolveSettings(typeof cwd === "string" && cwd ? cwd : process.cwd(), process.env);
+    // A payload may pin the store home explicitly: the detached worker does not
+    // always inherit the server env (HARNMEM_HOME can be lost between
+    // processes), and the session cwd may resolve to a different project.
+    if (typeof payload.harnmemHome === "string" && payload.harnmemHome) {
+      settings.home = payload.harnmemHome;
+    }
     if (settings.enabled === false) {
+      // Advance the cursor even on skip: a disabled store must not re-queue
+      // the same rollouts on every future session start (payloads are deleted
+      // here, so the cursor is the only progress record).
+      if (payload.reason === "backfill" && typeof payload.rolloutName === "string") {
+        const home = payload.harnmemHome || settings.home;
+        if (home && isNewerRolloutName(payload.rolloutName, readBackfillMarker(home))) {
+          writeBackfillMarker(home, payload.rolloutName);
+        }
+      }
       rmSync(payloadPath, { force: true });
       return "skipped: harnmem disabled";
     }
@@ -170,7 +229,7 @@ export async function runExtractPhase(payloadPath) {
       const result = await eng.sessionEnd({
         sessionId,
         cwd,
-        reason: "session_end",
+        reason: payload.reason === "backfill" ? "backfill" : "session_end",
         messages,
       });
       const added = Array.isArray(result?.added) && result.added.length ? ` added:${result.added.length}` : "";
@@ -180,6 +239,17 @@ export async function runExtractPhase(payloadPath) {
       if (detail) outcome += ` (${detail})`;
     } finally {
       await eng.close().catch(() => {});
+    }
+    // Advance the backfill cursor only after a successful pass so a crashed
+    // worker leaves the payload for a retry and the cursor untouched. The
+    // queuing side pins the marker home (payload.harnmemHome): the previous
+    // session's cwd may resolve to a different project home, and the cursor
+    // must live in exactly one store.
+    if (payload.reason === "backfill" && typeof payload.rolloutName === "string") {
+      const home = payload.harnmemHome || settings.home;
+      if (home && isNewerRolloutName(payload.rolloutName, readBackfillMarker(home))) {
+        writeBackfillMarker(home, payload.rolloutName);
+      }
     }
     outcome += outcomeSuffix;
     rmSync(payloadPath, { force: true });

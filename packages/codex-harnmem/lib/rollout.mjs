@@ -16,7 +16,7 @@
  * (core's extract phase is transcript-format agnostic).
  */
 
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
@@ -149,4 +149,55 @@ export function findRolloutFile(codexHome, sessionId, now = new Date()) {
 export function defaultCodexHome(env = process.env) {
   const fromEnv = env.CODEX_HOME && env.CODEX_HOME.trim();
   return fromEnv ? path.resolve(fromEnv) : path.join(homedir(), ".codex");
+}
+
+/**
+ * Rollout file stem: rollout-<YYYY-MM-DDThh-mm-ss>-<threadId>.jsonl → threadId.
+ * The timestamp shape is fixed (19 chars, dash-separated), so the thread id is
+ * everything after it — the id itself contains dashes (UUIDs), making
+ * lastIndexOf unusable here.
+ */
+const ROLLOUT_NAME_RE = /^rollout-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-(.+)\.jsonl$/;
+
+export function threadIdFromFileName(name) {
+  const m = ROLLOUT_NAME_RE.exec(path.basename(name));
+  return m ? sanitizeSessionId(m[1]) || undefined : undefined;
+}
+
+/**
+ * Recent rollout files for backfill, newest first. Scans the last three local
+ * date directories (a session can idle over a weekend) and excludes the
+ * current thread — the live rollout is not finished and must never be
+ * extracted. Returns [{ file, threadId, mtimeMs }], at most `limit` entries.
+ */
+export function findRecentRollouts(codexHome, excludeSessionId, now = new Date(), limit = 5) {
+  if (!codexHome) return [];
+  const sessionsRoot = path.join(codexHome, "sessions");
+  if (!existsSync(sessionsRoot)) return [];
+  const exclude = sanitizeSessionId(excludeSessionId);
+  const shiftLocal = (base, offsetDays) => new Date(base.getFullYear(), base.getMonth(), base.getDate() + offsetDays);
+  const found = [];
+  for (const offsetDays of [0, -1, -2]) {
+    const dir = path.join(sessionsRoot, localDateDir(shiftLocal(now, offsetDays)));
+    if (!existsSync(dir)) continue;
+    let names;
+    try {
+      names = readdirSync(dir);
+    } catch {
+      continue;
+    }
+    for (const name of names) {
+      if (!name.startsWith("rollout-") || !name.endsWith(".jsonl")) continue;
+      const threadId = threadIdFromFileName(name);
+      if (!threadId || threadId === exclude) continue;
+      const full = path.join(dir, name);
+      try {
+        found.push({ file: full, threadId, mtimeMs: statSync(full).mtimeMs, name });
+      } catch {
+        // vanished between readdir and stat — skip
+      }
+    }
+  }
+  found.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  return typeof limit === "number" && limit > 0 ? found.slice(0, limit) : found;
 }

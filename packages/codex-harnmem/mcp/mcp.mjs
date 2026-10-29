@@ -29,9 +29,12 @@ import path from "node:path";
 
 import { openEngine } from "../lib/engine.mjs";
 import { resolveSettings } from "../lib/settings.mjs";
+import { defaultCodexHome, findRecentRollouts } from "../lib/rollout.mjs";
 import { formatForget, formatRead, formatSearch, formatStats, formatWrite } from "../lib/format.mjs";
 import {
   capBytes,
+  isNewerRolloutName,
+  readBackfillMarker,
   runExtractPhase,
   spawnDetachedExtract,
   sweepStalePayloads,
@@ -268,6 +271,43 @@ async function callTool(name, args, ctx) {
 }
 
 /**
+ * Session-start backfill (N16: Codex has no SessionEnd hook, so finished
+ * sessions are captured when the NEXT session starts). Queues detached
+ * extraction payloads for recent, not-yet-extracted rollouts — never blocks
+ * injection (readdir + a few spawns), never throws.
+ *
+ * Codex 0.165 also supports UserPromptSubmit mcp_tool hooks (probe-verified),
+ * but their return text accumulates as one developer message per turn, which
+ * would break byte-stable injection — reserved, not used here.
+ */
+function queueBackfill(settings, sessionId, cwd) {
+  try {
+    const codexHome = defaultCodexHome(process.env);
+    const candidates = findRecentRollouts(codexHome, sessionId, new Date(), 5);
+    if (candidates.length === 0) return;
+    const marker = settings.home ? readBackfillMarker(settings.home) : "";
+    for (const candidate of candidates) {
+      // The marker is a global high-water mark on rollout file names; older
+      // sessions were either extracted or predate the feature.
+      if (!isNewerRolloutName(candidate.name, marker)) continue;
+      const payloadPath = writePayload({
+        sessionId: candidate.threadId,
+        cwd,
+        codexHome,
+        harnmemHome: settings.home || undefined,
+        reason: "backfill",
+        rolloutName: candidate.name,
+      });
+      spawnDetachedExtract(payloadPath);
+    }
+  } catch (err) {
+    if (settings.debug) {
+      process.stderr.write(`[harnmem:mcp] backfill queue failed: ${String(err?.message || err)}\n`);
+    }
+  }
+}
+
+/**
  * SessionStart hook target: the returned text is what Codex injects as the
  * developer message (hooks.additional_context). Injection rules (contract §1):
  *  - byte-stable across calls (core sessionStart/ensureContext caching);
@@ -277,6 +317,8 @@ async function callTool(name, args, ctx) {
  */
 async function memoryContext(args, ctx) {
   const { settings, sessionId, cwd } = ctx;
+  // Backfill runs regardless of inject=false: it is extraction, not injection.
+  queueBackfill(settings, sessionId, cwd);
   if (settings.inject === false) return textResult("");
   try {
     const eng = await getEngine(settings, { sessionId, cwd, readOnly: false });
