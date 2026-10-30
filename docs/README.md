@@ -35,6 +35,7 @@ The documentation is organized in five layers. If you are new, read the
 | [`design/09-claude-adapter.md`](design/09-claude-adapter.md) | Claude Code adapter: zero-dependency MCP stdio server + hooks, implemented as `packages/claude-harnmem` |
 | [`design/10-migration-onboarding.md`](design/10-migration-onboarding.md) | Migration onboarding: relaxed JSON contract, `import md` / `import claude` / `import auto`, agent-assisted recipe, safety and acceptance criteria |
 | [`design/11-grok-adapter.md`](design/11-grok-adapter.md) | Grok adapter: memory index via MCP `initialize.instructions`, `SessionEnd`-only lifecycle, `chat_history.jsonl` transcript parsing, implemented as `packages/grok-harnmem` |
+| [`design/12-cursor-adapter.md`](design/12-cursor-adapter.md) | Cursor adapter: first-prompt injection through the `beforeSubmitPrompt` hook, plugin rules + plugin MCP server, `sessionEnd` journaling, installer with `--doctor`, implemented as `packages/cursor-harnmem` |
 
 ## Research notes
 
@@ -52,6 +53,7 @@ specifications; the design docs above are the source of truth.
 | [`research/codex-plugin.md`](research/codex-plugin.md) | Codex plugin system (mcp servers + hooks + skills), real-machine probe evidence, codex-harnmem architecture |
 | [`research/opencode-plugin.md`](research/opencode-plugin.md) | opencode v2 domain plugin API (`{id, setup(ctx)}`), real-machine probe evidence, opencode-harnmem architecture |
 | [`research/grok-plugin.md`](research/grok-plugin.md) | Grok CLI 1.0.70 plugin, hooks and MCP surfaces, real-machine probe evidence, grok-harnmem architecture (memory index via MCP `initialize.instructions`) |
+| [`research/cursor-plugin.md`](research/cursor-plugin.md) | Cursor desktop 3.27.22 extension surfaces (hooks, plugins, MCP, rules), real-machine probe evidence, cursor-harnmem architecture (first-prompt injection via `beforeSubmitPrompt`) |
 
 ## Operations and evaluation
 

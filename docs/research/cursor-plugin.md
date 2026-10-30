@@ -469,7 +469,7 @@ v0.1.0，35 个测试、全仓 gate 通过，2026-10-30 两次真机验收通过
 hooks 由安装脚本写入用户级配置；`afterAgentResponse` 提供注入确认，exclusive claim 解决双通道
 重复执行。工具层、抽取层、Windows 运行时均已真机闭环。主要残余不确定性集中在
 I2（未文档化通道稳定性）、I5（注入体积）、D5（preCompact/子代理事件未触发）与 P4（marketplace
-分发未验证）。实现细节与偏差项见 `docs/design/11-cursor-adapter.md`。
+分发未验证）。实现细节与偏差项见 `docs/design/12-cursor-adapter.md`。
 
 **实现状态（2026-10-30）**：
 1. 已实现：`beforeSubmitPrompt` 注入（一会话一次 + `afterAgentResponse` 确认 + 失败重试再注入）
