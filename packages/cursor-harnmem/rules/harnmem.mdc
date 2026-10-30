@@ -13,6 +13,11 @@ A stable memory index may already be in your context as a system reminder
 (injected on the first prompt of the conversation). Treat it as orientation,
 not as the full store.
 
+If no snapshot is present, this install did not register the injection hook:
+call `memory_search` yourself before answering questions about the user's
+preferences, decisions, conventions or past project facts, and mention once that
+`npx cursor-harnmem-install` enables automatic injection.
+
 ## When to use the memory tools
 
 The bundled MCP server `harnmem` exposes `memory_search`, `memory_read`,

@@ -4,10 +4,10 @@ Cross-harness persistent memory for [Cursor](https://cursor.com), powered by [`@
 
 ## What it does
 
-- **First-prompt injection** — a `beforeSubmitPrompt` hook injects a byte-stable snapshot of your hottest memories once per conversation. Empty store ⇒ zero bytes injected. Later prompts of the same conversation are skipped, so the injected text never changes mid-conversation and prompt caching stays intact.
+- **First-prompt injection** — after the one-line installer, a `beforeSubmitPrompt` hook injects a byte-stable snapshot of your hottest memories once per conversation. Empty store ⇒ zero bytes injected. Later prompts of the same conversation are skipped, so the injected text never changes mid-conversation and prompt caching stays intact.
 - **Five MCP tools** — `memory_search`, `memory_read`, `memory_write`, `memory_forget`, `memory_status` over a zero-dependency stdio MCP server, so the model can pull memories on demand and store durable ones explicitly (ADD-only, bi-temporal supersede, trash restore).
 - **Conversation-end journaling** — the `sessionEnd` hook journals the transcript tail to `~/.harnmem/sessions/` and extracts durable facts. The extraction runs in a detached child process, so the hook returns instantly and never blocks Cursor's exit (background agents are skipped).
-- **Rules fallback** — `rules/harnmem.mdc` (`alwaysApply: true`) tells the model that memory is available even in builds where the injection channel is unavailable.
+- **Rules fallback** — `rules/harnmem.mdc` (`alwaysApply: true`) ships inside the plugin, so marketplace installs and builds where the injection channel is unavailable still teach the model to reach the store through the MCP tools.
 
 ## Install
 
@@ -32,6 +32,16 @@ node packages/cursor-harnmem/scripts/install.mjs --doctor     # self-check, see 
 ```
 
 `@harnmem/core` is vendored into `vendor/core/` at build time (`pnpm build` in this package), so the installed plugin directory is self-contained.
+
+## Install from the Cursor Marketplace
+
+Installing this plugin from the Cursor Marketplace gives you the `rules/` guidance and the five MCP tools right away: the model knows memory exists and can search, read and write records from its first reply. Cursor gates plugin-provided hooks behind its Claude Code plugin-import experiment, so `hooks/hooks.json` is **not** executed for a marketplace install on 3.27.22 — the injector and the session-end journal need the user-level hook registration:
+
+```
+npx cursor-harnmem-install
+```
+
+That one command copies the plugin into `~/.cursor/plugins/local/harnmem` and merges the three hook entries into `~/.cursor/hooks.json` (idempotent, timestamped backup, `--uninstall` reverses it). After **Developer: Reload Window** you get the byte-stable snapshot on the first prompt of every conversation, plus transcript journaling at session end. Without it you keep the rules fallback: the model calls `memory_search` itself instead of reading an injected index.
 
 ## Two HarnMem plugins in Cursor
 

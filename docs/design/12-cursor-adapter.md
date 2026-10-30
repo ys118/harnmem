@@ -360,6 +360,11 @@ node packages/cursor-harnmem/scripts/install.mjs --uninstall
   install delivers the plugin (rules + MCP) in the normal way. Because plugin
   hooks are gated [V], `scripts/install.mjs` remains the documented path for the
   hook layer even after a marketplace install; README says so explicitly.
+- Listing assets: `packages/cursor-harnmem/logo.png` is a 1024x1024 PNG with a
+  near-black background plate and the manifest points at it with
+  `"logo": "./logo.png"` [D, validated by `test/manifest.test.mjs`]. The
+  marketplace submission form wants a 1:1 SVG or PNG link; the raw GitHub URL for
+  this file is the value used at submission time.
 - Versioning: `cursor-harnmem` starts at **0.1.0**; it declares
   `engines.node>=22.15` and depends on `@harnmem/core` only as a dev dependency
   (vendored at build time).
