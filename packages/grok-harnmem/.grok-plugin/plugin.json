@@ -1,6 +1,6 @@
 {
-  "name": "grok-harnmem",
-  "description": "Cross-harness persistent memory for Grok CLI: injects a byte-stable memory index through the MCP initialize.instructions channel, exposes harnmem search/read/write/forget/status/context tools via MCP, adds a /grok-harnmem:memory command, and extracts durable memories at session end from Grok session transcripts. Store lives in ~/.harnmem as plain Markdown + YAML, shared with other harnesses.",
+  "name": "harnmem",
+  "description": "Cross-harness persistent memory for Grok CLI: injects a byte-stable memory index through the MCP initialize.instructions channel, exposes harnmem search/read/write/forget/status/context tools via MCP, adds a /harnmem:memory command, and extracts durable memories at session end from Grok session transcripts. Store lives in ~/.harnmem as plain Markdown + YAML, shared with other harnesses. The plugin id matches the Claude Code adapter on purpose: Grok's same-name precedence then shadows an auto-loaded claude-harnmem plugin instead of running two copies of the MCP server and extractor.",
   "version": "0.1.0",
   "author": {
     "name": "HarnMem contributors"

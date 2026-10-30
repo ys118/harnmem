@@ -15,6 +15,13 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const pkgRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repoRoot = path.join(pkgRoot, "..", "..");
+
+// Deliberate: the plugin id is the same as the Claude Code adapter's id, so
+// Grok's same-name precedence shadows a claude-harnmem plugin that Grok
+// auto-discovers from ~/.claude/plugins/ (probe P28/P29) instead of running a
+// duplicate `harnmem` MCP server and duplicate SessionEnd extractor.
+const PLUGIN_NAME = "harnmem";
 
 async function readJson(rel) {
   const file = path.join(pkgRoot, rel);
@@ -24,21 +31,27 @@ async function readJson(rel) {
   return JSON.parse(bytes.toString("utf8"));
 }
 
-test("manifests agree with package.json and carry the Grok plugin name", async () => {
+test("manifests agree with package.json and share the Claude adapter's plugin id", async () => {
   const pkg = await readJson("package.json");
   const grokManifest = await readJson(".grok-plugin/plugin.json");
   const claudeManifest = await readJson(".claude-plugin/plugin.json");
 
-  assert.equal(pkg.name, "grok-harnmem");
+  assert.equal(pkg.name, "grok-harnmem", "the npm/package name stays harness-specific");
   assert.match(pkg.version, /^\d+\.\d+\.\d+$/);
-  assert.equal(grokManifest.name, pkg.name);
-  assert.equal(claudeManifest.name, pkg.name);
+  assert.equal(grokManifest.name, PLUGIN_NAME);
+  assert.equal(claudeManifest.name, PLUGIN_NAME);
   assert.equal(grokManifest.version, pkg.version);
   assert.equal(claudeManifest.version, pkg.version);
   assert.equal(grokManifest.license, "MIT");
   assert.ok(pkg.files.includes(".grok-plugin/"));
   assert.ok(pkg.files.includes(".claude-plugin/"));
   assert.ok(pkg.files.includes("vendor/"), "installed plugin must ship the vendored core");
+
+  const marketplace = JSON.parse(await readFile(path.join(repoRoot, ".grok-plugin", "marketplace.json"), "utf8"));
+  const entry = marketplace.plugins.find((plugin) => plugin.name === PLUGIN_NAME);
+  assert.ok(entry, "the root marketplace must list the plugin under the same id");
+  assert.equal(entry.source.path, "./packages/grok-harnmem");
+  assert.equal(entry.version, pkg.version);
 });
 
 test(".mcp.json wires the stdio server through ${GROK_PLUGIN_ROOT}", async () => {
@@ -71,9 +84,11 @@ test("commands and skills are discoverable components", async () => {
   assert.match(skill, /memory_context/);
 });
 
-test("README documents the Grok-specific injection channel", async () => {
+test("README documents the Grok-specific injection channel and coexistence rule", async () => {
   const readme = await readFile(path.join(pkgRoot, "README.md"), "utf8");
   assert.match(readme, /initialize\.instructions/);
   assert.match(readme, /SessionEnd/);
   assert.match(readme, /GROK_PLUGIN_ROOT|grok plugin/);
+  assert.match(readme, /claude-harnmem/, "the README must explain the Claude-plugin coexistence");
+  assert.match(readme, /same-name precedence|shadows/, "and why the shared plugin id matters");
 });
