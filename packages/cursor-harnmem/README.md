@@ -1,0 +1,54 @@
+# cursor-harnmem — HarnMem memory for Cursor
+
+Cross-harness persistent memory for [Cursor](https://cursor.com), powered by [`@harnmem/core`](../../README.md). One store (`~/.harnmem/`), shared with the Claude Code, Codex, pi, DSH and opencode adapters: a preference or decision captured in one harness is visible in every other one on the next conversation.
+
+## What it does
+
+- **First-prompt injection** — a `beforeSubmitPrompt` hook injects a byte-stable snapshot of your hottest memories once per conversation. Empty store ⇒ zero bytes injected. Later prompts of the same conversation are skipped, so the injected text never changes mid-conversation and prompt caching stays intact.
+- **Five MCP tools** — `memory_search`, `memory_read`, `memory_write`, `memory_forget`, `memory_status` over a zero-dependency stdio MCP server, so the model can pull memories on demand and store durable ones explicitly (ADD-only, bi-temporal supersede, trash restore).
+- **Conversation-end journaling** — the `sessionEnd` hook journals the transcript tail to `~/.harnmem/sessions/` and extracts durable facts. The extraction runs in a detached child process, so the hook returns instantly and never blocks Cursor's exit (background agents are skipped).
+- **Rules fallback** — `rules/harnmem.mdc` (`alwaysApply: true`) tells the model that memory is available even in builds where the injection channel is unavailable.
+
+## Install
+
+For the desktop app, use the installer from this package (it copies the plugin into `~/.cursor/plugins/local/harnmem` and registers the hooks in your user-level `~/.cursor/hooks.json`):
+
+```
+pnpm --filter cursor-harnmem build
+npx cursor-harnmem-install   # or: node packages/cursor-harnmem/scripts/install.mjs
+```
+
+Then run **Developer: Reload Window** (or restart Cursor) and check **Customize → Plugins**.
+
+Why the installer exists: Cursor desktop 3.27.22 loads a user-local plugin's `rules/` and `mcp.json`, but **not** its `hooks/hooks.json` — plugin hooks are gated behind the `enable_cc_plugin_import` experiment (see `docs/research/cursor-plugin.md` §2.3). The reliable hook surface is the user-level `~/.cursor/hooks.json`, which the installer merges into non-destructively (timestamped backup, `--uninstall` reverses it, existing hooks are never overwritten).
+
+Useful flags:
+
+```
+node packages/cursor-harnmem/scripts/install.mjs --dry-run
+node packages/cursor-harnmem/scripts/install.mjs --mcp-user   # also ~/.cursor/mcp.json
+node packages/cursor-harnmem/scripts/install.mjs --uninstall
+```
+
+`@harnmem/core` is vendored into `vendor/core/` at build time (`pnpm build` in this package), so the installed plugin directory is self-contained.
+
+## Configuration
+
+Environment first, then files — malformed config is ignored, never fatal:
+
+1. `HARNMEM_DISABLED`, `HARNMEM_READONLY`, `HARNMEM_DEBUG`, `HARNMEM_AUTO_EXTRACT`, `HARNMEM_INJECT`, `HARNMEM_CURSOR_MAX_INJECT_TOKENS`, `HARNMEM_HOME`
+2. `<project>/.harnmem.json`
+3. `~/.harnmem/config.json` (shared with every adapter)
+
+Injection is deterministically truncated to a conservative 10,000-character budget (`HARNMEM_CURSOR_MAX_INJECT_TOKENS` controls the retrieval budget in tokens).
+
+## Notes
+
+- The MCP server never writes to stdout outside the JSON-RPC protocol; hook scripts print at most one JSON payload and exit 0 on any failure, so a broken adapter can never wedge a conversation.
+- Project-level `.cursor/hooks.json` also works (it needs a trusted workspace), but the installer targets the user level because that is what was verified end-to-end.
+- Cursor's published hook schema documents `continue`/`user_message` for `beforeSubmitPrompt`, not `additional_context`. The injection channel used here was verified by token-recall experiments on 3.27.22; if a future Cursor build drops it, the `rules/harnmem.mdc` fallback still exposes the store through the MCP tools.
+- Design and verification evidence: `docs/design/11-cursor-adapter.md`, `docs/research/cursor-plugin.md`.
+
+## License
+
+MIT — see [LICENSE](./LICENSE).

@@ -1,0 +1,15 @@
+{
+  "name": "harnmem-marketplace",
+  "owner": {
+    "name": "ys118"
+  },
+  "plugins": [
+    {
+      "name": "harnmem",
+      "description": "Cross-harness persistent memory for Cursor: one-screen memory index at the first prompt, five memory tools over MCP, always-on rules fallback, and session-end extraction. Same store as the pi, DSH, Claude Code and Codex adapters.",
+      "version": "0.1.0",
+      "source": "./packages/cursor-harnmem",
+      "category": "memory"
+    }
+  ]
+}

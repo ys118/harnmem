@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeSubmitPrompt": [
+      {
+        "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/hook.mjs\" beforeSubmitPrompt",
+        "timeout": 20,
+        "failClosed": false
+      }
+    ],
+    "sessionEnd": [
+      {
+        "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/hook.mjs\" sessionEnd",
+        "timeout": 10,
+        "failClosed": false
+      }
+    ],
+    "afterAgentResponse": [
+      {
+        "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/hook.mjs\" afterAgentResponse",
+        "timeout": 10,
+        "failClosed": false
+      }
+    ]
+  }
+}

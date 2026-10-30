@@ -1,0 +1,35 @@
+{
+  "name": "cursor-harnmem",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "Cursor plugin for HarnMem: injects a byte-stable memory index on the first prompt of every conversation, exposes five memory tools over a bundled MCP stdio server, and journals transcripts on session end. Store lives in ~/.harnmem as plain Markdown + YAML, shared with other harnesses.",
+  "license": "MIT",
+  "files": [
+    ".cursor-plugin/",
+    "mcp.json",
+    "hooks/",
+    "mcp/",
+    "rules/",
+    "commands/",
+    "lib/",
+    "vendor/",
+    "scripts/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node scripts/vendor.mjs",
+    "test": "node --test test/*.test.mjs",
+    "install-cursor": "node scripts/install.mjs"
+  },
+  "devDependencies": {
+    "@harnmem/core": "workspace:*"
+  },
+  "engines": {
+    "node": ">=22.15"
+  },
+  "bin": {
+    "cursor-harnmem-install": "scripts/install.mjs"
+  }
+}

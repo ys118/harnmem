@@ -35,6 +35,12 @@ importers:
 
   packages/core: {}
 
+  packages/cursor-harnmem:
+    devDependencies:
+      '@harnmem/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/dsh-harnmem:
     dependencies:
       '@deepseek-ai/schemastery':

@@ -22,17 +22,20 @@ database, no embedding model, and no runtime dependencies in the engine.
 - **Packages:** `@harnmem/core` (engine), `@harnmem/cli` (`harnmem` command),
   `pi-harnmem` (pi extension), `dsh-harnmem` (DSH plugin), `claude-harnmem`
   (Claude Code plugin), `codex-harnmem` (Codex CLI plugin),
-  `opencode-harnmem` (opencode v2 plugin) and `grok-harnmem` (Grok CLI plugin) —
-  all published on npm except `grok-harnmem`, which ships in the next release.
-  Install the CLI with `npm install -g @harnmem/cli`; the opencode adapter needs
+  `opencode-harnmem` (opencode v2 plugin), `grok-harnmem` (Grok CLI plugin) and
+  `cursor-harnmem` (Cursor desktop plugin) — all published on npm except
+  `grok-harnmem` and `cursor-harnmem`, which ship in the next release. Install
+  the CLI with `npm install -g @harnmem/cli`; the opencode adapter needs
   opencode 2.x and is verified end to end on the 2.1.4 binary (injection, native
   tools, per-turn journaling); the Grok adapter is verified on the 1.0.70 binary
-  (MCP `initialize.instructions` injection, six tools, session-end extraction).
-
+  (MCP `initialize.instructions` injection, six tools, session-end extraction);
+  the Cursor adapter is verified on Cursor 3.27.22 (first-prompt injection,
+  plugin MCP tools, session-end journaling).
 - **License:** MIT.
-- **Status:** v0.6.2 — the engine, the CLI/migration tooling and all five
-  adapters (pi, DeepSeek Harness, Claude Code, Codex, opencode) are published
-  and tested end to end. The release is a seven-package audit wave: 17 of 21
+- **Status:** v0.6.2 — the engine, the CLI/migration tooling and the five
+  published adapters (pi, DeepSeek Harness, Claude Code, Codex, opencode) are
+  published and tested end to end; the Grok and Cursor adapters are implemented
+  and verified end to end, shipping in the next release. The release is a seven-package audit wave: 17 of 21
   confirmed issues fixed, the structural remainder tracked as N18-N20 in the
   roadmap. The Codex adapter also covers the CLI TUI trust flow and Codex
   Desktop, and backfills sessions from `~/.codex/sessions` until Codex ships
@@ -117,6 +120,10 @@ opencode plugin add opencode-harnmem
 # Grok CLI plugin (the repo root is also a Grok marketplace)
 grok plugin marketplace add ys118/harnmem
 grok plugin install grok-harnmem --trust
+
+# Cursor desktop: copy the plugin into ~/.cursor/plugins/local, merge the
+# user-level hooks, then run Developer: Reload Window
+npx cursor-harnmem-install
 ```
 
 All adapters read and write the same `~/.harnmem/` store, so installing more
