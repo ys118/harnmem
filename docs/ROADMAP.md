@@ -3,7 +3,7 @@
 Single source of truth for **where the project stands and what to do next**.
 Design intent lives in [`design/`](design/); this file tracks execution state.
 
-Last updated: **2026-10-28** (N15 codex-harnmem shipped: implementation + real-machine acceptance complete).
+Last updated: **2026-10-30** (seven-package audit: 17 of 21 confirmed issues fixed in the 0.6.2 patch wave; structural/design backlog tracked as N18-N20).
 
 ## 1. Snapshot
 
@@ -480,6 +480,52 @@ Check boxes as items land, and update this file when the status changes.
   file when `HARNMEM_DEBUG=1`); process the §7.2 MINORs (sessions-map
   eviction, setup disposers return, journal timestamp dedup); keep the
   version gate refusing 1.x binaries.
+
+### Phase H — audit backlog (from the 2026-10-30 seven-package audit)
+
+A full-repo audit (two deep-review passes over core, the CLI and all five
+adapter packages) confirmed 21 real issues; 17 were fixed and shipped in the
+0.6.2 patch wave. The structural/design items below were deferred to this
+backlog by user decision (2026-10-30).
+
+- [ ] **N18. Cross-process store locking (audit F4).** `bumpSeq`
+  (`packages/core/src/store.ts:268-290`) increments an in-process cached seq
+  and only reads the disk head when the cache is empty, and every append path
+  (`audit`, `appendSession`, `setCursor`, `saveUsage`, and project identity
+  writes in `packages/core/src/project.ts:186-209`) is a lock-free
+  read-modify-write. Two harnesses sharing one `~/.harnmem` can mint the same
+  seq concurrently → index/store drift that persists across rebuilds. Goal: a
+  small cross-process lock (lock file + stale-lock takeover, zero new
+  dependencies) serializing seq minting and appends, or documented
+  one-writer-per-home enforcement plus a `harnmem doctor` drift check.
+  *Acceptance:* a test that runs two engines against one home concurrently
+  (worker_threads or child processes) proves no duplicate seq; if enforcement
+  is chosen instead, doctor reports drift when it finds it.
+- [ ] **N19. claude-harnmem crash recovery (audit F2).** The adapter registers
+  only SessionStart (inject) and SessionEnd (tmp payload → detached respawn);
+  a killed or timed-out Claude session is never extracted — no backfill (codex
+  has one) and no durable journaling (opencode has one).
+  `design/09-claude-adapter.md:227` promises "next SessionStart re-runs it
+  from `state/queue/`", but no queue exists anywhere in the repo and the
+  acceptance item at 09:247 is unchecked. Goal: either implement the minimal
+  backfill — on SessionStart, scan durable session journals and run
+  catch-up extraction under the existing audit watermark (codex-style) — or
+  update the design doc to record the limitation honestly. *Acceptance:*
+  force-kill mid-session → the next start extracts the lost turns exactly
+  once (watermark-idempotent, re-run adds 0); design doc matches the code.
+- [ ] **N20. Core minor fixes batch (audit F9-F12, F13c).** (a) `fillPrompt`
+  sequential replacement can re-expand `{{transcript}}` inside substituted
+  values (`packages/core/src/assets.ts:186-192`); (b) `MEMORY.md` keeps
+  superseded lines until the next full rebuild
+  (`packages/core/src/store.ts:226-228`); (c) date-only `asOf` resolves to UTC
+  end-of-day while `dayKey` uses local time
+  (`packages/core/src/retrieval.ts:593-605`); (d) the inspector uses
+  `DEFAULT_BUDGET` and ignores home config
+  (`packages/core/src/inspect.ts:485-487,696`); (e) `writeDigests` writes with
+  non-atomic `fs.writeFile` (`packages/core/src/consolidate.ts:239`) — switch
+  to write-temp-then-rename like the other writers. *Acceptance:* one
+  regression test per item; `node evals/run.mjs --engine core --gate` still
+  PASS.
 
 ## 5. Decision log
 
