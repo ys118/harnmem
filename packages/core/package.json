@@ -1,6 +1,6 @@
 {
   "name": "@harnmem/core",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "HarnMem memory engine: file-native, harness-agnostic, zero-runtime-dependency memory.",
   "license": "MIT",
   "type": "module",
@@ -22,7 +22,7 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "default": "./dist/index.js"
     }
   },
   "files": [
