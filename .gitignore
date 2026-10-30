@@ -15,11 +15,17 @@ packages/core/data/
 coverage/
 .harnmem-test/
 spikes/**/tmp-home/
+.tmp-hermes-home/
+.tmp-hermes-store/
 
 # Logs and OS noise
 *.log
 .DS_Store
 Thumbs.db
+
+# Python bytecode (the Hermes plugin is a Python package)
+__pycache__/
+*.pyc
 
 # Generated deterministically by evals/gen/generate.mjs (verify with `node evals/gen/generate.mjs --check`)
 evals/corpora/

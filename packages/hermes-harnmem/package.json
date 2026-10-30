@@ -1,0 +1,29 @@
+{
+  "name": "hermes-harnmem",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hermes Agent memory provider for HarnMem: byte-stable recall injection, five memory tools, and bounded session-end extraction over a bundled @harnmem/core bridge.",
+  "license": "MIT",
+  "files": [
+    "plugin.yaml",
+    "__init__.py",
+    "bridge.py",
+    "cli.py",
+    "config.py",
+    "lib/",
+    "vendor/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node scripts/vendor.mjs",
+    "test": "node --test test/*.test.mjs && node scripts/test-python.mjs"
+  },
+  "devDependencies": {
+    "@harnmem/core": "workspace:*"
+  },
+  "engines": {
+    "node": ">=22.15"
+  }
+}

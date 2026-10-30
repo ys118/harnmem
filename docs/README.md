@@ -36,6 +36,7 @@ The documentation is organized in five layers. If you are new, read the
 | [`design/10-migration-onboarding.md`](design/10-migration-onboarding.md) | Migration onboarding: relaxed JSON contract, `import md` / `import claude` / `import auto`, agent-assisted recipe, safety and acceptance criteria |
 | [`design/11-grok-adapter.md`](design/11-grok-adapter.md) | Grok adapter: memory index via MCP `initialize.instructions`, `SessionEnd`-only lifecycle, `chat_history.jsonl` transcript parsing, implemented as `packages/grok-harnmem` |
 | [`design/12-cursor-adapter.md`](design/12-cursor-adapter.md) | Cursor adapter: first-prompt injection through the `beforeSubmitPrompt` hook, plugin rules + plugin MCP server, `sessionEnd` journaling, installer with `--doctor`, implemented as `packages/cursor-harnmem` |
+| [`design/13-hermes-adapter.md`](design/13-hermes-adapter.md) | Hermes Agent adapter: Python `MemoryProvider` plugin, Node bridge over the vendored engine, per-turn recall caching, detached session-end extraction, tools and packaging |
 
 ## Research notes
 
@@ -54,6 +55,7 @@ specifications; the design docs above are the source of truth.
 | [`research/opencode-plugin.md`](research/opencode-plugin.md) | opencode v2 domain plugin API (`{id, setup(ctx)}`), real-machine probe evidence, opencode-harnmem architecture |
 | [`research/grok-plugin.md`](research/grok-plugin.md) | Grok CLI 1.0.70 plugin, hooks and MCP surfaces, real-machine probe evidence, grok-harnmem architecture (memory index via MCP `initialize.instructions`) |
 | [`research/cursor-plugin.md`](research/cursor-plugin.md) | Cursor desktop 3.27.22 extension surfaces (hooks, plugins, MCP, rules), real-machine probe evidence, cursor-harnmem architecture (first-prompt injection via `beforeSubmitPrompt`) |
+| [`research/hermes-plugin.md`](research/hermes-plugin.md) | Hermes Agent v0.22.5 Python plugin system: `MemoryProvider` ABC, `prefetch` injection, session lifecycle, tools, subagents, discovery and catalog distribution |
 
 ## Operations and evaluation
 
@@ -69,6 +71,8 @@ specifications; the design docs above are the source of truth.
   Claude Code plugin install and verification.
 - [`../packages/codex-harnmem/README.md`](../packages/codex-harnmem/README.md) —
   Codex plugin install and verification.
+- [`../packages/hermes-harnmem/README.md`](../packages/hermes-harnmem/README.md) —
+  Hermes Agent memory provider install and verification.
 - [`../packages/opencode-harnmem/README.md`](../packages/opencode-harnmem/README.md) —
   opencode plugin install and verification.
 - [`../packages/grok-harnmem/README.md`](../packages/grok-harnmem/README.md) —

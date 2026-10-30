@@ -3,7 +3,7 @@
 Single source of truth for **where the project stands and what to do next**.
 Design intent lives in [`design/`](design/); this file tracks execution state.
 
-Last updated: **2026-10-30** (seven-package audit: 17 of 21 confirmed issues fixed in the 0.6.2 patch wave; structural/design backlog tracked as N18-N20; Grok adapter implemented as N21 and probe-verified on Grok CLI 1.0.70; Grok plugin id kept as `grok-harnmem` after verifying the explicit `[plugins] enabled` entry wins the shared `harnmem` MCP server; Cursor adapter implemented as N23 and verified on Cursor desktop 3.27.22, with an installer `--doctor` self-check following as N24); the Grok P2 follow-up verified TUI parity, the UserPromptSubmit and `$GROK_HOME/rules` channels, remote marketplace install and the `grok-harnmem@0.1.0` npm publish; the remaining Grok verification backlog is tracked as N25; Cursor 0.1.1 was published to npm and rolled out to the Cursor marketplace, with the marketplace install path, the next patch's packaging fixes and the per-upgrade drill tracked as N26-N28).
+Last updated: **2026-10-30** (seven-package audit: 17 of 21 confirmed issues fixed in the 0.6.2 patch wave; structural/design backlog tracked as N18-N20; Grok adapter implemented as N21 and probe-verified on Grok CLI 1.0.70; Grok plugin id kept as `grok-harnmem` after verifying the explicit `[plugins] enabled` entry wins the shared `harnmem` MCP server; Cursor adapter implemented as N23 and verified on Cursor desktop 3.27.22, with an installer `--doctor` self-check following as N24; the Grok P2 follow-up verified TUI parity, the UserPromptSubmit and `$GROK_HOME/rules` channels, remote marketplace install and the `grok-harnmem@0.1.0` npm publish; the remaining Grok verification backlog is tracked as N25; Cursor 0.1.1 was published to npm and rolled out to the Cursor marketplace, with the marketplace install path, the next patch's packaging fixes and the per-upgrade drill tracked as N26-N28; Hermes adapter implemented as N29 and probe-verified on Hermes Agent 0.22.5).
 
 ## 1. Snapshot
 
@@ -12,11 +12,11 @@ Last updated: **2026-10-30** (seven-package audit: 17 of 21 confirmed issues fix
 | Repository | `github.com/ys118/harnmem` (public), branch `master`, PR-only; required CI checks green on ubuntu-latest (Node 22 and 24) and windows-latest (Node 22), plus the evaluation gate |
 | Latest release | `v0.7.1` (2026-10-30): `cursor-harnmem` 0.1.1 fixes the published install command to `npx cursor-harnmem` and ships the marketplace logo; the 0.7.0 adapter set (Grok `grok-harnmem` 0.1.0, Cursor `cursor-harnmem` 0.1.1) is otherwise unchanged |
 | Releases | `v0.1.0` (2026-10-20) through `v0.7.1`: `v0.2.0` DSH adapter and single-store migration, then one adapter or audit wave per release (Claude Code, Codex, opencode, Grok + Cursor, Cursor 0.1.1 packaging fix); per-release detail in [`CHANGELOG.md`](../CHANGELOG.md) |
-| Packages (published on npm) | `@harnmem/core` `0.4.2`, `@harnmem/cli` `0.4.1`, `pi-harnmem` `0.4.4`, `dsh-harnmem` `0.4.2`, `claude-harnmem` `0.4.3`, `codex-harnmem` `0.2.3`, `opencode-harnmem` `0.1.1`, `grok-harnmem` `0.1.0`, `cursor-harnmem` `0.1.1` |
-| Tests | `pnpm test` green: core engine, CLI end-to-end, and the seven adapter suites, on every required CI job |
+| Packages (published on npm) | `@harnmem/core` `0.4.2`, `@harnmem/cli` `0.4.1`, `pi-harnmem` `0.4.4`, `dsh-harnmem` `0.4.2`, `claude-harnmem` `0.4.3`, `codex-harnmem` `0.2.3`, `opencode-harnmem` `0.1.1`, `grok-harnmem` `0.1.0`, `cursor-harnmem` `0.1.1`; `hermes-harnmem` `0.1.0` is not on npm — it is a Python plugin installed through the Hermes plugin manager |
+| Tests | `pnpm test` green: core engine, CLI end-to-end, and the eight adapter suites, on every required CI job |
 | Evaluation | functional gates PASS; macro R@10 1.000, MRR 0.891, nDCG@10 0.911; 5 advisory perf gates (see §3) |
 | Real trial | N1 closed 2026-10-25, verdict **useful**; single store since 2026-10-24: legacy memories migrated (N4/N5), `dsh-auto-memory`/`pi-memory` disabled and their stores later deleted, HarnMem is the memory SSOT (user decision 2026-10-25) |
-| Environment | Windows 11, Node 22.15+ (development on 26.x), pnpm 10.33.2, pi 1.3.0, DeepSeek Harness 0.2.x, Claude Code 2.1.310, Codex 0.164/0.165 alpha, opencode 2.1.4, Grok CLI 1.0.70, Cursor desktop 3.27.22 |
+| Environment | Windows 11, Node 22.15+ (development on 26.x), pnpm 10.33.2, pi 1.3.0, DeepSeek Harness 0.2.x, Claude Code 2.1.310, Codex 0.164/0.165 alpha, opencode 2.1.4, Grok CLI 1.0.70, Cursor desktop 3.27.22, Hermes Agent 0.22.5 (Python 3.14.9) |
 
 **Live trial evidence** (`C:\Users\<user>\.harnmem`):
 
@@ -758,6 +758,45 @@ backlog by user decision (2026-10-30).
   re-stamped with the new `cursor_version`, or the adapter switches channel with
   a CHANGELOG note.
 
+### Phase K — Hermes adapter
+
+- [x] **N29. Implement the Hermes memory provider `hermes-harnmem`.** Research
+  of record: [`research/hermes-plugin.md`](research/hermes-plugin.md)
+  (2026-10-29, baseline Hermes Agent v0.22.5 stable / `bf0203a794a0`, Python
+  3.14.9). Hermes is a Python host with a first-class `MemoryProvider` plugin
+  API, so the adapter is a Python package carrying all four contract layers
+  while the engine runs through a committed vendored build behind a
+  one-command-per-process Node bridge (`lib/bridge.mjs`: JSON in on stdin, one
+  JSON line out). Hermes calls `prefetch()` before every model call and appends
+  the return text to the current user message (never the system prompt), so the
+  adapter caches the snapshot in Python and rebuilds it only on session switch,
+  day rollover, a memory write or a compaction — byte-stable turns without
+  re-paying tokens. Five native `harnmem_*` tools; `on_session_end` spawns a
+  detached child process for extraction so the host never waits; subagent and
+  cron sessions are read-only. `hermes harnmem
+  status|search|read|write|forget|restore|consolidate|rebuild` ships through
+  the provider's `cli.py`. Install with
+  `hermes plugins install ys118/harnmem/packages/hermes-harnmem --enable` then
+  `hermes memory setup`; the provider id is the install directory name and must
+  be `harnmem`. The plugin passes `hermes plugins validate` with no warnings
+  (no private core imports). *Acceptance:* `hermes memory status` reports the
+  provider available; a real `hermes -z` session injected a seeded memory and
+  answered from it; a second session returned a color written by
+  `harnmem_write` from the first; `state.db` `api_content` shows the injected
+  block inside `<memory-context>`; 21 Node and 30 Python deterministic tests.
+  Known limit: extraction needs an OpenAI-compatible endpoint (the local
+  `opencode-go` gateway requires a proprietary `x-opencode-session` header;
+  documented in the design doc as risk R5).
+
+- [ ] **N30. Hermes adapter follow-ups.** (a) Submit `hermes-harnmem` to the
+  Hermes plugin catalog (`plugin-catalog/harnmem.yaml`: `repo`, a 40-hex `sha`
+  pin and `subdir: packages/hermes-harnmem`, `category: memory`,
+  `requires_hermes >= 0.22.5`); (b) support extraction endpoints that require
+  extra request headers (for example `opencode-go`'s `x-opencode-session`) if a
+  compatible `HARNMEM_LLM_*` extension lands in the CLI; (c) re-run the live
+  probe against the next Hermes stable release and re-stamp the design doc's
+  verification table (R1 in `docs/design/13-hermes-adapter.md`).
+
 ## 5. Decision log
 
 | Date | Decision | Why |
@@ -785,6 +824,10 @@ backlog by user decision (2026-10-30).
 | 2026-10-30 | Cursor injection uses `beforeSubmitPrompt` flat `additional_context`, pinned to the first confirmed turn, instead of `sessionStart` | Live probe on 3.27.22: `sessionStart` fires but its `additional_context` is silently dropped, while `beforeSubmitPrompt` reaches the model as a system reminder on every turn. Pinning the snapshot keeps the KV-cache prefix byte-stable and costs no engine boot on later prompts; `afterAgentResponse` confirms delivery so a crashed first turn can retry |
 | 2026-10-30 | Cursor hooks are installed into the user-level `~/.cursor/hooks.json`; the plugin only ships rules + `mcp.json` | Plugin hooks load through the extension-host plugins provider behind the `enable_cc_plugin_import` experiment and did not run for a local plugin until a full restart; the user-level file hot-reloads and was verified end-to-end. The same script is registered in both places and deduplicated with exclusive claim files |
 | 2026-10-30 | The installer *reports* the Claude-imported `harnmem` duplicate instead of trying to shadow it (`--doctor`) | Cursor auto-imports Claude Code plugins and has no same-id precedence (unlike Grok, N21), so both copies coexist: they share one MCP server name and collapse to one journal via claim files. A doctor check with exit codes is the honest fix; removing the copy is a user decision via the third-party-imports setting |
+| 2026-10-30 | Hermes adapter is a Python `MemoryProvider` plugin over a vendored Node bridge, not a `harnmem` CLI subprocess | Hermes is Python-only; the bridge keeps the engine zero-dependency and installable through the plugin manager, and the committed vendored build keeps the package self-contained (same pattern as `claude-harnmem`) |
+| 2026-10-30 | `prefetch` returns the cached snapshot and rebuilds only on session switch, day rollover, memory write or compaction | Hermes appends prefetch text to every user message; re-rendering each turn would re-pay the injected tokens and churn `api_content`. The cache validity rules mirror the core's own dirty flags |
+| 2026-10-30 | No private Hermes imports in the plugin (catalog rule 9); the bridge inherits the host environment and only prepends the Node directory to `PATH` | `hermes plugins validate` flags `tools.environments.local` / `agent.secret_scope` imports, and the host loads the profile `.env` before plugins run, so a plain `os.environ` copy is sufficient |
+| 2026-10-30 | `hermes-harnmem` stays out of npm and ships through the Hermes plugin manager | The plugin is Python; the Hermes catalog installs git subdirectories, so npm would add no distribution path |
 
 ### Trial notes (N1)
 
