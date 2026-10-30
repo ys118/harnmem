@@ -9,14 +9,14 @@ Last updated: **2026-10-30** (seven-package audit: 17 of 21 confirmed issues fix
 
 | Item | State |
 | --- | --- |
-| Repository | `github.com/ys118/harnmem` (public), branch `master`, CI green on `a731f2f` |
-| Latest release | `v0.2.0` tag on `a731f2f` (DSH adapter + write-silence fix + resume catch-up + single-store migration) |
-| Commits after `v0.1.0` | `b872c86..a731f2f` — DSH adapter and cold-start fix, toolPrefix/order coexistence, the DSH write-silence fix, resume catch-up, and the N4/N5 single-store migration |
-| Packages (all `0.2.0`, published on npm) | `@harnmem/core`, `@harnmem/cli`, `pi-harnmem`, `dsh-harnmem` |
-| Core tests | 52/52 pass (`node --test packages/core/test/*.test.mjs`); adapter 58/58 (`pnpm --filter dsh-harnmem test`) |
+| Repository | `github.com/ys118/harnmem` (public), branch `master`, PR-only; required CI checks green on ubuntu-latest (Node 22 and 24) and windows-latest (Node 22), plus the evaluation gate |
+| Latest release | `v0.6.2` tag on `18081fa` (2026-10-30): seven-package audit wave, 17 of 21 confirmed issues fixed; the structural remainder is tracked as N18-N20 below |
+| Releases | `v0.1.0` (2026-10-20) through `v0.6.2`: `v0.2.0` DSH adapter and single-store migration, then one adapter or audit wave per release (Claude Code, Codex, opencode); per-release detail in [`CHANGELOG.md`](../CHANGELOG.md) |
+| Packages (published on npm) | `@harnmem/core` `0.4.2`, `@harnmem/cli` `0.4.1`, `pi-harnmem` `0.4.4`, `dsh-harnmem` `0.4.2`, `claude-harnmem` `0.4.3`, `codex-harnmem` `0.2.3`, `opencode-harnmem` `0.1.1` |
+| Tests | `pnpm test` green: core engine, CLI end-to-end, and the five adapter suites, on every required CI job |
 | Evaluation | functional gates PASS; macro R@10 1.000, MRR 0.891, nDCG@10 0.911; 5 advisory perf gates (see §3) |
 | Real trial | N1 closed 2026-10-25, verdict **useful**; single store since 2026-10-24: legacy memories migrated (N4/N5), `dsh-auto-memory`/`pi-memory` disabled and their stores later deleted, HarnMem is the memory SSOT (user decision 2026-10-25) |
-| Environment | Windows 11, Node 24.9.0, pnpm 10.33.2, pi 1.3.0, DeepSeek Harness 0.2.1-rc.2 |
+| Environment | Windows 11, Node 22.15+ (development on 26.x), pnpm 10.33.2, pi 1.3.0, DeepSeek Harness 0.2.x, Claude Code 2.1.310, Codex 0.164/0.165 alpha, opencode 2.1.4 |
 
 **Live trial evidence** (`C:\Users\<user>\.harnmem`):
 
@@ -688,8 +688,7 @@ backlog by user decision (2026-10-30).
 # from <repo>
 pnpm -r build
 pnpm -r typecheck
-pnpm test                                   # core 52/52
-node --test packages/dsh-harnmem/test/*.test.mjs   # adapter 58/58
+pnpm test                                   # core + CLI + five adapter suites
 node evals/gen/generate.mjs --check         # 36 files byte-identical
 node evals/run.mjs --engine core --gate     # functional PASS; 5 advisory
 

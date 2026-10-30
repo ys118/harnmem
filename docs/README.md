@@ -32,7 +32,7 @@ The documentation is organized in five layers. If you are new, read the
 | [`design/06-implementation-plan.md`](design/06-implementation-plan.md) | Milestones, verified evidence, risks, release strategy |
 | [`design/07-adapter-contract.md`](design/07-adapter-contract.md) | Adapter contract, tool semantics, KV-cache rules, execution-surface split |
 | [`design/08-dsh-adapter.md`](design/08-dsh-adapter.md) | DeepSeek Harness adapter: plugin shape, hooks, injection, cold-start fallback, tools |
-| [`design/09-claude-adapter.md`](design/09-claude-adapter.md) | Claude Code adapter design: zero-dependency MCP stdio server + hooks (not implemented) |
+| [`design/09-claude-adapter.md`](design/09-claude-adapter.md) | Claude Code adapter: zero-dependency MCP stdio server + hooks, implemented as `packages/claude-harnmem` |
 | [`design/10-migration-onboarding.md`](design/10-migration-onboarding.md) | Migration onboarding: relaxed JSON contract, `import md` / `import claude` / `import auto`, agent-assisted recipe, safety and acceptance criteria |
 
 ## Research notes
@@ -61,6 +61,12 @@ specifications; the design docs above are the source of truth.
   plugin install and verification.
 - [`../packages/cli/README.md`](../packages/cli/README.md) — CLI command
   reference and migration guarantees.
+- [`../packages/claude-harnmem/README.md`](../packages/claude-harnmem/README.md) —
+  Claude Code plugin install and verification.
+- [`../packages/codex-harnmem/README.md`](../packages/codex-harnmem/README.md) —
+  Codex plugin install and verification.
+- [`../packages/opencode-harnmem/README.md`](../packages/opencode-harnmem/README.md) —
+  opencode plugin install and verification.
 
 ## Conventions
 
