@@ -204,7 +204,7 @@ Grok 默认 `compat.claude` 开启，会加载 Claude 插件（P21：未改动�
 | 工具形态 | 5 工具，模型直接可见 | 5+2 工具，直接可见 | 5+1 工具；模型经 `search_tool`/`use_tool` 触达 |
 | 生命周期 | SessionStart/SessionEnd | SessionStart（SessionEnd MCP hook 不支持→回填） | SessionEnd command hook（实测触发）+ detached 抽取 |
 | 抽取输入 | Claude transcript JSONL | Codex rollout JSONL | `chat_history.jsonl`（`updates.jsonl` 兜底） |
-| 安装 | `/plugin marketplace add <repo>` | `codex plugin marketplace add <repo> --sparse <path>` | `grok plugin marketplace add <repo>` → `grok plugin install <name> --trust` |
+| 安装 | `/plugin marketplace add <repo>` | `codex plugin marketplace add <repo> --sparse <path>` | `grok plugin marketplace add <repo>` → TUI `/plugins` → Marketplace 安装（或 git 子目录直装，§6.7） |
 | 开发回路 | `--plugin-dir` / marketplace | 无等价物（重装刷新 cache） | `grok plugin install <本地路径> --trust`（即改即生效需重装）；`validate` 先跑 |
 | 命令 | `/harnmem:memory` | skills | `/grok-harnmem:memory` |
 
