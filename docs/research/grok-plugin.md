@@ -304,8 +304,8 @@ packages/grok-harnmem/
 | T1 | MCP instructions 截断阈值未标定（仅 2 server 聚合 4,293 字符） | 注入预算 | 实现期单 server 1–8 KB 扫描，定 `HARNMEM_MAX_INSTRUCT_BYTES` 默认值 |
 | T2 | SessionEnd payload 确切形状与可靠性（headless vs TUI；探针第二插件未派发） | 抽取主通道 | 实现期 dump payload；必要时 v0.2 加"下次启动回填" |
 | T3 | 与 claude-harnmem 共存（Grok 自动加载 Claude 插件） | 双 server/双抽取/命令撞名 | 实现期显式测试并写 README 推荐配置 |
-| T4 | UserPromptSubmit `additionalContext` 是否真不可用（文档说丢弃，未实测） | 备选注入面 | 低优先，实现期顺手验 |
-| T5 | `$GROK_HOME/rules` 注入未命中（文档说会加载） | 被动通道缺失 | 不再依赖；记录为 UNRESOLVED |
+| T4 | UserPromptSubmit `additionalContext`/纯 stdout 是否可用 | 备选注入面 | **已测（§10）：hook 触发但两种输出均不到模型，确认不可用** |
+| T5 | `$GROK_HOME/rules` / `[paths] extra_rule_dirs` 是否加载 | 被动通道 | **已测（§10）：两者均加载；早期 P13/P14 为测量假阴性；因作用域为全局而不采用** |
 | T6 | daemon route 无 `transcript_path`（[S] 25-status-line.md:61） | 抽取定位 | 已设计 `cwd`+`sessionId` 反推兜底 |
 | T7 | 交互 TUI 是否同样注入 MCP instructions（只在 `-p` 实测） | 首轮注入 | M1 真机验 |
 | T8 | Grok 版本升级导致 hook/MCP 语义漂移 | 长期维护 | 探针可重跑（附录 A），版本门在 README 标注"1.0.70 实测" |
@@ -334,6 +334,20 @@ packages/grok-harnmem/
 结论与落地：插件 id 保持 `grok-harnmem`（`/grok-harnmem:memory` 不变），安装命令唯一、无需 pin；README/design 记录“安装即赢得同名 server”的机制，并把 `disabled = ["harnmem"]` 作为可选的一步（只为去掉重复的 SessionEnd hook）。不生效的控制项：`grok plugin disable harnmem`（Claude 发现的插件不在 grok 安装列表里）、Claude 侧 `enabledPlugins: false`（不影响 Grok 发现）、把 enabled/disabled 写进第二个 `[plugins]` 表（TOML 重复键会让整段配置被忽略）。
 
 复现要点：用 `grok inspect --json`（`mcpServers[].source.path` 指向 `installed-plugins/` 还是 `~/.claude/plugins/cache/`）与 debug 日志 `hooks.dispatch{hook_event=session_end hook_count=N}` 判定；`grok plugin list --json` 只列 marketplace 安装的插件（Claude 自动发现的不在列表内）。仲裁规则属实测行为（1.0.70），Grok 升级后需复验（N22）。
+
+## 10. 追加实证：TUI、UserPromptSubmit、rules 通道与发布（2026-10-30 收尾）
+
+初版实现与 P0 验收之后，四项早期未决/待办在本轮补测（Grok CLI 1.0.70；隔离 `GROK_HOME`，TUI 验收保留真实 `~/.claude` 插件缓存以验证共存）：
+
+| 项 | 结果 | 证据 |
+|---|---|---|
+| TUI 注入与抽取 | **PASS** | TUI 会话 `01a18d19-947d-7383-9c1a-a43f696dcc0b` 的模型 thinking 中出现注入的种子记忆并回答 `GROKMEM-TUI-8D31`；审计 `{"kind":"inject","harness":"grok","bytes":345,"tokens":82,"reason":"session_start"}`；`chat_history.jsonl` 含 `MCP server connected … 6 tools`；`SessionEnd` 仅派发一次（`plugin/grok-harnmem/hooks:session_end[0]`，`elapsed_ms=376`）并写入 journal |
+| UserPromptSubmit `additionalContext`/纯 stdout（T4/P26） | **FAIL（确认不可用）** | 探针插件的两个 handler 在 headless `-p` 中均被派发（stdin 已落盘，含 `prompt`、`promptId`）；`hookSpecificOutput.additionalContext` 与纯文本 stdout 在 `chat_history.jsonl` 均为 0 命中 |
+| `$GROK_HOME/rules/*.md` 与 `[paths] extra_rule_dirs`（T5/P13/P14） | **PASS（但未采用）** | 新会话 `chat_history.jsonl` 首条 user 消息含 `<rules><user_rules>…T5MARK_RULES_GROKHOME…` 与 `…T5MARK_RULES_EXTRA_DIR…`；`grok inspect --json` 的 `projectInstructions` 列出两个文件（`scope: global`）。该通道作用于整个 `GROK_HOME`（所有项目共享），写项目级快照会跨仓库泄漏，因此仍以 MCP `initialize.instructions` 为主注入 |
+| 远端 marketplace 干净机器安装 | **PASS** | 全新 `GROK_HOME` + 干净 profile：`grok plugin marketplace add ys118/harnmem` 1.4 s（`Added marketplace source: harnmem (https://github.com/ys118/harnmem.git)`）；`grok plugin install grok-harnmem --trust` 4.6 s（`Installed 1 plugin(s) from harnmem: grok-harnmem`）；插件取自 GitHub clone 的 `packages/grok-harnmem` |
+| npm 发布 | **DONE** | `grok-harnmem@0.1.0` 已发布（CI 未配置 `NPM_TOKEN`，按 CONTRIBUTING 的本地发布回退手动执行） |
+
+**对 §1 矩阵的修正**：P13/P14 的 "FAIL/UNRESOLVED" 是测量假阴性——当时只 grep 了 `system_prompt.txt`（rules 实际注入在会话首条 user 消息里，且未用 `grok inspect --json` 的 `projectInstructions` 核对）。P26（UserPromptSubmit）由 UNRESOLVED 更新为 **FAIL**。P12（同 session 时序）结论不变：SessionStart hook 仍在 prompt 渲染之后完成，rules 文件只对下一次会话生效。
 
 ## 附录 A：探针产物与可复现命令
 

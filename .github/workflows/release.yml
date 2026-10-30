@@ -1,7 +1,8 @@
 name: Release
 
-# Publishes @harnmem/core, @harnmem/cli, pi-harnmem and dsh-harnmem on a version tag,
-# then creates the matching GitHub release from the CHANGELOG section.
+# Publishes every workspace package (@harnmem/core, @harnmem/cli and the
+# cross-harness adapters) on a version tag, then creates the matching GitHub
+# release from the CHANGELOG section.
 # Requirements before the first release:
 #   - the @harnmem npm org exists and the maintainer can publish to it;
 #   - repository secret NPM_TOKEN contains an automation token with publish rights.

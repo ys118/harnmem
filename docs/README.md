@@ -71,6 +71,8 @@ specifications; the design docs above are the source of truth.
   Codex plugin install and verification.
 - [`../packages/opencode-harnmem/README.md`](../packages/opencode-harnmem/README.md) —
   opencode plugin install and verification.
+- [`../packages/grok-harnmem/README.md`](../packages/grok-harnmem/README.md) —
+  Grok CLI plugin install and verification.
 
 ## Conventions
 
