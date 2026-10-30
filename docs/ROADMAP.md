@@ -3,7 +3,7 @@
 Single source of truth for **where the project stands and what to do next**.
 Design intent lives in [`design/`](design/); this file tracks execution state.
 
-Last updated: **2026-10-30** (seven-package audit: 17 of 21 confirmed issues fixed in the 0.6.2 patch wave; structural/design backlog tracked as N18-N20; Grok adapter implemented as N21 and probe-verified on Grok CLI 1.0.70; Grok plugin id kept as `grok-harnmem` after verifying the explicit `[plugins] enabled` entry wins the shared `harnmem` MCP server; Cursor adapter implemented as N23 and verified on Cursor desktop 3.27.22, with an installer `--doctor` self-check following as N24); the Grok P2 follow-up verified TUI parity, the UserPromptSubmit and `$GROK_HOME/rules` channels, remote marketplace install and the `grok-harnmem@0.1.0` npm publish).
+Last updated: **2026-10-30** (seven-package audit: 17 of 21 confirmed issues fixed in the 0.6.2 patch wave; structural/design backlog tracked as N18-N20; Grok adapter implemented as N21 and probe-verified on Grok CLI 1.0.70; Grok plugin id kept as `grok-harnmem` after verifying the explicit `[plugins] enabled` entry wins the shared `harnmem` MCP server; Cursor adapter implemented as N23 and verified on Cursor desktop 3.27.22, with an installer `--doctor` self-check following as N24); the Grok P2 follow-up verified TUI parity, the UserPromptSubmit and `$GROK_HOME/rules` channels, remote marketplace install and the `grok-harnmem@0.1.0` npm publish; the remaining Grok verification backlog is tracked as N25).
 
 ## 1. Snapshot
 
@@ -597,6 +597,43 @@ backlog by user decision (2026-10-30).
   to `GROK_HOME`, so they are not used for a project-scoped index. Remote install
   from the GitHub marketplace was verified on a clean home, and
   `grok-harnmem@0.1.0` is published on npm.
+
+- [ ] **N25. Grok adapter verification backlog (beyond N22).** Surfaces that the
+  1.0.70 Windows probe could not close, kept here so they are not lost. N22
+  already covers the aggregate instructions-cap calibration, the daemon-route
+  transcript fallback and the Linux/macOS sandbox profile.
+
+  * **Extraction end-to-end.** Configure an `llm` in `~/.harnmem/config.json` and
+    enable `write.autoExtract` (or `HARNMEM_AUTO_EXTRACT=1`), then run a Grok
+    session with three or more user turns. *Acceptance:* an `extract` audit row
+    with `status:"done"` and new memories in the shared store, replacing the
+    current evidence (journal written, extraction skipped as
+    `auto_extract_off` or `no_llm`).
+  * **ACP and `--plugin-dir` parity.** Verify `grok agent stdio` loads the
+    plugin, attaches the `harnmem` MCP server, injects
+    `initialize.instructions` and dispatches `SessionEnd` with the ACP session
+    id; verify the documented `grok agent --plugin-dir packages/grok-harnmem
+    stdio` development route behaves the same (leader mode ignores
+    `--plugin-dir`).
+  * **Subagent sessions.** Confirm a child-agent session fires `SessionEnd`
+    with `subagentType`, that the hook skips extraction (read-only), and that
+    the parent turn does not get a duplicate journal entry.
+  * **Coexistence regression matrix.** Re-run the N21 arbitration with the
+    Claude plugin installed before/after ours, a Grok upgrade between install
+    and run, a project-level `.grok/config.toml` `[plugins]` entry, and the
+    drop-in route (`~/.grok/plugins/`) instead of `grok plugin install`; record
+    which combinations still resolve the `harnmem` MCP server to the Grok copy.
+  * **TUI interaction details.** Drive `/grok-harnmem:memory` end-to-end in the
+    TUI, open the `/plugins` trust flow, and capture the hook status row. The
+    P2 acceptance proved injection but not the command and UI surfaces.
+  * **Extraction configuration docs.** Add an `llm` config example, the
+    `autoExtract` switch and the `no_llm`/`auto_extract_off` degradation path to
+    the package README.
+  * **Version gate.** Re-run appendix A of
+    [`research/grok-plugin.md`](research/grok-plugin.md) after each Grok upgrade
+    and update the design-doc channel table if a channel changes
+    (`SessionStart` injection and `UserPromptSubmit` are the two most likely to
+    shift).
 
 ### Phase J - Cursor adapter (N23-N24)
 
