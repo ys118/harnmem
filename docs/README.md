@@ -34,6 +34,7 @@ The documentation is organized in five layers. If you are new, read the
 | [`design/08-dsh-adapter.md`](design/08-dsh-adapter.md) | DeepSeek Harness adapter: plugin shape, hooks, injection, cold-start fallback, tools |
 | [`design/09-claude-adapter.md`](design/09-claude-adapter.md) | Claude Code adapter: zero-dependency MCP stdio server + hooks, implemented as `packages/claude-harnmem` |
 | [`design/10-migration-onboarding.md`](design/10-migration-onboarding.md) | Migration onboarding: relaxed JSON contract, `import md` / `import claude` / `import auto`, agent-assisted recipe, safety and acceptance criteria |
+| [`design/11-grok-adapter.md`](design/11-grok-adapter.md) | Grok adapter: memory index via MCP `initialize.instructions`, `SessionEnd`-only lifecycle, `chat_history.jsonl` transcript parsing, implemented as `packages/grok-harnmem` |
 
 ## Research notes
 

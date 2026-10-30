@@ -75,6 +75,12 @@ importers:
         specifier: ^0.22.2
         version: 0.22.14(typescript@5.9.3)
 
+  packages/grok-harnmem:
+    devDependencies:
+      '@harnmem/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/opencode-harnmem:
     devDependencies:
       '@harnmem/core':

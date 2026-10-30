@@ -1,0 +1,12 @@
+{
+  "name": "grok-harnmem",
+  "description": "Cross-harness persistent memory for Grok CLI: injects a byte-stable memory index through the MCP initialize.instructions channel, exposes harnmem search/read/write/forget/status/context tools via MCP, adds a /grok-harnmem:memory command, and extracts durable memories at session end from Grok session transcripts. Store lives in ~/.harnmem as plain Markdown + YAML, shared with other harnesses.",
+  "version": "0.1.0",
+  "author": {
+    "name": "HarnMem contributors"
+  },
+  "license": "MIT",
+  "keywords": ["memory", "harnmem", "mcp", "knowledge", "cross-harness", "grok"],
+  "homepage": "https://github.com/ys118/harnmem",
+  "repository": "https://github.com/ys118/harnmem"
+}
