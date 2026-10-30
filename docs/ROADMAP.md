@@ -10,9 +10,9 @@ Last updated: **2026-10-30** (seven-package audit: 17 of 21 confirmed issues fix
 | Item | State |
 | --- | --- |
 | Repository | `github.com/ys118/harnmem` (public), branch `master`, PR-only; required CI checks green on ubuntu-latest (Node 22 and 24) and windows-latest (Node 22), plus the evaluation gate |
-| Latest release | `v0.6.2` tag on `18081fa` (2026-10-30): seven-package audit wave, 17 of 21 confirmed issues fixed; the structural remainder is tracked as N18-N20 below |
-| Releases | `v0.1.0` (2026-10-20) through `v0.6.2`: `v0.2.0` DSH adapter and single-store migration, then one adapter or audit wave per release (Claude Code, Codex, opencode); per-release detail in [`CHANGELOG.md`](../CHANGELOG.md) |
-| Packages (published on npm) | `@harnmem/core` `0.4.2`, `@harnmem/cli` `0.4.1`, `pi-harnmem` `0.4.4`, `dsh-harnmem` `0.4.2`, `claude-harnmem` `0.4.3`, `codex-harnmem` `0.2.3`, `opencode-harnmem` `0.1.1`; `grok-harnmem` `0.1.0` and `cursor-harnmem` `0.1.0` are implemented in `master` and ship in the next release |
+| Latest release | `v0.7.0` tag on `788d45c` (2026-10-30): adds the Grok (`grok-harnmem` 0.1.0) and Cursor (`cursor-harnmem` 0.1.0) adapters on top of the 0.6.2 audit wave |
+| Releases | `v0.1.0` (2026-10-20) through `v0.7.0`: `v0.2.0` DSH adapter and single-store migration, then one adapter or audit wave per release (Claude Code, Codex, opencode, Grok + Cursor); per-release detail in [`CHANGELOG.md`](../CHANGELOG.md) |
+| Packages (published on npm) | `@harnmem/core` `0.4.2`, `@harnmem/cli` `0.4.1`, `pi-harnmem` `0.4.4`, `dsh-harnmem` `0.4.2`, `claude-harnmem` `0.4.3`, `codex-harnmem` `0.2.3`, `opencode-harnmem` `0.1.1`, `grok-harnmem` `0.1.0`, `cursor-harnmem` `0.1.0` |
 | Tests | `pnpm test` green: core engine, CLI end-to-end, and the seven adapter suites, on every required CI job |
 | Evaluation | functional gates PASS; macro R@10 1.000, MRR 0.891, nDCG@10 0.911; 5 advisory perf gates (see §3) |
 | Real trial | N1 closed 2026-10-25, verdict **useful**; single store since 2026-10-24: legacy memories migrated (N4/N5), `dsh-auto-memory`/`pi-memory` disabled and their stores later deleted, HarnMem is the memory SSOT (user decision 2026-10-25) |
