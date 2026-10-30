@@ -1,4 +1,4 @@
-# 11 Cursor adapter: user-level hooks + plugin rules/MCP
+# 12 Cursor adapter: user-level hooks + plugin rules/MCP
 
 > Cursor exposes three extension points that matter here: **hooks** (process-level
 > event callbacks configured in `hooks.json`), an **MCP server** (stdio tools), and

@@ -62,7 +62,7 @@ Injection is deterministically truncated to a conservative 10,000-character budg
 - The MCP server never writes to stdout outside the JSON-RPC protocol; hook scripts print at most one JSON payload and exit 0 on any failure, so a broken adapter can never wedge a conversation.
 - Project-level `.cursor/hooks.json` also works (it needs a trusted workspace), but the installer targets the user level because that is what was verified end-to-end.
 - Cursor's published hook schema documents `continue`/`user_message` for `beforeSubmitPrompt`, not `additional_context`. The injection channel used here was verified by token-recall experiments on 3.27.22; if a future Cursor build drops it, the `rules/harnmem.mdc` fallback still exposes the store through the MCP tools.
-- Design and verification evidence: `docs/design/11-cursor-adapter.md`, `docs/research/cursor-plugin.md`.
+- Design and verification evidence: `docs/design/12-cursor-adapter.md`, `docs/research/cursor-plugin.md`.
 
 ## License
 

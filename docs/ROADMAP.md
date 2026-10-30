@@ -3,7 +3,7 @@
 Single source of truth for **where the project stands and what to do next**.
 Design intent lives in [`design/`](design/); this file tracks execution state.
 
-Last updated: **2026-10-30** (seven-package audit: 17 of 21 confirmed issues fixed in the 0.6.2 patch wave; structural/design backlog tracked as N18-N20; Grok adapter implemented as N21 and probe-verified on Grok CLI 1.0.70; Grok plugin id kept as `grok-harnmem` after verifying the explicit `[plugins] enabled` entry wins the shared `harnmem` MCP server).
+Last updated: **2026-10-30** (seven-package audit: 17 of 21 confirmed issues fixed in the 0.6.2 patch wave; structural/design backlog tracked as N18-N20; Grok adapter implemented as N21 and probe-verified on Grok CLI 1.0.70; Grok plugin id kept as `grok-harnmem` after verifying the explicit `[plugins] enabled` entry wins the shared `harnmem` MCP server; Cursor adapter implemented as N23 and verified on Cursor desktop 3.27.22, with an installer `--doctor` self-check following as N24).
 
 ## 1. Snapshot
 
@@ -12,11 +12,11 @@ Last updated: **2026-10-30** (seven-package audit: 17 of 21 confirmed issues fix
 | Repository | `github.com/ys118/harnmem` (public), branch `master`, PR-only; required CI checks green on ubuntu-latest (Node 22 and 24) and windows-latest (Node 22), plus the evaluation gate |
 | Latest release | `v0.6.2` tag on `18081fa` (2026-10-30): seven-package audit wave, 17 of 21 confirmed issues fixed; the structural remainder is tracked as N18-N20 below |
 | Releases | `v0.1.0` (2026-10-20) through `v0.6.2`: `v0.2.0` DSH adapter and single-store migration, then one adapter or audit wave per release (Claude Code, Codex, opencode); per-release detail in [`CHANGELOG.md`](../CHANGELOG.md) |
-| Packages (published on npm) | `@harnmem/core` `0.4.2`, `@harnmem/cli` `0.4.1`, `pi-harnmem` `0.4.4`, `dsh-harnmem` `0.4.2`, `claude-harnmem` `0.4.3`, `codex-harnmem` `0.2.3`, `opencode-harnmem` `0.1.1`; `grok-harnmem` `0.1.0` is implemented in `master` and ships in the next release |
-| Tests | `pnpm test` green: core engine, CLI end-to-end, and the six adapter suites, on every required CI job |
+| Packages (published on npm) | `@harnmem/core` `0.4.2`, `@harnmem/cli` `0.4.1`, `pi-harnmem` `0.4.4`, `dsh-harnmem` `0.4.2`, `claude-harnmem` `0.4.3`, `codex-harnmem` `0.2.3`, `opencode-harnmem` `0.1.1`; `grok-harnmem` `0.1.0` and `cursor-harnmem` `0.1.0` are implemented in `master` and ship in the next release |
+| Tests | `pnpm test` green: core engine, CLI end-to-end, and the seven adapter suites, on every required CI job |
 | Evaluation | functional gates PASS; macro R@10 1.000, MRR 0.891, nDCG@10 0.911; 5 advisory perf gates (see §3) |
 | Real trial | N1 closed 2026-10-25, verdict **useful**; single store since 2026-10-24: legacy memories migrated (N4/N5), `dsh-auto-memory`/`pi-memory` disabled and their stores later deleted, HarnMem is the memory SSOT (user decision 2026-10-25) |
-| Environment | Windows 11, Node 22.15+ (development on 26.x), pnpm 10.33.2, pi 1.3.0, DeepSeek Harness 0.2.x, Claude Code 2.1.310, Codex 0.164/0.165 alpha, opencode 2.1.4, Grok CLI 1.0.70 |
+| Environment | Windows 11, Node 22.15+ (development on 26.x), pnpm 10.33.2, pi 1.3.0, DeepSeek Harness 0.2.x, Claude Code 2.1.310, Codex 0.164/0.165 alpha, opencode 2.1.4, Grok CLI 1.0.70, Cursor desktop 3.27.22 |
 
 **Live trial evidence** (`C:\Users\<user>\.harnmem`):
 
@@ -173,6 +173,14 @@ Ordered by impact; **do not silently skip these**.
    ([`packages/claude-harnmem`](../packages/claude-harnmem/README.md), 2026-10-26);
    see [`design/09-claude-adapter.md`](design/09-claude-adapter.md) and
    [`research/claude-code-plugin.md`](research/claude-code-plugin.md).
+11. **Cursor adapter has three known limits** (2026-10-30): `sessionStart`
+    `additional_context` is still dropped by Cursor desktop 3.27.22, so injection
+    rides on the undocumented flat `additional_context` of `beforeSubmitPrompt`;
+    the user-level `~/.cursor/hooks.json` is the authoritative hook channel because
+    plugin hooks sit behind the `enable_cc_plugin_import` experiment; and Cursor has
+    no same-id plugin shadowing, so a Claude-imported `harnmem` copy coexists and is
+    only *reported* by `scripts/install.mjs --doctor` (see
+    [`design/12-cursor-adapter.md`](design/12-cursor-adapter.md) section 10).
 
 ## 4. Next steps
 
@@ -580,6 +588,36 @@ backlog by user decision (2026-10-30).
   transcript fallback; live-check the custom sandbox profile on Linux/macOS
   (Windows has no sandbox enforcement, so only the guidance is verified).
 
+### Phase J - Cursor adapter (N23-N24)
+
+- [x] **N23. Cursor adapter.** Cursor desktop exposes hooks, a plugin format
+  (`.cursor-plugin/`), MCP and always-on rules, but no supported context-injection
+  API other than hooks. Build `packages/cursor-harnmem`: a `beforeSubmitPrompt`
+  hook that injects the memory snapshot once per conversation, a `sessionEnd` hook
+  that journals and extracts the transcript in a detached child, a plugin that
+  ships `rules/` and `mcp.json`, and an installer that merges the hooks into
+  `~/.cursor/hooks.json` without clobbering user entries.
+
+  *Done 2026-10-30:* implemented as
+  [`packages/cursor-harnmem`](../packages/cursor-harnmem/README.md)
+  ([design](design/12-cursor-adapter.md)). Verified on Cursor desktop 3.27.22 with
+  a seeded store: the first prompt recalled the injected marker and the model called
+  `memory_status` through the plugin MCP server; `afterAgentResponse` flipped the
+  marker to `confirmed`; closing the tab produced one unique journal per
+  conversation (a duplicate hook run from the plugin copy is collapsed by an
+  exclusive claim); 46 adapter tests green. Injection rides on
+  `beforeSubmitPrompt` because `sessionStart` output is dropped; the plugin hooks
+  sit behind the `enable_cc_plugin_import` experiment, so the installer registers
+  the same script in the user-level `~/.cursor/hooks.json` and the hooks are
+  idempotent across both channels. `scripts/install.mjs --doctor` reports plugin,
+  hooks, MCP and Claude-imported duplicates.
+
+- [ ] **N24. Cursor adapter follow-ups.** Cursor marketplace publish; verify
+  `preCompact`, subagent and Cloud-agent surfaces (Cloud agents do not support
+  `sessionStart`/`sessionEnd`/`workspaceOpen`); re-check injection after a Cursor
+  minor-version bump (the `beforeSubmitPrompt` field is undocumented); confirm
+  behaviour under MDM/Enterprise hook policy and workspace trust.
+
 ## 5. Decision log
 
 | Date | Decision | Why |
@@ -604,6 +642,9 @@ backlog by user decision (2026-10-30).
 | 2026-10-25 | Repository made public; `v0.2.0` GitHub release published from the changelog | Open-source flip completed after the prep PR (privacy sweep + history rewrite + contribution gate) was reviewed and merged |
 | 2026-10-25 | Migration onboarding is three layers, not one parser per product: relaxed JSON contract, deterministic `md`/`claude`/`auto` importers, agent-assisted prompt for the long tail | The pipeline (dry-run, backup, ledger, verify/rollback) already exists; per-product connectors drift and multiply. Moving *conclusions* (title/description/content) rather than raw documents is what HarnMem injection rewards — design in [`design/10-migration-onboarding.md`](design/10-migration-onboarding.md) |
 | 2026-10-25 | `import auto` probes only known harness memory stores; repository instruction files (`CLAUDE.md`, `AGENTS.md`, rule files) are never auto-migrated | Hosts inject instruction files directly, so importing them would double-inject and fork stale copies; explicit `import md --include-all` covers the decommissioning case |
+| 2026-10-30 | Cursor injection uses `beforeSubmitPrompt` flat `additional_context`, pinned to the first confirmed turn, instead of `sessionStart` | Live probe on 3.27.22: `sessionStart` fires but its `additional_context` is silently dropped, while `beforeSubmitPrompt` reaches the model as a system reminder on every turn. Pinning the snapshot keeps the KV-cache prefix byte-stable and costs no engine boot on later prompts; `afterAgentResponse` confirms delivery so a crashed first turn can retry |
+| 2026-10-30 | Cursor hooks are installed into the user-level `~/.cursor/hooks.json`; the plugin only ships rules + `mcp.json` | Plugin hooks load through the extension-host plugins provider behind the `enable_cc_plugin_import` experiment and did not run for a local plugin until a full restart; the user-level file hot-reloads and was verified end-to-end. The same script is registered in both places and deduplicated with exclusive claim files |
+| 2026-10-30 | The installer *reports* the Claude-imported `harnmem` duplicate instead of trying to shadow it (`--doctor`) | Cursor auto-imports Claude Code plugins and has no same-id precedence (unlike Grok, N21), so both copies coexist: they share one MCP server name and collapse to one journal via claim files. A doctor check with exit codes is the honest fix; removing the copy is a user decision via the third-party-imports setting |
 
 ### Trial notes (N1)
 
