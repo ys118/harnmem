@@ -3,7 +3,7 @@
 Single source of truth for **where the project stands and what to do next**.
 Design intent lives in [`design/`](design/); this file tracks execution state.
 
-Last updated: **2026-10-30** (seven-package audit: 17 of 21 confirmed issues fixed in the 0.6.2 patch wave; structural/design backlog tracked as N18-N20).
+Last updated: **2026-10-30** (seven-package audit: 17 of 21 confirmed issues fixed in the 0.6.2 patch wave; structural/design backlog tracked as N18-N20; Grok adapter research landed as N21).
 
 ## 1. Snapshot
 
@@ -16,7 +16,7 @@ Last updated: **2026-10-30** (seven-package audit: 17 of 21 confirmed issues fix
 | Tests | `pnpm test` green: core engine, CLI end-to-end, and the five adapter suites, on every required CI job |
 | Evaluation | functional gates PASS; macro R@10 1.000, MRR 0.891, nDCG@10 0.911; 5 advisory perf gates (see §3) |
 | Real trial | N1 closed 2026-10-25, verdict **useful**; single store since 2026-10-24: legacy memories migrated (N4/N5), `dsh-auto-memory`/`pi-memory` disabled and their stores later deleted, HarnMem is the memory SSOT (user decision 2026-10-25) |
-| Environment | Windows 11, Node 22.15+ (development on 26.x), pnpm 10.33.2, pi 1.3.0, DeepSeek Harness 0.2.x, Claude Code 2.1.310, Codex 0.164/0.165 alpha, opencode 2.1.4 |
+| Environment | Windows 11, Node 22.15+ (development on 26.x), pnpm 10.33.2, pi 1.3.0, DeepSeek Harness 0.2.x, Claude Code 2.1.310, Codex 0.164/0.165 alpha, opencode 2.1.4, Grok CLI 1.0.70 |
 
 **Live trial evidence** (`C:\Users\<user>\.harnmem`):
 
@@ -526,6 +526,33 @@ backlog by user decision (2026-10-30).
   to write-temp-then-rename like the other writers. *Acceptance:* one
   regression test per item; `node evals/run.mjs --engine core --gate` still
   PASS.
+
+### Phase I — Grok adapter
+
+- [ ] **N21. Implement the Grok plugin `grok-harnmem`.** Research of record:
+  [`research/grok-plugin.md`](research/grok-plugin.md) (2026-10-30, probe
+  verified on Grok CLI 1.0.70). Grok's `SessionStart` is observe-only — the
+  `additionalContext` and plain-text stdout are dropped, the `systemMessage`
+  only reaches a client annotation, and the system prompt is rendered before
+  the hook — so the memory index must move to the MCP
+  `initialize.instructions` channel, which the probe confirmed is injected as a
+  `<system-reminder>` before the first turn (truncated: ~4 KB aggregate for two
+  servers, so budget the index at 2–3 KB and self-truncate on line
+  boundaries). The five canonical tools plus `memory_context` run over a
+  zero-dependency stdio MCP server; Grok does not put MCP tools in its tool
+  definitions, so the model reaches them through `search_tool`/`use_tool`.
+  `SessionEnd` spawns the detached extract worker (Grok caps plugin SessionEnd
+  hooks at 1.5 s), which parses `chat_history.jsonl` with `updates.jsonl` as
+  fallback. Ship a Claude-compatible plugin with both `.grok-plugin/` and
+  `.claude-plugin/` manifests, a root `.grok-plugin/marketplace.json`, a
+  `/grok-harnmem:memory` command, and an optional recall skill. *Acceptance:*
+  `grok plugin validate` and `grok plugin install <path> --trust` pass;
+  headless and TUI sessions inject the seeded snapshot and the model answers
+  from it; `memory_write` lands in the shared store with
+  `source.harness="grok"`; SessionEnd extracts the session exactly once; the
+  real `~/.harnmem` is untouched until the user asks for it. Coexistence with
+  an auto-loaded `claude-harnmem` plugin (duplicate MCP server name, duplicate
+  extractor) is documented and verified.
 
 ## 5. Decision log
 

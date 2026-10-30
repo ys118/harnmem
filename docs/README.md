@@ -50,6 +50,7 @@ specifications; the design docs above are the source of truth.
 | [`research/prompt-review.md`](research/prompt-review.md) | Rationale and failure modes for the extraction/consolidation prompts |
 | [`research/codex-plugin.md`](research/codex-plugin.md) | Codex plugin system (mcp servers + hooks + skills), real-machine probe evidence, codex-harnmem architecture |
 | [`research/opencode-plugin.md`](research/opencode-plugin.md) | opencode v2 domain plugin API (`{id, setup(ctx)}`), real-machine probe evidence, opencode-harnmem architecture |
+| [`research/grok-plugin.md`](research/grok-plugin.md) | Grok CLI 1.0.70 plugin, hooks and MCP surfaces, real-machine probe evidence, grok-harnmem architecture (memory index via MCP `initialize.instructions`) |
 
 ## Operations and evaluation
 
