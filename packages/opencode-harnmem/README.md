@@ -11,7 +11,15 @@ Cross-harness persistent memory for [opencode](https://opencode.ai) v2.x, powere
 
 ## Install
 
-Add the package to your `opencode.json`:
+The one-command path (opencode >= 2):
+
+```
+opencode plugin add opencode-harnmem
+```
+
+This installs the npm package and adds it to the global `~/.config/opencode/opencode.json` (`"plugins"` key). Alternatives:
+
+Add the package to your project `opencode.json`:
 
 ```json
 { "$schema": "https://opencode.ai/config.json", "plugin": ["opencode-harnmem"] }
