@@ -8,6 +8,7 @@
   "files": [
     ".cursor-plugin/",
     "mcp.json",
+    "logo.png",
     "hooks/",
     "mcp/",
     "rules/",
