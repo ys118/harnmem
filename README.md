@@ -25,7 +25,8 @@ database, no embedding model, and no runtime dependencies in the engine.
   npm. Install the CLI with `npm install -g @harnmem/cli`.
   `opencode-harnmem` (opencode v2 plugin) is verified end to end on the
   opencode 2.1.4 binary (injection, native tools, per-turn journaling;
-  12/12 unit tests); ships with the v0.6.0 release.
+  12/12 unit tests); install with `opencode plugin add opencode-harnmem`
+  (requires opencode 2.x).
 - **License:** MIT.
 - **Status:** v0.6.0 — the engine, the CLI/migration tooling and the adapters
   (pi, DeepSeek Harness, Claude Code, Codex) are published and tested end to

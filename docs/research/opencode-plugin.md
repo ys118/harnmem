@@ -7,7 +7,7 @@
 探针位于 `.tmp/oc-probe/`（独立 git root，`opencode run --standalone` + 模型 `opencode-go/glm-5.3-flash`）。复现方式见附录。
 
 ### 1.1 插件加载 ✅
-- 目录扫描：`<project>/.opencode/plugins/*.{ts,js}`（**不认 `.mjs`**）；也支持 `opencode.json` 的 `"plugin": ["./pkg-harnmem"]` 引用本地包（package.json + main）——实测 26 域 ctx 交付成功；npm 包名引用同一入口（未单独实测，实现期验证）。
+- 目录扫描：`<project>/.opencode/plugins/*.{ts,js}`（**不认 `.mjs`**）；也支持 `opencode.json` 的 `"plugin": ["./pkg-harnmem"]` 引用本地包（package.json + main）——实测 26 域 ctx 交付成功；npm 包名引用同一入口（`opencode plugin add` 已真机验证，见 §8）。
 - 文件插件 **必须** `export default { id, setup(ctx) | effect(ctx) }`。v1 风格函数导出与 `{id, server}` 均被拒，报错原文：
   `PluginModule.LoadError: Plugin must export a default definition with an id and an effect or setup function. (cause: SchemaError(Missing key at ["default"]["effect"]/setup))`
 - `opencode run` 测试需要 `--standalone`（私有 server）且探针目录自己做 git root，否则 project/plugin 目录解析错位。
@@ -57,7 +57,7 @@
 
 | 维度 | claude | codex | opencode v2（本调研） |
 |---|---|---|---|
-| 安装 | settings/marketplace | `marketplace add` | `opencode.json` `"plugin":["opencode-harnmem"]` 或丢 `.opencode/plugins/*.js` |
+| 安装 | settings/marketplace | `marketplace add` | **`opencode plugin add opencode-harnmem`**（v2 自带插件管理；或 `opencode.json` 写 `"plugins"`/`"plugin"`，或丢 `.opencode/plugins/*.js`） |
 | 插件契约 | hooks 脚本 (JSON stdin/stdout) | hooks + MCP + skill | 进程内 `default {id, setup(ctx)}` 域式 API |
 | 注入 | SessionStart hook `additionalContext` | hooks `additional_context`（developer message） | `session.hook("context")` push system part（每请求，字节可稳定） |
 | 工具 | MCP stdio 子进程 | MCP stdio 子进程 | **原生 `tool.transform` 注册，零子进程** |
@@ -145,6 +145,8 @@
 - claude-harnmem / codex-harnmem 同源同步（评审发现的同款问题）：`~` 展开修复、vendor 补拷 prompts/data、exit handler 注释更正、config 布尔矫正、format shards 守卫、engines 键控评审（claude 每调用开新引擎天然无此问题，codex 需核对）。
 - npm 包名安装路径（`"plugin":["opencode-harnmem"]`）待 opencode 2.x 发上 npm 后实测。
 - 7.2 记录在案的 MINOR 随下个版本处理。
+
+**已关闭**：npm 包名安装路径已真机验证（2026-10-30，opencode 0.1.0 发布后）。正确姿势是 **`opencode plugin add opencode-harnmem`**——v2.1.4 自带插件管理命令（`plugin add/list/check/update/remove`，文档页完全没写），add 会安装 npm 包并把 `"plugins": ["opencode-harnmem"]` 写进**全局** `~/.config/opencode/opencode.json`。两个此前未知的细节：① 全局配置的键是**复数** `plugins`，项目级探针用的单数 `"plugin"`，二进制两者都认；② 装完全局插件后任何目录的会话都会加载（含隔离 HARNMEM_HOME 的全新目录，实测 `memory_status` 真实调用返回 "1 shard, currently empty"，npm 包内 vendor/prompts/data 完整）。
 
 ## 附录：探针产物与可复现命令
 
