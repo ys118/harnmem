@@ -319,6 +319,22 @@ packages/grok-harnmem/
 - **M3 抽取 + 命令/技能**：SessionEnd 抽取 worker + chat_history 解析 + `/grok-harnmem:memory` + 可选 skill；真机写读回环。
 - **M4 验收与发布**：TUI/headless 双模式验收、README、`docs/design/11-grok-adapter.md`、ROADMAP 勾选、release PR（版本/CHANGELOG 只在 release PR）。
 
+## 9. 追加实证：插件 id 与同名 MCP server 的仲裁（2026-10-30 追补）
+
+初版实现（PR #17）之后曾把 Grok 插件 id 改成 `harnmem`，用“同名插件高优先级覆盖”躲开 Claude Code 插件被 Grok 自动加载的问题。追补探针表明**不需要改名**：决定 `harnmem` MCP server 归属的是 `[plugins] enabled` 显式启用项，而 `grok plugin install` 会自动写入该条目。
+
+| 状态（隔离 `GROK_HOME` + 模拟/真实 `~/.claude` 缓存） | 结果 |
+|---|---|
+| 两个插件都被发现，无 `[plugins]` 配置 | Claude 版赢得 `harnmem` MCP server（5 工具、无注入） |
+| `enabled = ["grok-harnmem"]`（install 自动写入） | grok 版赢得（6 工具 + instructions），3/3 次复现 |
+| 先装 grok 版、之后 Claude 插件才出现 | grok 版保持胜出；6 工具，`hook_count=2` |
+| 再加 `disabled = ["harnmem"]` | 自动加载的 Claude 副本被卸载：6 工具、`hook_count=1`，审计仅 grok 的 inject/extract |
+| 未装 Claude 插件 + `disabled = ["harnmem"]` | 无告警；6 工具、`hook_count=1` |
+
+结论与落地：插件 id 保持 `grok-harnmem`（`/grok-harnmem:memory` 不变），安装命令唯一、无需 pin；README/design 记录“安装即赢得同名 server”的机制，并把 `disabled = ["harnmem"]` 作为可选的一步（只为去掉重复的 SessionEnd hook）。不生效的控制项：`grok plugin disable harnmem`（Claude 发现的插件不在 grok 安装列表里）、Claude 侧 `enabledPlugins: false`（不影响 Grok 发现）、把 enabled/disabled 写进第二个 `[plugins]` 表（TOML 重复键会让整段配置被忽略）。
+
+复现要点：用 `grok inspect --json`（`mcpServers[].source.path` 指向 `installed-plugins/` 还是 `~/.claude/plugins/cache/`）与 debug 日志 `hooks.dispatch{hook_event=session_end hook_count=N}` 判定；`grok plugin list --json` 只列 marketplace 安装的插件（Claude 自动发现的不在列表内）。仲裁规则属实测行为（1.0.70），Grok 升级后需复验（N22）。
+
 ## 附录 A：探针产物与可复现命令
 
 探针根：`D:\projects\harnmem\.tmp\grok-probe\`（隔离 `GROK_HOME` 在 `grokhome/`；证据在 `evidence/out/`；未提交仓库）。

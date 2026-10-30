@@ -119,7 +119,7 @@ opencode plugin add opencode-harnmem
 
 # Grok CLI plugin (the repo root is also a Grok marketplace)
 grok plugin marketplace add ys118/harnmem
-grok plugin install harnmem --trust   # if several marketplace sources offer it, pin: harnmem@harnmem-marketplace
+grok plugin install grok-harnmem --trust
 
 # Cursor desktop: copy the plugin into ~/.cursor/plugins/local, merge the
 # user-level hooks, then run Developer: Reload Window
@@ -130,15 +130,16 @@ All adapters read and write the same `~/.harnmem/` store, so installing more
 than one shares a single memory. Every install runs fully local; nothing phones
 home.
 
-Grok also auto-discovers Claude Code plugins, so `claude-harnmem` can show up
-inside Grok too. The Grok plugin declares the id `harnmem` on purpose — the same
-name as the Claude Code plugin — so Grok's same-name precedence shadows the
-auto-loaded copy: one 6-tool MCP server and the injected index, not a duplicate
-5-tool server and extractor. Keep `claude-harnmem` installed for Claude Code; no
-disable step is needed for Grok. Under a Grok sandbox profile on Linux/macOS,
-add the store (`~/.harnmem`) to a custom profile's `read_write` set — the
-[Grok adapter README](packages/grok-harnmem/README.md#compatibility-notes) has
-the snippet; Windows has no kernel sandbox.
+Grok CLI also auto-discovers plugins installed for Claude Code. If
+`claude-harnmem` is installed, Grok therefore sees two plugins that declare the
+same `harnmem` MCP server; it keeps one, and the explicitly enabled
+`grok-harnmem` (its `[plugins] enabled` entry is written by
+`grok plugin install`) wins, so sessions get the six Grok tools and the
+injected index. To unload the auto-loaded Claude copy entirely (one
+`SessionEnd` hook instead of two), add `disabled = ["harnmem"]` under
+`[plugins]` in `~/.grok/config.toml`; the entry is harmless when no Claude
+plugin is installed. Details:
+[`docs/design/11-grok-adapter.md`](docs/design/11-grok-adapter.md).
 
 ### Build from source
 
@@ -406,7 +407,7 @@ the roadmap. Details, per-suite numbers, ablations and gate definitions are in
 | Claude Code 2.1.x | **Supported** | `claude-harnmem` plugin (SessionStart hook + stdio MCP + `/harnmem:memory`); verified end to end against 2.1.310; `harnmem import claude` migrates existing stores |
 | Codex CLI 0.164/0.165 alpha | **Supported** (Windows) | `codex-harnmem` plugin (SessionStart `mcp_tool` hook → developer-message injection + stdio MCP + skill + rollout backfill); verified end to end on the CLI, the TUI trust flow and Codex Desktop; extraction is backfilled until Codex ships SessionEnd hooks |
 | opencode 2.1.4 | **Supported** (2.x) | `opencode-harnmem` plugin (byte-stable `session.hook("context")` snapshot + five native tools + per-turn journaling; child sessions run read-only); verified end to end on the 2.1.4 binary |
-| Grok CLI 1.0.70 | **Supported** (1.0.x) | `grok-harnmem` plugin (memory index via MCP `initialize.instructions` — Grok's `SessionStart` is observe-only; six tools + `/harnmem:memory` + `SessionEnd` extraction from `chat_history.jsonl`; plugin id `harnmem` shadows an auto-loaded `claude-harnmem` so only one MCP server and extractor run); verified end to end on the 1.0.70 binary |
+| Grok CLI 1.0.70 | **Supported** (1.0.x) | `grok-harnmem` plugin (memory index via MCP `initialize.instructions` — Grok's `SessionStart` is observe-only; six tools + `/grok-harnmem:memory` + `SessionEnd` extraction from `chat_history.jsonl`); verified end to end on the 1.0.70 binary |
 | Other harnesses | Welcome | See the adapter contract and `CONTRIBUTING.md` |
 
 ## Documentation
