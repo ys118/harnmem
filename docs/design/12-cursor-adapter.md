@@ -411,6 +411,29 @@ node packages/cursor-harnmem/scripts/install.mjs --uninstall
 - [ ] [U] Behaviour of `postToolUse.additional_context` as a mid-session refresh
   channel.
 
+### 11.1 N24 live verification (2026-10-30, Cursor desktop 3.27.22)
+
+A second probe round exercised the surfaces that N23 left unverified. The setup
+was a temporary probe workspace outside the repository, probe scripts that dump
+every hook payload to `%TEMP%\harnmem-n24\events.jsonl`, and GUI automation. All
+observations below are from that session; the probe hooks were removed afterwards.
+
+| Surface | Result | Evidence |
+|---|---|---|
+| `beforeSubmitPrompt` injection | still works | Probe hook returned a flat `additional_context` token; the model quoted `BSP-4471` in its first answer, so the undocumented field survived this install |
+| `preCompact` | fires, `user_message` only | `/summarize` in a fresh conversation -> hook ran (exit 0, "Merged 1 valid response(s)"). Payload: `trigger: "manual"`, `context_usage_percent: 6.61`, `context_tokens: 16926`, `context_window_size: 256000`, `message_count: 4`, `messages_to_compact: 2`, `is_first_compaction: true`, plus `conversation_id`, `generation_id`, `model` (the summarizer, `gemini-3.7-flash-low`), `session_id`, `transcript_path`. A repeat run on another conversation reported `message_count: 6` / `messages_to_compact: 4` / `is_first_compaction: true`. The response has one field, `user_message`; the returned string showed up as the conversation summary text in Cursor state |
+| `subagentStart` / `subagentStop` | fire for Task calls | Payload: `subagent_id` (`call-...` plus a newline and `fc_...`), `subagent_type: "explore"`, `task`, `parent_conversation_id`, `tool_call_id`, `subagent_model`, `is_parallel_worker`, `parent_agent_id`; `subagentStop` added `status: "error"` and `duration_ms` |
+| Project hooks | load and run | `<workspace>/.cursor/hooks.json` -> hooks log `Loaded 2 project hook(s) for steps: beforeSubmitPrompt, sessionEnd`; execution log `Executing hook 1/N from project config` with `Running script in directory: <workspace>` |
+| MDM / Enterprise hooks | load and run | `C:\ProgramData\Cursor\hooks.json` appeared as the enterprise source; hooks hot-reloaded (`Loaded 1 enterprise hook(s)`) and the command ran with `Running script in directory: C:\ProgramData\Cursor`. One prompt with enterprise + project + user sources executed four hooks in the order `enterprise`, `project`, `user`, `user` |
+| Third-party import off | plugin hooks stop | After unchecking "Include Third-Party Plugins, Skills, and Other Configs", the service logs `Claude Code hooks disabled (thirdPartyExtensibilityEnabled off)` and the Claude-imported plugin no longer contributes hooks; only the user-level entries execute |
+| Workspace trust (untrusted branch) | not reproduced | Every window opened through the CLI launcher (`cursor.cmd -n <dir>`) was auto-trusted, including a `%TEMP%` directory, so project hooks always loaded. The untrusted branch is only documented by the workbench source (`Project hooks disabled in untrusted workspace`) |
+| Cloud agents | not available | The account cannot launch Cloud agents, and the official docs state that Cloud agents skip `sessionStart`, `sessionEnd`, `beforeMCPExecution`, `afterMCPExecution` and `workspaceOpen`, and redact HTTP MCP `postToolUse` output |
+
+The adapter itself does not register `preCompact` or the subagent events: the
+former only feeds the summarizer prompt, and the latter describe child agents
+whose transcripts the parent `sessionEnd` journal does not need. They were probed
+to document the surface, not to extend the write path.
+
 ## 12. Unverified items and risks
 
 | Level | Item | Impact / mitigation |

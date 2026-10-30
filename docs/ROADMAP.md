@@ -612,11 +612,39 @@ backlog by user decision (2026-10-30).
   idempotent across both channels. `scripts/install.mjs --doctor` reports plugin,
   hooks, MCP and Claude-imported duplicates.
 
-- [ ] **N24. Cursor adapter follow-ups.** Cursor marketplace publish; verify
-  `preCompact`, subagent and Cloud-agent surfaces (Cloud agents do not support
-  `sessionStart`/`sessionEnd`/`workspaceOpen`); re-check injection after a Cursor
-  minor-version bump (the `beforeSubmitPrompt` field is undocumented); confirm
-  behaviour under MDM/Enterprise hook policy and workspace trust.
+- [x] **N24. Cursor adapter live verification.** Probed the remaining Cursor
+  surfaces on desktop 3.27.22 (2026-10-30); evidence and reproduction steps live
+  in [design/12 §11.1](design/12-cursor-adapter.md).
+
+  * `preCompact` fires on the built-in `/summarize` command. Payload:
+    `trigger` (`manual`/`auto`), `context_usage_percent`, `context_tokens`,
+    `context_window_size`, `message_count`, `messages_to_compact`,
+    `is_first_compaction`, plus the usual conversation ids and
+    `transcript_path`. The only response field is `user_message`, which Cursor
+    surfaces as the conversation summary text (verified on a first and a repeat
+    compaction).
+  * `subagentStart`/`subagentStop` fire for every Task call with `subagent_id`,
+    `subagent_type`, `task`, `parent_conversation_id`, `tool_call_id`,
+    `subagent_model` and `is_parallel_worker`; `subagentStop` adds `status` and
+    `duration_ms`.
+  * Project hooks load from `<workspace>/.cursor/hooks.json` and run with the
+    workspace root as cwd. MDM/Enterprise hooks load from
+    `C:\ProgramData\Cursor\hooks.json` (hot-reload without restart). One prompt
+    with all three sources configured executed four hooks in the order
+    `enterprise`, `project`, `user`, `user`.
+  * The two `beforeSubmitPrompt` probes still injected their tokens after the
+    3.27.22 install, so the undocumented flat `additional_context` field is
+    intact.
+  * With "Include Third-Party Plugins, Skills, and Other Configs" disabled, the
+    hooks log prints `Claude Code hooks disabled (thirdPartyExtensibilityEnabled
+    off)` and the Claude-imported plugin no longer contributes hooks; the
+    user-level `~/.cursor/hooks.json` entries are then the only execution path
+    (the exclusive claims stay as belt and braces).
+
+  Remaining: Cursor marketplace publish; Cloud agents (not available on this
+  account, and they skip `sessionStart`/`sessionEnd`/`workspaceOpen` by design);
+  the untrusted-workspace branch of project hooks (CLI-opened windows are
+  auto-trusted, so the `Restrict mode` path needs a GUI-driven session).
 
 ## 5. Decision log
 
