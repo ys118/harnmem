@@ -28,9 +28,24 @@ Useful flags:
 node packages/cursor-harnmem/scripts/install.mjs --dry-run
 node packages/cursor-harnmem/scripts/install.mjs --mcp-user   # also ~/.cursor/mcp.json
 node packages/cursor-harnmem/scripts/install.mjs --uninstall
+node packages/cursor-harnmem/scripts/install.mjs --doctor     # self-check, see below
 ```
 
 `@harnmem/core` is vendored into `vendor/core/` at build time (`pnpm build` in this package), so the installed plugin directory is self-contained.
+
+## Two HarnMem plugins in Cursor
+
+Cursor imports Claude Code configuration on boot (**Settings → Chat → "Include Third-Party Plugins, Skills, and Other Configs"**, stored as `thirdPartyExtensibilityEnabled`). If `claude-harnmem` is installed for Claude Code, Cursor lists a second plugin named `harnmem` next to this one, read from `~/.claude/plugins/cache/…`.
+
+That duplicate is harmless: Cursor registers a single MCP server named `harnmem`, and the two copies of the hook script are deduplicated by exclusive claim files, so the memory snapshot is injected once and extraction journals the conversation once. To have only the native Cursor plugin listed, either uncheck that setting or uninstall the Claude Code copy (`/plugin uninstall harnmem@harnmem-marketplace`).
+
+The installer ends with a doctor pass and the same checks are available on demand:
+
+```
+node packages/cursor-harnmem/scripts/install.mjs --doctor
+```
+
+It reports the plugin manifest, the registered hook events, the MCP server and whether the Claude Code registry at `~/.claude/plugins/installed_plugins.json` contains a second `harnmem` install (warning only). It exits `1` when the plugin, its hooks or its MCP server are missing, so it can gate a setup script. `HARNMEM_CLAUDE_HOME` overrides the Claude Code directory used by the check.
 
 ## Configuration
 
