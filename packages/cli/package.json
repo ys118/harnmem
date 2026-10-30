@@ -31,7 +31,7 @@
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@harnmem/core": "workspace:*"
+    "@harnmem/core": "workspace:^"
   },
   "publishConfig": {
     "access": "public"

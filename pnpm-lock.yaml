@@ -24,7 +24,7 @@ importers:
   packages/cli:
     dependencies:
       '@harnmem/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
 
   packages/codex-harnmem:
@@ -41,7 +41,7 @@ importers:
         specifier: ^3.18.2
         version: 3.18.5
       '@harnmem/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
     devDependencies:
       '@deepseek-ai/dsh-client-locale':
@@ -84,7 +84,7 @@ importers:
   packages/pi-harnmem:
     dependencies:
       '@harnmem/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
     devDependencies:
       '@earendil-works/pi-ai':

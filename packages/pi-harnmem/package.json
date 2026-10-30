@@ -1,6 +1,6 @@
-﻿{
+{
   "name": "pi-harnmem",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "HarnMem memory extension for the pi coding agent: byte-stable hot-index injection, memory tools, and session-end extraction.",
   "license": "MIT",
   "type": "module",
@@ -30,7 +30,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@harnmem/core": "workspace:*"
+    "@harnmem/core": "workspace:^"
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": ">=1.3.0 <2.0.0",
