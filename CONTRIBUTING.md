@@ -84,7 +84,9 @@ Open an issue first. Do not open a PR until a maintainer has approved it with
 2. Add or update tests. Tests must be deterministic: no network, no LLM calls,
    and no wall-clock dependence where it can be avoided (inject the clock).
 3. Run and pass `pnpm -r build`, `pnpm -r typecheck` and `pnpm test`. If you
-   touched the DSH adapter, also run `pnpm --filter dsh-harnmem test`.
+   touched the DSH adapter, also run `pnpm --filter dsh-harnmem test`; for the
+   Grok adapter, `pnpm --filter grok-harnmem build && node --test
+   packages/grok-harnmem/test/*.test.mjs`.
 4. For retrieval, write, consolidation, extraction or scoring changes, run
    `pnpm eval:gate`. Eval corpora are generated, not committed: run
    `node evals/gen/generate.mjs` once after a fresh clone, then `pnpm eval`.
@@ -122,9 +124,11 @@ only record an approval that was already granted in an issue comment.
 
 ## Project layout
 
-All seven packages are published on npm: `@harnmem/core` 0.4.2, `@harnmem/cli`
-0.4.1, `pi-harnmem` 0.4.4, `dsh-harnmem` 0.4.2, `claude-harnmem` 0.4.3,
-`codex-harnmem` 0.2.3, `opencode-harnmem` 0.1.1.
+All seven existing packages are published on npm: `@harnmem/core` 0.4.2,
+`@harnmem/cli` 0.4.1, `pi-harnmem` 0.4.4, `dsh-harnmem` 0.4.2, `claude-harnmem`
+0.4.3, `codex-harnmem` 0.2.3, `opencode-harnmem` 0.1.1. The eighth adapter,
+`grok-harnmem` 0.1.0, lands in the next release; it follows the same
+zero-runtime-dependency, vendored-core rules as the others.
 
 | Path | Package | What it is |
 | ---- | ------- | ---------- |
@@ -135,15 +139,16 @@ All seven packages are published on npm: `@harnmem/core` 0.4.2, `@harnmem/cli`
 | `packages/claude-harnmem` | `claude-harnmem` | Claude Code plugin: `SessionStart` hook injection, bundled zero-dependency stdio MCP server, `/harnmem:memory`, detached session-end extraction. |
 | `packages/codex-harnmem` | `codex-harnmem` | Codex CLI plugin: `SessionStart` `mcp_tool` hook injection, bundled stdio MCP server (7 tools), skill, rollout backfill. |
 | `packages/opencode-harnmem` | `opencode-harnmem` | opencode v2 plugin: context-hook snapshot, five native tools, per-turn journaling. |
+| `packages/grok-harnmem` | `grok-harnmem` | Grok CLI plugin: memory index through MCP `initialize.instructions`, six tools, `/grok-harnmem:memory`, `SessionEnd` extraction from `chat_history.jsonl`. |
 | `evals` | - | Deterministic evaluation corpora (S1-S12), metrics, gates and ablation runner. |
 | `prompts`, `data` | - | Prompt assets and synonym tables deployed to `~/.harnmem/` on first run. |
 | `docs` | - | Design docs, research notes, roadmap and user guide. |
 
 Adapter packages follow the `<harness>-harnmem` convention (`pi-harnmem`,
-`dsh-harnmem`, `claude-harnmem`, `codex-harnmem`, `opencode-harnmem`);
-harness-neutral packages live under the `@harnmem` scope. Adapter designs are in
-`docs/design/07`-`09`, with real-machine probe records for the Codex and
-opencode plugins under `docs/research/`.
+`dsh-harnmem`, `claude-harnmem`, `codex-harnmem`, `opencode-harnmem`,
+`grok-harnmem`); harness-neutral packages live under the `@harnmem` scope.
+Adapter designs are in `docs/design/07`-`11`, with real-machine probe records
+for the Codex, opencode and Grok plugins under `docs/research/`.
 
 ## Development setup
 
@@ -161,7 +166,7 @@ pnpm test
 ```
 
 `pnpm test` builds every package and runs all `node --test` suites (core engine,
-CLI end-to-end tests and the five adapter suites).
+CLI end-to-end tests and the six adapter suites).
 
 ## Code conventions
 

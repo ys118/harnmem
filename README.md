@@ -21,11 +21,14 @@ database, no embedding model, and no runtime dependencies in the engine.
 
 - **Packages:** `@harnmem/core` (engine), `@harnmem/cli` (`harnmem` command),
   `pi-harnmem` (pi extension), `dsh-harnmem` (DSH plugin), `claude-harnmem`
-  (Claude Code plugin), `codex-harnmem` (Codex CLI plugin) and
-  `opencode-harnmem` (opencode v2 plugin) — all published on npm. Install the
-  CLI with `npm install -g @harnmem/cli`; the opencode adapter needs opencode
-  2.x and is verified end to end on the 2.1.4 binary (injection, native tools,
-  per-turn journaling).
+  (Claude Code plugin), `codex-harnmem` (Codex CLI plugin),
+  `opencode-harnmem` (opencode v2 plugin) and `grok-harnmem` (Grok CLI plugin) —
+  all published on npm except `grok-harnmem`, which ships in the next release.
+  Install the CLI with `npm install -g @harnmem/cli`; the opencode adapter needs
+  opencode 2.x and is verified end to end on the 2.1.4 binary (injection, native
+  tools, per-turn journaling); the Grok adapter is verified on the 1.0.70 binary
+  (MCP `initialize.instructions` injection, six tools, session-end extraction).
+
 - **License:** MIT.
 - **Status:** v0.6.2 — the engine, the CLI/migration tooling and all five
   adapters (pi, DeepSeek Harness, Claude Code, Codex, opencode) are published
@@ -52,7 +55,7 @@ the local process, and lifecycle decisions are explainable and reversible.**
 
 - **Cross-harness by construction.** The store and data model are
   harness-agnostic; adapters are thin. The same store is shared by the pi,
-  DeepSeek Harness, Claude Code, Codex and opencode adapters and by the CLI
+  DeepSeek Harness, Claude Code, Codex, opencode and Grok adapters and by the CLI
   without any harness.
 - **File-native SSOT.** One memory per Markdown file with YAML frontmatter.
   Indexes and digests are derived and rebuildable; a corrupt index costs a
@@ -110,6 +113,10 @@ codex plugin add harnmem@harnmem-marketplace
 
 # opencode v2 plugin (requires opencode 2.x)
 opencode plugin add opencode-harnmem
+
+# Grok CLI plugin (the repo root is also a Grok marketplace)
+grok plugin marketplace add ys118/harnmem
+grok plugin install grok-harnmem --trust
 ```
 
 All adapters read and write the same `~/.harnmem/` store, so installing more
@@ -248,6 +255,7 @@ flowchart LR
     CC[Claude Code plugin]
     CX[Codex plugin]
     OP[opencode plugin]
+    GK[Grok plugin]
   end
   CLI[harnmem CLI + migration]
   CORE["@harnmem/core<br/>store · retrieval · writing · lifecycle · extraction"]
@@ -256,6 +264,7 @@ flowchart LR
   CC --> CORE
   CX --> CORE
   OP --> CORE
+  GK --> CORE
   CLI --> CORE
   CORE --> STD[(~/.harnmem plain files)]
   CORE --> IDX[(rebuildable BM25F index)]
@@ -380,6 +389,7 @@ the roadmap. Details, per-suite numbers, ablations and gate definitions are in
 | Claude Code 2.1.x | **Supported** | `claude-harnmem` plugin (SessionStart hook + stdio MCP + `/harnmem:memory`); verified end to end against 2.1.310; `harnmem import claude` migrates existing stores |
 | Codex CLI 0.164/0.165 alpha | **Supported** (Windows) | `codex-harnmem` plugin (SessionStart `mcp_tool` hook → developer-message injection + stdio MCP + skill + rollout backfill); verified end to end on the CLI, the TUI trust flow and Codex Desktop; extraction is backfilled until Codex ships SessionEnd hooks |
 | opencode 2.1.4 | **Supported** (2.x) | `opencode-harnmem` plugin (byte-stable `session.hook("context")` snapshot + five native tools + per-turn journaling; child sessions run read-only); verified end to end on the 2.1.4 binary |
+| Grok CLI 1.0.70 | **Supported** (1.0.x) | `grok-harnmem` plugin (memory index via MCP `initialize.instructions` — Grok's `SessionStart` is observe-only; six tools + `/grok-harnmem:memory` + `SessionEnd` extraction from `chat_history.jsonl`); verified end to end on the 1.0.70 binary |
 | Other harnesses | Welcome | See the adapter contract and `CONTRIBUTING.md` |
 
 ## Documentation
@@ -406,6 +416,9 @@ numbers, the running trial, known issues) and the ordered next steps.
 - **Codex adapter** — shipped as `codex-harnmem`; see its
   [README](packages/codex-harnmem/README.md) and the probe record in
   [`docs/research/codex-plugin.md`](docs/research/codex-plugin.md).
+- **Grok adapter** — shipped as `grok-harnmem`; see its
+  [README](packages/grok-harnmem/README.md), [`docs/design/11-grok-adapter.md`](docs/design/11-grok-adapter.md)
+  and the probe record in [`docs/research/grok-plugin.md`](docs/research/grok-plugin.md).
 - Persist and incrementally update indexes so large stores warm up faster;
   reduce index size.
 - Validate npm installs on Linux/macOS/Windows and publish provenance for

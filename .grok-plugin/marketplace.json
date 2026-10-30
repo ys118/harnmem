@@ -1,0 +1,25 @@
+{
+  "name": "harnmem-marketplace",
+  "owner": {
+    "name": "ys118"
+  },
+  "plugins": [
+    {
+      "name": "harnmem",
+      "description": "Cross-harness persistent memory for Grok CLI: a byte-stable memory index via the MCP server's initialize.instructions, six memory tools, a /grok-harnmem:memory command, and SessionEnd extraction from Grok's own session transcript.",
+      "version": "0.1.0",
+      "source": {
+        "source": "local",
+        "path": "./packages/grok-harnmem"
+      },
+      "category": "memory",
+      "keywords": [
+        "memory",
+        "harnmem",
+        "mcp",
+        "grok",
+        "cross-harness"
+      ]
+    }
+  ]
+}

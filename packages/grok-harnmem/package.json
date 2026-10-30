@@ -1,0 +1,31 @@
+{
+  "name": "grok-harnmem",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "Grok CLI plugin for HarnMem: a byte-stable memory index injected through the MCP initialize.instructions channel, six memory tools over a bundled stdio server, a /grok-harnmem:memory command, and session-end extraction from Grok session transcripts.",
+  "license": "MIT",
+  "files": [
+    ".grok-plugin/",
+    ".claude-plugin/",
+    ".mcp.json",
+    "hooks/",
+    "mcp/",
+    "commands/",
+    "skills/",
+    "lib/",
+    "vendor/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node scripts/vendor.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "@harnmem/core": "workspace:*"
+  },
+  "engines": {
+    "node": ">=22.15"
+  }
+}
