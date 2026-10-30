@@ -127,7 +127,7 @@ only record an approval that was already granted in an issue comment.
 All nine packages are published on npm: `@harnmem/core` 0.4.2,
 `@harnmem/cli` 0.4.1, `pi-harnmem` 0.4.4, `dsh-harnmem` 0.4.2, `claude-harnmem`
 0.4.3, `codex-harnmem` 0.2.3, `opencode-harnmem` 0.1.1, `grok-harnmem` 0.1.0 and
-`cursor-harnmem` 0.1.0. The two newest adapters follow the same
+`cursor-harnmem` 0.1.1. The two newest adapters follow the same
 zero-runtime-dependency, vendored-core rules as the others.
 
 | Path | Package | What it is |

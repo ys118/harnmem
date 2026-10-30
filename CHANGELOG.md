@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-10-30
+
+### Fixed
+
+- `cursor-harnmem` 0.1.1: the published 0.1.0 README told people to run
+  `npx cursor-harnmem-install`, which cannot work because `npx` reads the first
+  word as a package name and no package by that name exists. The install
+  instructions now use `npx cursor-harnmem` (the package declares the installer
+  as its bin), with `npx -p cursor-harnmem cursor-harnmem-install` as the
+  explicit spelling, and the package also declares `cursor-harnmem` as a bin so
+  both spellings resolve. The always-on rules file and the design document use
+  the same commands.
+
+### Added
+
+- `cursor-harnmem` 0.1.1: a 1024x1024 marketplace logo at
+  `packages/cursor-harnmem/logo.png`, referenced from the plugin manifest and
+  shipped in the npm tarball. The Cursor marketplace listing form requires a
+  square image with an opaque background plate.
+
 ## [0.7.0] - 2026-10-30
 
 ### Added
