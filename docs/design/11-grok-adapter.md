@@ -116,7 +116,7 @@ refresh; it is an explicit model action, not background churn.
 | ------- | ------- |
 | `SessionStart` `additionalContext` | dropped by Grok — probe-verified |
 | `SessionStart` `systemMessage` | client annotation only — never model-visible |
-| `<GROK_HOME>/rules/*.md` written by the hook | system prompt is built before hooks, and the probe could not get home rules to load at all; unresolved in 1.0.70 |
+| `<GROK_HOME>/rules/*.md` | **loads** in 1.0.70 (`grok inspect --json` lists the files as `projectInstructions` with scope `global`, and a session-start user message carries them as `<user_rules>`), but the channel is global to `GROK_HOME` and applies to every project — a project-scoped index would leak between repositories, so it is not used |
 | `--rules` / `_meta.rules` launch flag | works for user-supplied rules, but a plugin cannot add launch flags to the user's command line |
 | Grok native memory (`memory_v2`) | separate store and lifecycle; conflicts with the cross-harness SSOT |
 | `PreToolUse` `additionalContext` | works, but only after a tool call — too late for turn 1 and it churns the prefix on every call |
@@ -315,7 +315,7 @@ repository.
       Grok (`use_tool`), writes land with `source.harness="grok"`.
 - [x] `SessionEnd` journals the transcript exactly once; subagent sessions do not.
 - [x] Empty store injects zero bytes; a `HARNMEM_DISABLED=1` store is inert.
-- [x] 31 adapter tests green (`node --test packages/grok-harnmem/test/*.test.mjs`).
+- [x] 33 adapter tests green (`node --test packages/grok-harnmem/test/*.test.mjs`).
 - [x] Real `~/.grok` and `~/.harnmem` untouched during tests (isolated `GROK_HOME`
       and `HARNMEM_HOME`).
 - [x] Package is installable from the repo root marketplace.
@@ -325,6 +325,9 @@ repository.
       `SessionEnd` hook (§7.1).
 - [x] Sandbox behaviour documented for Linux/macOS custom profiles; a Windows
       probe confirmed the sandbox is not enforced there (§7.2).
+- [x] TUI acceptance: an interactive session injected the index, the model called a
+      memory tool and answered the seeded marker; `SessionEnd` fired once (376 ms)
+      and the transcript was journaled (session `01a18d19-…`).
 
 ## 11. Unverified items and risks
 
@@ -332,9 +335,11 @@ repository.
    and which server loses bytes when several declare `instructions`) is not
    documented; the measured 4,293-character aggregate is the basis for the
    2,500-byte default. Users with many MCP servers should lower it further.
-2. **TUI vs headless parity.** Verification used `grok -p`; the TUI uses the same
-   MCP and hook machinery, but `/plugins` trust interactions and status rows were
-   not exercised end to end.
+2. **TUI vs headless parity.** Both paths are verified: a TUI session injected the
+   index, answered from a seeded memory and journaled on `SessionEnd` (376 ms).
+   The `/plugins` modal and status rows were exercised only for the initial trust
+   prompt; slash-command autocomplete could not be captured reliably in the
+   terminal probe.
 3. **Daemon route transcripts.** On the daemon route Grok sends no
    `transcript_path`; directory scanning by session id is the fallback and was
    covered by unit tests, not by a live daemon run.

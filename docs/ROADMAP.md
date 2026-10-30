@@ -3,7 +3,7 @@
 Single source of truth for **where the project stands and what to do next**.
 Design intent lives in [`design/`](design/); this file tracks execution state.
 
-Last updated: **2026-10-30** (seven-package audit: 17 of 21 confirmed issues fixed in the 0.6.2 patch wave; structural/design backlog tracked as N18-N20; Grok adapter implemented as N21 and probe-verified on Grok CLI 1.0.70; Grok plugin id kept as `grok-harnmem` after verifying the explicit `[plugins] enabled` entry wins the shared `harnmem` MCP server; Cursor adapter implemented as N23 and verified on Cursor desktop 3.27.22, with an installer `--doctor` self-check following as N24).
+Last updated: **2026-10-30** (seven-package audit: 17 of 21 confirmed issues fixed in the 0.6.2 patch wave; structural/design backlog tracked as N18-N20; Grok adapter implemented as N21 and probe-verified on Grok CLI 1.0.70; Grok plugin id kept as `grok-harnmem` after verifying the explicit `[plugins] enabled` entry wins the shared `harnmem` MCP server; Cursor adapter implemented as N23 and verified on Cursor desktop 3.27.22, with an installer `--doctor` self-check following as N24); the Grok P2 follow-up verified TUI parity, the UserPromptSubmit and `$GROK_HOME/rules` channels, remote marketplace install and the `grok-harnmem@0.1.0` npm publish).
 
 ## 1. Snapshot
 
@@ -556,9 +556,9 @@ backlog by user decision (2026-10-30).
   `/grok-harnmem:memory` command, and an optional recall skill. *Acceptance:*
   `grok plugin validate` and `grok plugin install <path> --trust` pass;
   headless sessions inject the seeded snapshot and the model answers from it
-  (TUI parity is tracked as N22); `memory_write` lands in the shared store with
-  `source.harness="grok"`; SessionEnd extracts the session exactly once; the
-  real `~/.harnmem` is untouched until the user asks for it. Coexistence with
+  (TUI parity verified — see the N22 progress note); `memory_write` lands in the
+  shared store with `source.harness="grok"`; SessionEnd extracts the session
+  exactly once; the real `~/.harnmem` is untouched until the user asks for it. Coexistence with
   an auto-loaded `claude-harnmem` plugin is resolved without renaming the
   plugin: the explicit `[plugins] enabled` entry written by
   `grok plugin install` makes `grok-harnmem` win the shared `harnmem` MCP
@@ -580,13 +580,23 @@ backlog by user decision (2026-10-30).
   wrote `[plugins] enabled = ["grok-harnmem"]`, sessions registered the six
   Grok tools with the injected index (audit `inject` 320 bytes / 76 tokens) and
   `hook_count=2`; adding `disabled = ["harnmem"]` left `hook_count=1` with only
-  the Grok inject/extract entries.
+  the Grok inject/extract entries. Published to npm as `grok-harnmem@0.1.0` on
+  2026-10-30 (manual fallback; the release workflow has no `NPM_TOKEN`).
 
-- [ ] **N22. Grok adapter follow-ups.** TUI acceptance (`/plugins` trust flow,
-  status rows); calibrate the aggregate `MCP servers connected` instructions cap
-  with several servers declaring `instructions`; live-check the daemon-route
-  transcript fallback; live-check the custom sandbox profile on Linux/macOS
-  (Windows has no sandbox enforcement, so only the guidance is verified).
+- [ ] **N22. Grok adapter follow-ups.** Calibrate the aggregate
+  `MCP servers connected` instructions cap with several servers declaring
+  `instructions`; live-check the daemon-route transcript fallback; live-check the
+  custom sandbox profile on Linux/macOS (Windows has no sandbox enforcement, so
+  only the guidance is verified).
+
+  *Progress 2026-10-30 (P2):* TUI acceptance done — an interactive session injected
+  the index, answered from a seeded memory and journaled once on `SessionEnd`
+  (376 ms). UserPromptSubmit was re-probed and confirmed unable to inject
+  (`additionalContext` and plain stdout are dropped); the `$GROK_HOME/rules` and
+  `[paths] extra_rule_dirs` channels were confirmed to load, but they are global
+  to `GROK_HOME`, so they are not used for a project-scoped index. Remote install
+  from the GitHub marketplace was verified on a clean home, and
+  `grok-harnmem@0.1.0` is published on npm.
 
 ### Phase J - Cursor adapter (N23-N24)
 

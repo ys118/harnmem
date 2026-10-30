@@ -12,7 +12,7 @@ Cross-harness persistent memory for [Grok CLI](https://github.com/xai-org/grok-c
 
 ### Why not a SessionStart hook?
 
-Grok 1.0.70 renders the system prompt **before** `SessionStart` hooks run, and `SessionStart` is observe-only: `hookSpecificOutput.additionalContext` and plain stdout are dropped, and a top-level `systemMessage` only reaches the client UI. The Claude Code injection path therefore cannot work on Grok; the MCP handshake is the only model-visible pre-turn channel. Details and probe evidence: [`docs/research/grok-plugin.md`](../../docs/research/grok-plugin.md).
+Grok 1.0.70 renders the system prompt **before** `SessionStart` hooks run, and `SessionStart` is observe-only: `hookSpecificOutput.additionalContext` and plain stdout are dropped, and a top-level `systemMessage` only reaches the client UI. The Claude Code injection path therefore cannot work on Grok; the MCP handshake is the only model-visible pre-turn channel a plugin can use per project (the global `<GROK_HOME>/rules/` channel also loads, but it is shared by every project, so a project-scoped index there would leak between repositories). Details and probe evidence: [`docs/research/grok-plugin.md`](../../docs/research/grok-plugin.md).
 
 ## Install
 
@@ -76,10 +76,12 @@ Extraction is dry by default (`autoExtract: false`): the session transcript is j
   then run `grok --sandbox harnmem` (or set `[sandbox] profile = "harnmem"`). `read_write` entries are literal absolute paths — Grok does not expand `~`. Alternatively point `HARNMEM_HOME` inside the workspace for a scratch store, or set `HARNMEM_READONLY=1` to accept the degraded mode explicitly.
 - **Windows manifests must be BOM-less.** A UTF-8 BOM makes Grok silently skip a plugin's `plugin.json` / `hooks.json`; all JSON shipped in this package is BOM-less and the tests pin that.
 - **Grok's own memory (`/memory`, `memory_v2`) is a separate feature.** It is off by default; HarnMem's value is the plain-Markdown store shared with your other harnesses.
+- **Windows long paths.** Grok copies plugins under `<GROK_HOME>/installed-plugins/<long id>/`; keep `GROK_HOME` short (for example the default `%USERPROFILE%\.grok`) so the package path stays under the legacy 260-character limit.
 
 ## Notes
 
 - The MCP server never writes to stdout outside the JSON-RPC protocol; hook scripts print nothing and exit 0 on any failure so a broken adapter can never wedge a session.
+- MCP tools are not in Grok's tool definitions, so the model reaches them through `search_tool` / `use_tool`; the injected index appends a `memory_context` pointer only when the index was truncated, and `memory_context` stays available for a full pull at any time.
 - The hook only registers `SessionEnd`; no `SessionStart` hook exists by design (see above).
 - Design and verification evidence: `docs/design/11-grok-adapter.md`, `docs/research/grok-plugin.md`.
 
