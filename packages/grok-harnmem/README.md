@@ -6,7 +6,7 @@ Cross-harness persistent memory for [Grok CLI](https://github.com/xai-org/grok-c
 
 - **Injected memory index** — a byte-stable snapshot of your hottest memories reaches the model before the first turn through the MCP server's `initialize.instructions`, which Grok injects as the `<system-reminder>` titled "MCP servers connected: …". Empty store ⇒ nothing injected. The snapshot only rebuilds on session start, after a write, or at day rollover, so prompt caching stays intact across turns.
 - **Six MCP tools** — the five canonical `memory_search`, `memory_read`, `memory_write`, `memory_forget`, `memory_status` tools plus `memory_context`, which returns the full index when Grok's aggregate reminder cap cut the injected copy. Grok exposes plugin MCP tools as `harnmem__*` and the model may inspect schemas through `search_tool` first.
-- **`/harnmem:memory` command** — a manual operator entry point to search/read/write/forget/status/context without leaving the chat (plugin commands are namespaced by the plugin name).
+- **`/grok-harnmem:memory` command** — a manual operator entry point to search/read/write/forget/status/context without leaving the chat (plugin commands are namespaced by the plugin name).
 - **Session-end extraction** — the `SessionEnd` hook journals the transcript tail and hands it to a detached child process, so the hook returns inside Grok's 1.5 s plugin budget and extraction never blocks your exit. It reads `chat_history.jsonl` (falling back to `updates.jsonl`) from the Grok session directory.
 - **Subagent-safe** — sessions carrying `subagentType` run read-only and never extract; only the main session writes.
 
@@ -20,12 +20,8 @@ The repo root is a Grok marketplace (`.grok-plugin/marketplace.json`). From a ch
 
 ```
 grok plugin marketplace add <path-to-this-checkout>
-grok plugin install harnmem --trust
+grok plugin install grok-harnmem --trust
 ```
-
-The package is `grok-harnmem`, but the plugin declares the id `harnmem` on purpose: that is the same id as the Claude Code adapter, so Grok's same-name precedence loads only this plugin when `claude-harnmem` is also installed for Claude Code (see the compatibility notes below).
-
-If Grok reports that several marketplace sources offer `harnmem` (for example because a Claude Code marketplace is also known to Grok), pin the source with `grok plugin install harnmem@<marketplace-name> --trust`, or use the direct package-path install below.
 
 Or install the package directory directly:
 
@@ -33,7 +29,7 @@ Or install the package directory directly:
 grok plugin install <path-to-this-checkout>/packages/grok-harnmem --trust
 ```
 
-`--trust` is required the first time: Grok does not load a plugin's hooks, MCP servers, commands or skills until it is trusted. Existing installs can be trusted from the `/plugins` modal instead.
+`--trust` is required the first time: Grok does not load a plugin's hooks, MCP servers, commands or skills until it is trusted. Existing installs can be trusted from the `/plugins` modal instead. `grok plugin install` copies the package into `<GROK_HOME>/installed-plugins/` and records it in `[plugins] enabled`; that explicit entry is also what makes this plugin win the shared `harnmem` MCP server name when Grok also discovers the Claude Code plugin (see Compatibility notes).
 
 During development, `--plugin-dir` works for the ACP route:
 
@@ -60,8 +56,16 @@ Extraction is dry by default (`autoExtract: false`): the session transcript is j
 
 ## Compatibility notes
 
-- **Coexistence with `claude-harnmem`.** Grok auto-discovers Claude Code plugins, and both adapters expose an MCP server named `harnmem`. The plugin id is therefore `harnmem` — the same name as the Claude Code adapter — so Grok's same-name precedence loads exactly one plugin: the native Grok install (this package) shadows the Claude-discovered copy. Keep `claude-harnmem` installed for Claude Code; you do not need to disable anything for Grok. Verify with `grok plugin list` (one `harnmem` entry), `grok inspect --json` (one `mcpServers` entry whose source path is under `<GROK_HOME>/installed-plugins/`), or the chat reminder "MCP server connected: harnmem (6 tools)". If you deliberately want the Claude variant inside Grok, `grok plugin disable harnmem`; Grok then falls back to the Claude-discovered plugin — 5 tools, no injected index, no `memory_context` (not recommended).
-- **Sandbox.** Grok's sandbox profiles are enforced on Linux (Landlock) and macOS (Seatbelt); Windows has no kernel sandbox, so this does not affect the Windows CLI. On Linux/macOS the `workspace` profile allows writes to `~/.grok` and the working directory but not `~/.harnmem`, and the `read-only`/`strict` profiles make the store read-only. Add a custom profile in `~/.grok/sandbox.toml` (paths are literal and absolute — `~` is not expanded) and select it with `grok --sandbox harnmem` or `[sandbox] profile = "harnmem"`:
+- **Claude Code plugins are auto-loaded by Grok.** If `claude-harnmem` is installed for Claude Code, Grok also discovers it, and both plugins declare an MCP server named `harnmem`. Grok keeps exactly one, and the plugin that `grok plugin install` explicitly enabled — this one — wins, so a session gets the six tools and the injected index (verified on 1.0.70). The auto-loaded copy's `SessionEnd` hook still fires alongside ours; it is harmless (it cannot parse Grok's transcript, so it extracts nothing), but for a single extractor add this to `~/.grok/config.toml`:
+
+  ```toml
+  [plugins]
+  enabled = ["grok-harnmem"]   # already written by `grok plugin install`
+  disabled = ["harnmem"]       # unload the auto-loaded Claude copy
+  ```
+
+  The `disabled` entry is harmless when no Claude plugin is installed. Verify with `grok plugin list` (only `grok-harnmem` appears as a Grok-installed plugin) and `grok inspect --json` (the `harnmem` MCP server should resolve under `installed-plugins/`, not `~/.claude/plugins/`). Do not disable the Claude plugin in Claude Code — each harness keeps its own plugin set.
+- **Sandbox.** Grok's sandbox is enforced on Linux (Landlock) and macOS (Seatbelt) only; Windows is unaffected. On Linux/macOS, `read-only` and `strict` profiles do not include `~/.harnmem` in their write set and the sandbox covers the whole Grok process (MCP server included), so memory tools degrade to read-only. Add a custom profile to `~/.grok/sandbox.toml`:
 
   ```toml
   [profiles.harnmem]
@@ -69,7 +73,7 @@ Extraction is dry by default (`autoExtract: false`): the session transcript is j
   read_write = ["/home/<user>/.harnmem"]   # macOS: /Users/<user>/.harnmem
   ```
 
-  If you set `HARNMEM_HOME`, list that path instead. Pointing `HARNMEM_HOME` inside the workspace keeps memory tools writable but gives a store the other harnesses cannot see.
+  then run `grok --sandbox harnmem` (or set `[sandbox] profile = "harnmem"`). `read_write` entries are literal absolute paths — Grok does not expand `~`. Alternatively point `HARNMEM_HOME` inside the workspace for a scratch store, or set `HARNMEM_READONLY=1` to accept the degraded mode explicitly.
 - **Windows manifests must be BOM-less.** A UTF-8 BOM makes Grok silently skip a plugin's `plugin.json` / `hooks.json`; all JSON shipped in this package is BOM-less and the tests pin that.
 - **Grok's own memory (`/memory`, `memory_v2`) is a separate feature.** It is off by default; HarnMem's value is the plain-Markdown store shared with your other harnesses.
 

@@ -3,7 +3,7 @@
 Single source of truth for **where the project stands and what to do next**.
 Design intent lives in [`design/`](design/); this file tracks execution state.
 
-Last updated: **2026-10-30** (seven-package audit: 17 of 21 confirmed issues fixed in the 0.6.2 patch wave; structural/design backlog tracked as N18-N20; Grok adapter implemented as N21 and probe-verified on Grok CLI 1.0.70; Grok plugin id `harnmem` adopted so Grok shadows an auto-loaded `claude-harnmem` — coexistence verified).
+Last updated: **2026-10-30** (seven-package audit: 17 of 21 confirmed issues fixed in the 0.6.2 patch wave; structural/design backlog tracked as N18-N20; Grok adapter implemented as N21 and probe-verified on Grok CLI 1.0.70; Grok plugin id kept as `grok-harnmem` after verifying the explicit `[plugins] enabled` entry wins the shared `harnmem` MCP server).
 
 ## 1. Snapshot
 
@@ -545,15 +545,17 @@ backlog by user decision (2026-10-30).
   hooks at 1.5 s), which parses `chat_history.jsonl` with `updates.jsonl` as
   fallback. Ship a Claude-compatible plugin with both `.grok-plugin/` and
   `.claude-plugin/` manifests, a root `.grok-plugin/marketplace.json`, a
-  `/harnmem:memory` command, and an optional recall skill. *Acceptance:*
+  `/grok-harnmem:memory` command, and an optional recall skill. *Acceptance:*
   `grok plugin validate` and `grok plugin install <path> --trust` pass;
   headless sessions inject the seeded snapshot and the model answers from it
   (TUI parity is tracked as N22); `memory_write` lands in the shared store with
   `source.harness="grok"`; SessionEnd extracts the session exactly once; the
   real `~/.harnmem` is untouched until the user asks for it. Coexistence with
-  an auto-loaded `claude-harnmem` plugin (duplicate MCP server name, duplicate
-  extractor) is resolved by giving both plugins the same id `harnmem`, so
-  Grok's same-name precedence keeps only the native install.
+  an auto-loaded `claude-harnmem` plugin is resolved without renaming the
+  plugin: the explicit `[plugins] enabled` entry written by
+  `grok plugin install` makes `grok-harnmem` win the shared `harnmem` MCP
+  server, and an optional `disabled = ["harnmem"]` entry unloads the
+  auto-loaded copy (verified; §7.1 of the design doc).
 
   *Done 2026-10-30:* implemented as
   [`packages/grok-harnmem`](../packages/grok-harnmem/README.md)
@@ -565,19 +567,18 @@ backlog by user decision (2026-10-30).
   `SessionEnd` journaled the transcript with extract status `skipped:
   auto_extract_off` (messages=2). 31 adapter tests green; root marketplace
   discovery (`grok plugin marketplace add <checkout>` then
-  `grok plugin install harnmem --trust`) verified. Coexistence verified with a
-  simulated `~/.claude` plugin cache: before the rename Grok ran one MCP name
-  (the Claude copy) and two `SessionEnd` hooks; with the shared id `harnmem` it
-  kept only the native plugin — one MCP server with all six tools and
-  `hook_count=1`. Behaviour and controls are documented in
-  [design §7.1](../design/11-grok-adapter.md); the sandbox profile recipe is in
-  §7.2.
+  `grok plugin install grok-harnmem --trust`) verified. Coexistence
+  re-verified against the real Claude Code plugin cache: `grok plugin install`
+  wrote `[plugins] enabled = ["grok-harnmem"]`, sessions registered the six
+  Grok tools with the injected index (audit `inject` 320 bytes / 76 tokens) and
+  `hook_count=2`; adding `disabled = ["harnmem"]` left `hook_count=1` with only
+  the Grok inject/extract entries.
 
 - [ ] **N22. Grok adapter follow-ups.** TUI acceptance (`/plugins` trust flow,
   status rows); calibrate the aggregate `MCP servers connected` instructions cap
   with several servers declaring `instructions`; live-check the daemon-route
-  transcript fallback; validate the custom sandbox `read_write` profile on a
-  real Linux/macOS run (Windows has no kernel sandbox).
+  transcript fallback; live-check the custom sandbox profile on Linux/macOS
+  (Windows has no sandbox enforcement, so only the guidance is verified).
 
 ## 5. Decision log
 
