@@ -327,10 +327,29 @@ node --test packages/cursor-harnmem/test/*.test.mjs
 node packages/cursor-harnmem/scripts/install.mjs            # copy plugin + merge user hooks
 node packages/cursor-harnmem/scripts/install.mjs --dry-run  # show the diff first
 node packages/cursor-harnmem/scripts/install.mjs --mcp-user # also merge ~/.cursor/mcp.json
+node packages/cursor-harnmem/scripts/install.mjs --doctor   # self-check (exits 1 when broken)
 node packages/cursor-harnmem/scripts/install.mjs --uninstall
 
 # 3) Developer: Reload Window -> Customize -> Hooks tab to verify
 ```
+
+- `--doctor` re-reads the installed plugin manifest, the three hook events, the
+  MCP server declaration (plugin `mcp.json` or the `--mcp-user` fallback) and the
+  Claude Code plugin registry. It exits `1` when the plugin, its hooks or its MCP
+  server are missing, and it warns when `~/.claude/plugins/installed_plugins.json`
+  registers another `harnmem` plugin [V, Cursor logs both `loadClaudePlugin` and
+  `loadUserLocalPlugin` for this setup]. The installer runs the same pass at the
+  end of a normal install.
+- Cursor imports Claude Code plugins on boot
+  (`thirdPartyExtensibilityEnabled`, on by default), so a `claude-harnmem`
+  installed for Claude Code appears in Cursor as a second plugin named `harnmem`.
+  Both copies ship an MCP server named `harnmem` (Cursor registers one) and the
+  same hook script (deduped by exclusive claims, §4.1), so the duplicate is
+  cosmetic; the doctor reports it instead of letting it surprise the user, and
+  README documents both remedies (turn the import setting off, or uninstall the
+  Claude Code copy). Unlike the Grok adapter, Cursor has no same-name precedence
+  that would shadow the imported copy, so the fix is diagnostic rather than
+  manifest-level.
 
 - The installer never overwrites a user `hooks.json`/`mcp.json`: it reads,
   merges only HarnMem entries (idempotent, matched by the absolute hook-script
@@ -382,6 +401,13 @@ node packages/cursor-harnmem/scripts/install.mjs --uninstall
 - [D] Two turns of one conversation inject identical bytes; different
   conversations get independent markers.
 - [D] Windows: `node "<path>"` quoting works through PowerShell; hooks hot-reload.
+- [D] `--doctor` unit tests cover the healthy install, a missing plugin/hooks/MCP
+  server, and the Claude Code duplicate warning; the installer's doctor pass runs
+  in the same code path.
+- [V] On the real profile `--doctor` reports the plugin (`harnmem 0.1.0`), the
+  three hook events and the plugin MCP server, and warns about the Claude Code
+  `harnmem@harnmem-marketplace` 0.4.0 install found in
+  `~/.claude/plugins/installed_plugins.json` (2026-10-30, Cursor desktop 3.27.22).
 - [ ] [U] Behaviour of `postToolUse.additional_context` as a mid-session refresh
   channel.
 
@@ -396,6 +422,7 @@ node packages/cursor-harnmem/scripts/install.mjs --uninstall
 | [U] | `MainThreadShellExec not initialized` on hook teardown | The hook tolerates it (empty stdout, exit 0); observed with the installed Claude plugin |
 | [U] | Windows path encoding for `projects/<enc-cwd>` on other drives/UNC | The parser receives `transcript_path` from Cursor, so it never derives the path itself |
 | [U] | Cursor version drift for the plugin-hook gate (`enable_cc_plugin_import`) | Installer path is independent of that gate; re-test the plugin path after Cursor updates |
+| [V] | Cursor imports a Claude Code `harnmem` plugin, so Customize lists two plugins | Harmless (one MCP server, claims dedupe the hooks); `--doctor` reports it and README documents unchecking "Include Third-Party Plugins, Skills, and Other Configs" or uninstalling the Claude Code copy |
 
 ## 13. Differences from the Claude adapter and from 07 §6
 

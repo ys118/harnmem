@@ -29,6 +29,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  buildDoctorReport,
+  claudePluginRegistryPath,
+  findClaudePluginInstalls,
+} from "../lib/doctor.mjs";
+import {
   mergeHooksConfig,
   mergeMcpConfig,
   readJsonFile,
@@ -43,11 +48,12 @@ const hookScript = path.join(pluginRoot, "hooks", "hook.mjs");
 const COPY_SKIP = new Set(["test", "node_modules", ".git", ".tmp"]);
 
 function parseArgs(argv) {
-  const opts = { dryRun: false, uninstall: false, mcpUser: false, help: false };
+  const opts = { dryRun: false, uninstall: false, mcpUser: false, doctor: false, help: false };
   for (const arg of argv) {
     if (arg === "--dry-run") opts.dryRun = true;
     else if (arg === "--uninstall") opts.uninstall = true;
     else if (arg === "--mcp-user") opts.mcpUser = true;
+    else if (arg === "--doctor") opts.doctor = true;
     else if (arg === "--help" || arg === "-h") opts.help = true;
     else {
       console.error(`unknown argument: ${arg}`);
@@ -59,14 +65,17 @@ function parseArgs(argv) {
 
 function usage() {
   return [
-    "Usage: node scripts/install.mjs [--dry-run] [--mcp-user] [--uninstall]",
+    "Usage: node scripts/install.mjs [--dry-run] [--mcp-user] [--uninstall] [--doctor]",
     "",
     "  --dry-run    print planned actions without touching the filesystem",
     "  --mcp-user   also register the MCP server in ~/.cursor/mcp.json",
     "  --uninstall  remove hooks, the MCP entry (when present) and the plugin copy",
+    "  --doctor     check the installed plugin, hooks, MCP server and Claude Code",
+    "               coexistence (exit 1 when a required piece is missing)",
     "",
     "Environment: HARNMEM_CURSOR_HOME overrides the Cursor config directory",
-    "(default: ~/.cursor).",
+    "(default: ~/.cursor); HARNMEM_CLAUDE_HOME overrides the Claude Code config",
+    "directory (default: ~/.claude).",
   ].join("\n");
 }
 
@@ -76,6 +85,12 @@ function cursorHome() {
   return path.join(os.homedir(), ".cursor");
 }
 
+function claudeHome() {
+  const override = process.env.HARNMEM_CLAUDE_HOME;
+  if (override && override.trim()) return path.resolve(override.trim());
+  return path.join(os.homedir(), ".claude");
+}
+
 async function readJson(file) {
   if (!existsSync(file)) return undefined;
   try {
@@ -83,6 +98,60 @@ async function readJson(file) {
   } catch (err) {
     throw new Error(`${file} is not valid JSON (${err.message}); refusing to overwrite it`);
   }
+}
+
+/** Like `readJson`, but a broken file is reported instead of thrown. */
+async function readJsonTolerant(file) {
+  if (!existsSync(file)) return undefined;
+  try {
+    return await readJsonFile(file, readFile);
+  } catch (err) {
+    console.log(`  note: ${file} is not valid JSON (${err.message}); skipped`);
+    return undefined;
+  }
+}
+
+async function collectClaudeInstalls() {
+  const registry = await readJsonTolerant(claudePluginRegistryPath(claudeHome()));
+  return findClaudePluginInstalls(registry);
+}
+
+async function collectDoctorReport(root) {
+  const pluginTarget = path.join(root, "plugins", "local", "harnmem");
+  const hooksFile = path.join(root, "hooks.json");
+  const installedHook = path.join(pluginTarget, "hooks", "hook.mjs");
+  return buildDoctorReport({
+    pluginDir: pluginTarget,
+    pluginManifest: await readJsonTolerant(path.join(pluginTarget, ".cursor-plugin", "plugin.json")),
+    pluginMcpConfig: await readJsonTolerant(path.join(pluginTarget, "mcp.json")),
+    userMcpConfig: await readJsonTolerant(path.join(root, "mcp.json")),
+    hooksConfig: await readJsonTolerant(hooksFile),
+    hookScriptPath: installedHook,
+    claudeInstalls: await collectClaudeInstalls(),
+  });
+}
+
+function printDoctorReport(report, { verbose }) {
+  for (const check of report.checks) {
+    if (!verbose && check.status === "ok") continue;
+    console.log(`  ${check.status === "ok" ? "ok   " : check.status === "warn" ? "warn " : "MISS "} ${check.id}: ${check.detail}`);
+  }
+  for (const line of report.warnings) console.log(`  WARNING: ${line}`);
+  for (const line of report.problems) console.log(`  PROBLEM: ${line}`);
+}
+
+async function doctor(root) {
+  console.log("HarnMem for Cursor — doctor");
+  const report = await collectDoctorReport(root);
+  printDoctorReport(report, { verbose: true });
+  if (report.problems.length === 0) {
+    console.log("");
+    console.log("Result: installed and registered.");
+  } else {
+    console.log("");
+    console.log("Result: incomplete installation -> run: node scripts/install.mjs");
+  }
+  return report.problems.length === 0;
 }
 
 async function writeJson(file, value, { dryRun }) {
@@ -147,11 +216,21 @@ async function install({ dryRun, mcpUser }) {
   }
 
   if (!dryRun) {
+    console.log(`${mcpUser ? "4" : "3"}) doctor`);
+    const report = await collectDoctorReport(root);
+    printDoctorReport(report, { verbose: false });
+    if (report.warnings.length === 0 && report.problems.length === 0) {
+      console.log("  ok    plugin, hooks and MCP server are registered correctly");
+    }
+  }
+
+  if (!dryRun) {
     console.log("");
     console.log("Next: reload the Cursor window (Developer: Reload Window) or restart Cursor.");
     console.log("The plugin provides: rules/harnmem.mdc (fallback context) + mcp.json (memory tools).");
     console.log("Hooks in ~/.cursor/hooks.json provide: first-prompt injection + session-end journaling.");
     console.log(`Restore state: node scripts/install.mjs --uninstall${mcpUser ? " --mcp-user" : ""}`);
+    console.log("Re-check later with: node scripts/install.mjs --doctor");
   }
 }
 
@@ -211,6 +290,11 @@ async function main() {
     return;
   }
   await stat(hookScript); // fail fast when run from a broken tree
+  if (opts.doctor) {
+    const ok = await doctor(cursorHome());
+    if (!ok) process.exitCode = 1;
+    return;
+  }
   if (opts.uninstall) await uninstall(opts);
   else await install(opts);
 }
