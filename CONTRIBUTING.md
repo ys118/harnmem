@@ -3,9 +3,9 @@
 This guide exists to save both sides time.
 
 HarnMem is cross-harness, file-native agent memory: one local Markdown/JSON
-store under `~/.harnmem/`, shared by pi, DeepSeek Harness (DSH) and future
-harnesses. No services, no vector database, no embedding model: retrieval is a
-deterministic local index over plain files.
+store under `~/.harnmem/`, shared by pi, DeepSeek Harness (DSH), Claude Code,
+Codex and opencode. No services, no vector database, no embedding model:
+retrieval is a deterministic local index over plain files.
 
 Start with [README](README.md) for the overview,
 [docs/user-guide.md](docs/user-guide.md) for installation and use,
@@ -105,8 +105,9 @@ Open an issue first. Do not open a PR until a maintainer has approved it with
 `master` is PR-only for everyone; direct pushes are not allowed, including for
 maintainers' own changes. A PR is mergeable only when it has an approving review
 from the repository owner (@ys118) and all required CI checks are green. Branch
-protection is enforced by GitHub rulesets. Required checks run on ubuntu-latest
-and windows-latest with Node 22, plus an eval-gate job on ubuntu-latest.
+protection is enforced by GitHub rulesets. Required checks are `build/test` on
+ubuntu-latest with Node 22 and Node 24, `build/test` on windows-latest with
+Node 22, and the `evaluation gates` job on ubuntu-latest.
 
 The repository owner keeps the repository-admin bypass, because GitHub does not
 allow approving your own pull request: the owner merges their own pull requests
@@ -121,7 +122,9 @@ only record an approval that was already granted in an issue comment.
 
 ## Project layout
 
-All four packages are published on npm at version 0.3.0.
+All seven packages are published on npm: `@harnmem/core` 0.4.2, `@harnmem/cli`
+0.4.1, `pi-harnmem` 0.4.4, `dsh-harnmem` 0.4.2, `claude-harnmem` 0.4.3,
+`codex-harnmem` 0.2.3, `opencode-harnmem` 0.1.1.
 
 | Path | Package | What it is |
 | ---- | ------- | ---------- |
@@ -129,14 +132,18 @@ All four packages are published on npm at version 0.3.0.
 | `packages/cli` | `@harnmem/cli` | The `harnmem` command: manage the store and migrate legacy harness memories. Depends only on `@harnmem/core`. |
 | `packages/pi-harnmem` | `pi-harnmem` | pi extension: context injection, memory tools, `/memory`, session-end extraction. |
 | `packages/dsh-harnmem` | `dsh-harnmem` | DSH plugin: system-prompt injection, `harnmem_*` tools, bounded session-end extraction. |
+| `packages/claude-harnmem` | `claude-harnmem` | Claude Code plugin: `SessionStart` hook injection, bundled zero-dependency stdio MCP server, `/harnmem:memory`, detached session-end extraction. |
+| `packages/codex-harnmem` | `codex-harnmem` | Codex CLI plugin: `SessionStart` `mcp_tool` hook injection, bundled stdio MCP server (7 tools), skill, rollout backfill. |
+| `packages/opencode-harnmem` | `opencode-harnmem` | opencode v2 plugin: context-hook snapshot, five native tools, per-turn journaling. |
 | `evals` | - | Deterministic evaluation corpora (S1-S12), metrics, gates and ablation runner. |
 | `prompts`, `data` | - | Prompt assets and synonym tables deployed to `~/.harnmem/` on first run. |
 | `docs` | - | Design docs, research notes, roadmap and user guide. |
 
 Adapter packages follow the `<harness>-harnmem` convention (`pi-harnmem`,
-`dsh-harnmem`, future `opencode-harnmem`, `claude-harnmem`); harness-neutral
-packages live under the `@harnmem` scope. The Claude Code adapter is design-only
-(`docs/design/09-claude-adapter.md`).
+`dsh-harnmem`, `claude-harnmem`, `codex-harnmem`, `opencode-harnmem`);
+harness-neutral packages live under the `@harnmem` scope. Adapter designs are in
+`docs/design/07`-`09`, with real-machine probe records for the Codex and
+opencode plugins under `docs/research/`.
 
 ## Development setup
 
@@ -153,9 +160,8 @@ pnpm -r typecheck
 pnpm test
 ```
 
-`pnpm test` builds `@harnmem/core` and `@harnmem/cli` and runs both `node --test`
-suites (engine plus CLI end-to-end tests). Adapter packages have their own tests
-and READMEs.
+`pnpm test` builds every package and runs all `node --test` suites (core engine,
+CLI end-to-end tests and the five adapter suites).
 
 ## Code conventions
 
@@ -182,9 +188,10 @@ first, and open an issue before writing. An adapter:
   and read-only for subagents, and ships a README with install instructions and
   an end-to-end verification note.
 
-The design-only Claude Code adapter (`docs/design/09-claude-adapter.md`) is the
-natural starting point for a new harness. To *import* a legacy memory store
-instead of wiring a runtime adapter, follow the importer track in
+The implemented Claude Code adapter (`docs/design/09-claude-adapter.md`, package
+`packages/claude-harnmem`) is the natural starting point for a new harness. To
+*import* a legacy memory store instead of wiring a runtime adapter, follow the
+importer track in
 [`docs/adapter-authoring.md`](docs/adapter-authoring.md).
 
 ## Blocking
@@ -203,8 +210,8 @@ described in [Contribution gate](#contribution-gate); merge the generated
 bookkeeping pull request to activate the approval.
 
 Releases: update `CHANGELOG.md` (`Added`, `Changed`, `Fixed`, `Removed`) and bump
-all four package versions in sync; merge the release PR, then tag `vX.Y.Z` and
-push the tag. The release workflow builds, tests and publishes all four packages
+all package versions in sync; merge the release PR, then tag `vX.Y.Z` and
+push the tag. The release workflow builds, tests and publishes all packages
 from GitHub Actions with npm provenance enabled when the repository secret
 `NPM_TOKEN` is configured. Without that secret the workflow still runs every
 check, skips publishing with a warning, and a maintainer publishes from a
