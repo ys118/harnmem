@@ -76,5 +76,19 @@ test("always-apply rules file ships and documents the installer fallback", () =>
   const rules = readFileSync(join(packageRoot, "rules/harnmem.mdc"), "utf8");
   assert.match(rules, /^---\n[\s\S]*alwaysApply: true[\s\S]*?\n---\n/);
   assert.match(rules, /memory_search/);
-  assert.match(rules, /npx cursor-harnmem-install/);
+  assert.match(rules, /`npx cursor-harnmem` enables automatic injection/);
+});
+
+test("the installer bin is reachable as both npx cursor-harnmem and npx cursor-harnmem-install", () => {
+  // `npx cursor-harnmem` runs the package's sole bin; with two bins the name
+  // that matches the package keeps that spelling explicit.
+  assert.equal(pkg.bin["cursor-harnmem"], "scripts/install.mjs");
+  assert.equal(pkg.bin["cursor-harnmem-install"], "scripts/install.mjs");
+  assert.ok(pkg.files.includes("scripts/"), "the installer script must be published");
+  assert.ok(statSync(join(packageRoot, "scripts/install.mjs")).isFile());
+
+  const readme = readFileSync(join(packageRoot, "README.md"), "utf8");
+  assert.match(readme, /npx cursor-harnmem\b/);
+  // The mistaken spelling is called out so nobody ships it in docs again.
+  assert.match(readme, /`npx cursor-harnmem-install` on its own does \*\*not\*\* work/);
 });

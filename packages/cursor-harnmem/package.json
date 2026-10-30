@@ -31,6 +31,7 @@
     "node": ">=22.15"
   },
   "bin": {
+    "cursor-harnmem": "scripts/install.mjs",
     "cursor-harnmem-install": "scripts/install.mjs"
   }
 }

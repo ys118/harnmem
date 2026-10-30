@@ -318,6 +318,14 @@ then `workspace_roots` (stripping the leading `/` from `/D:/...`), then
 ## 10. Installation and packaging
 
 ```bash
+# 0) from npm, in any directory (published package): install plugin + user hooks,
+#    then Developer: Reload Window. `npx cursor-harnmem` works because the package
+#    declares the installer as its bin; `npx -p cursor-harnmem cursor-harnmem-install`
+#    is the explicit spelling. `npx cursor-harnmem-install` alone fails: npx reads the
+#    first word as a package name and no package by that name exists.
+npx cursor-harnmem
+npx cursor-harnmem --doctor
+
 # 1) inside the repo: vendor core + run the adapter's tests
 pnpm --filter @harnmem/core build
 pnpm --filter cursor-harnmem build
