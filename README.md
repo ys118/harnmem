@@ -122,7 +122,7 @@ grok plugin install grok-harnmem --trust
 
 # Cursor desktop: copy the plugin into ~/.cursor/plugins/local, merge the
 # user-level hooks, then run Developer: Reload Window
-npx cursor-harnmem-install
+npx cursor-harnmem
 ```
 
 All adapters read and write the same `~/.harnmem/` store, so installing more

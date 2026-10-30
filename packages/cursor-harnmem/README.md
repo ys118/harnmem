@@ -11,24 +11,32 @@ Cross-harness persistent memory for [Cursor](https://cursor.com), powered by [`@
 
 ## Install
 
-For the desktop app, use the installer from this package (it copies the plugin into `~/.cursor/plugins/local/harnmem` and registers the hooks in your user-level `~/.cursor/hooks.json`):
+One command installs everything: the local plugin (rules + MCP manifest), the user-level hooks, and a doctor pass. Run it from anywhere — `npx` downloads the published package first:
+
+```
+npx cursor-harnmem
+```
+
+Inside a checkout, use the workspace copy instead:
 
 ```
 pnpm --filter cursor-harnmem build
-npx cursor-harnmem-install   # or: node packages/cursor-harnmem/scripts/install.mjs
+node packages/cursor-harnmem/scripts/install.mjs
 ```
 
 Then run **Developer: Reload Window** (or restart Cursor) and check **Customize → Plugins**.
+
+`npx cursor-harnmem` works because `cursor-harnmem` declares the installer as its only bin, so `npx` runs it directly. The explicit spelling is `npx -p cursor-harnmem cursor-harnmem-install`, and `pnpm dlx cursor-harnmem` does the same with pnpm. Note that `npx cursor-harnmem-install` on its own does **not** work: `npx` treats the first word as the package name, and no package by that name exists.
 
 Why the installer exists: Cursor desktop 3.27.22 loads a user-local plugin's `rules/` and `mcp.json`, but **not** its `hooks/hooks.json` — plugin hooks are gated behind the `enable_cc_plugin_import` experiment (see `docs/research/cursor-plugin.md` §2.3). The reliable hook surface is the user-level `~/.cursor/hooks.json`, which the installer merges into non-destructively (timestamped backup, `--uninstall` reverses it, existing hooks are never overwritten).
 
 Useful flags:
 
 ```
-node packages/cursor-harnmem/scripts/install.mjs --dry-run
-node packages/cursor-harnmem/scripts/install.mjs --mcp-user   # also ~/.cursor/mcp.json
-node packages/cursor-harnmem/scripts/install.mjs --uninstall
-node packages/cursor-harnmem/scripts/install.mjs --doctor     # self-check, see below
+npx cursor-harnmem --dry-run
+npx cursor-harnmem --mcp-user   # also ~/.cursor/mcp.json
+npx cursor-harnmem --uninstall
+npx cursor-harnmem --doctor     # self-check, see below
 ```
 
 `@harnmem/core` is vendored into `vendor/core/` at build time (`pnpm build` in this package), so the installed plugin directory is self-contained.
@@ -38,7 +46,7 @@ node packages/cursor-harnmem/scripts/install.mjs --doctor     # self-check, see 
 Installing this plugin from the Cursor Marketplace gives you the `rules/` guidance and the five MCP tools right away: the model knows memory exists and can search, read and write records from its first reply. Cursor gates plugin-provided hooks behind its Claude Code plugin-import experiment, so `hooks/hooks.json` is **not** executed for a marketplace install on 3.27.22 — the injector and the session-end journal need the user-level hook registration:
 
 ```
-npx cursor-harnmem-install
+npx cursor-harnmem
 ```
 
 That one command copies the plugin into `~/.cursor/plugins/local/harnmem` and merges the three hook entries into `~/.cursor/hooks.json` (idempotent, timestamped backup, `--uninstall` reverses it). After **Developer: Reload Window** you get the byte-stable snapshot on the first prompt of every conversation, plus transcript journaling at session end. Without it you keep the rules fallback: the model calls `memory_search` itself instead of reading an injected index.
