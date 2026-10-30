@@ -3,7 +3,7 @@
 Single source of truth for **where the project stands and what to do next**.
 Design intent lives in [`design/`](design/); this file tracks execution state.
 
-Last updated: **2026-10-30** (seven-package audit: 17 of 21 confirmed issues fixed in the 0.6.2 patch wave; structural/design backlog tracked as N18-N20; Grok adapter implemented as N21 and probe-verified on Grok CLI 1.0.70; Grok plugin id kept as `grok-harnmem` after verifying the explicit `[plugins] enabled` entry wins the shared `harnmem` MCP server; Cursor adapter implemented as N23 and verified on Cursor desktop 3.27.22, with an installer `--doctor` self-check following as N24); the Grok P2 follow-up verified TUI parity, the UserPromptSubmit and `$GROK_HOME/rules` channels, remote marketplace install and the `grok-harnmem@0.1.0` npm publish; the remaining Grok verification backlog is tracked as N25).
+Last updated: **2026-10-30** (seven-package audit: 17 of 21 confirmed issues fixed in the 0.6.2 patch wave; structural/design backlog tracked as N18-N20; Grok adapter implemented as N21 and probe-verified on Grok CLI 1.0.70; Grok plugin id kept as `grok-harnmem` after verifying the explicit `[plugins] enabled` entry wins the shared `harnmem` MCP server; Cursor adapter implemented as N23 and verified on Cursor desktop 3.27.22, with an installer `--doctor` self-check following as N24); the Grok P2 follow-up verified TUI parity, the UserPromptSubmit and `$GROK_HOME/rules` channels, remote marketplace install and the `grok-harnmem@0.1.0` npm publish; the remaining Grok verification backlog is tracked as N25; Cursor 0.1.1 was published to npm and rolled out to the Cursor marketplace, with the marketplace install path, the next patch's packaging fixes and the per-upgrade drill tracked as N26-N28).
 
 ## 1. Snapshot
 
@@ -635,7 +635,7 @@ backlog by user decision (2026-10-30).
     (`SessionStart` injection and `UserPromptSubmit` are the two most likely to
     shift).
 
-### Phase J - Cursor adapter (N23-N24)
+### Phase J - Cursor adapter (N23-N24, N26-N28)
 
 - [x] **N23. Cursor adapter.** Cursor desktop exposes hooks, a plugin format
   (`.cursor-plugin/`), MCP and always-on rules, but no supported context-injection
@@ -688,10 +688,75 @@ backlog by user decision (2026-10-30).
     user-level `~/.cursor/hooks.json` entries are then the only execution path
     (the exclusive claims stay as belt and braces).
 
-  Remaining: Cursor marketplace publish; Cloud agents (not available on this
-  account, and they skip `sessionStart`/`sessionEnd`/`workspaceOpen` by design);
-  the untrusted-workspace branch of project hooks (CLI-opened windows are
-  auto-trusted, so the `Restrict mode` path needs a GUI-driven session).
+  Remaining: Cloud agents (not available on this account, and they skip
+  `sessionStart`/`sessionEnd`/`workspaceOpen` by design); the untrusted-workspace
+  branch of project hooks (CLI-opened windows are auto-trusted, so the
+  `Restrict mode` path needs a GUI-driven session); the marketplace listing and
+  what a marketplace-installed copy can do on its own (N26); two packaging
+  wording fixes for the next patch (N27); the per-upgrade drift checklist (N28).
+  `cursor-harnmem` 0.1.1 was published on npm on 2026-10-30 and rolled out to the
+  Cursor marketplace the same day; the repository does not link the listing yet.
+
+- [ ] **N26. Cursor marketplace install path.** The package now ships a
+  marketplace manifest and logo, but two things about the marketplace copy are
+  unverified and the duplicated-plugin case is only half covered.
+
+  * Verify what a marketplace-installed copy executes. Plugin hooks sit behind
+    the `enable_cc_plugin_import` experiment and the Claude-hooks setting, while
+    the installer writes the same commands into the user-level
+    `~/.cursor/hooks.json`; if the marketplace copy does run them, every event
+    fires twice (deduplicated by the exclusive claims) and the README caveat can
+    be relaxed. If it does not, the caveat stays: marketplace gives rules and MCP
+    immediately, injection and journaling need `npx cursor-harnmem`.
+  * Detect a marketplace copy alongside the local copy in `--doctor`, the way the
+    Claude Code import check already warns about a second same-name plugin
+    (duplicate MCP server id, two hook channels). Print `cursor_version` in the
+    same report so a drifted editor is visible at a glance.
+  * Link the listing from `packages/cursor-harnmem/README.md`, the root README,
+    design doc section 10 and N24 once the URL is stable.
+  * Known limitation to record: detached extraction and the two hook channels can
+    start two processes against the same store; claims dedupe the runs, but
+    ordering is not locked yet (tracked as N18).
+
+  *Acceptance:* a fresh Cursor profile installs the plugin from the marketplace,
+  `--doctor` reports the plugin, hooks, MCP, the marketplace copy and
+  `cursor_version`, one seeded conversation shows injection plus exactly one
+  journal, and the docs carry the listing URL.
+
+- [ ] **N27. Cursor packaging follow-ups for the next patch.** Small, batched
+  into 0.1.2 rather than its own release.
+
+  * `packages/cursor-harnmem/README.md` and the design doc say the package
+    "declares the installer as its only bin"; 0.1.1 declares two
+    (`cursor-harnmem` and `cursor-harnmem-install`) and `npx` prefers the
+    package-named one. Fix the wording, keep the command assertions in
+    `test/manifest.test.mjs` in sync, and re-check the rendered README on the npm
+    page after publishing.
+  * Add the marketplace listing link to the install section if N26 lands first.
+
+  *Acceptance:* 0.1.2 published, npm page renders the corrected sentence, tests
+  assert the two bin names and the `npx cursor-harnmem` spelling.
+
+- [ ] **N28. Cursor upgrade drift checklist.** `beforeSubmitPrompt` injection
+  rides on an undocumented field, so each Cursor desktop upgrade is a potential
+  break. After every upgrade, re-run the N24 probe and update
+  [design/12 §11.1](design/12-cursor-adapter.md):
+
+  * `beforeSubmitPrompt` still accepts the flat `additional_context`;
+    `afterAgentResponse` still reports `conversation_id` so the marker flips to
+    `confirmed`.
+  * `sessionEnd` still ships `transcript_path` and `reason`; hook source
+    precedence stays `enterprise`, `project`, `user`, plugin; the hooks log stays
+    at `%APPDATA%\Cursor\logs\<ts>\window*\output_*\cursor.hooks.*.log`.
+  * `preCompact` (`/summarize`) and `subagentStart`/`subagentStop` payload fields
+    are unchanged; the plugin still loads and registers the five MCP tools.
+  * The probe is cheap: one seeded conversation, one `/summarize`, one Task call.
+    If a channel disappears, move to the next channel in the design-doc table;
+    the always-on rules keep memory searchable in the meantime.
+
+  *Acceptance:* after each upgrade the design doc's verification table is
+  re-stamped with the new `cursor_version`, or the adapter switches channel with
+  a CHANGELOG note.
 
 ## 5. Decision log
 
