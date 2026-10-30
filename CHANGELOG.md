@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-30
+
+### Added
+
+- `grok-harnmem` 0.1.0: Grok CLI adapter. Grok renders the system prompt before
+  `SessionStart` runs and drops hook output, so the adapter injects the memory
+  index through the MCP `initialize.instructions` handshake and ships six tools
+  (the five canonical ones plus `memory_context` for the full index), a
+  `/grok-harnmem:memory` command, a recall skill, and a detached `SessionEnd`
+  extractor that returns well inside Grok's 1.5 s plugin budget. The repository
+  root is a Grok marketplace; `grok plugin install grok-harnmem --trust` records
+  the explicit `[plugins] enabled` entry that keeps this plugin's `harnmem` MCP
+  server when Grok also auto-loads the Claude Code plugin. Verified on Grok CLI
+  1.0.70 (first-turn injection, tools, session-end extraction, coexistence).
+- `cursor-harnmem` 0.1.0: Cursor desktop adapter. A `beforeSubmitPrompt` hook
+  injects the memory snapshot once per conversation through the undocumented flat
+  `additional_context` channel, an `afterAgentResponse` hook confirms delivery
+  and re-arms injection when a turn fails, a `sessionEnd` hook journals and
+  extracts the transcript in a detached child, and the `.cursor-plugin/` package
+  ships always-on rules plus the five-tool MCP server. `cursor-harnmem-install`
+  copies the plugin into `~/.cursor/plugins/local`, merges the three hooks into
+  `~/.cursor/hooks.json` without clobbering existing entries, and its `--doctor`
+  mode reports the plugin, hooks, MCP server and any Claude Code plugin import.
+  Verified on Cursor desktop 3.27.22 (first-prompt injection, plugin MCP tools,
+  one deduplicated journal per conversation); the follow-up probe round covered
+  the compaction, subagent, project and MDM hook surfaces.
+
 ## [0.6.2] - 2026-10-30
 
 ### Fixed

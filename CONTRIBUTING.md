@@ -124,10 +124,10 @@ only record an approval that was already granted in an issue comment.
 
 ## Project layout
 
-All seven existing packages are published on npm: `@harnmem/core` 0.4.2,
+All nine packages are published on npm: `@harnmem/core` 0.4.2,
 `@harnmem/cli` 0.4.1, `pi-harnmem` 0.4.4, `dsh-harnmem` 0.4.2, `claude-harnmem`
-0.4.3, `codex-harnmem` 0.2.3, `opencode-harnmem` 0.1.1. The eighth adapter,
-`grok-harnmem` 0.1.0, lands in the next release; it follows the same
+0.4.3, `codex-harnmem` 0.2.3, `opencode-harnmem` 0.1.1, `grok-harnmem` 0.1.0 and
+`cursor-harnmem` 0.1.0. The two newest adapters follow the same
 zero-runtime-dependency, vendored-core rules as the others.
 
 | Path | Package | What it is |
@@ -140,15 +140,17 @@ zero-runtime-dependency, vendored-core rules as the others.
 | `packages/codex-harnmem` | `codex-harnmem` | Codex CLI plugin: `SessionStart` `mcp_tool` hook injection, bundled stdio MCP server (7 tools), skill, rollout backfill. |
 | `packages/opencode-harnmem` | `opencode-harnmem` | opencode v2 plugin: context-hook snapshot, five native tools, per-turn journaling. |
 | `packages/grok-harnmem` | `grok-harnmem` | Grok CLI plugin: memory index through MCP `initialize.instructions`, six tools, `/grok-harnmem:memory`, `SessionEnd` extraction from `chat_history.jsonl`. |
+| `packages/cursor-harnmem` | `cursor-harnmem` | Cursor desktop plugin: `beforeSubmitPrompt` snapshot injection, always-on rules, five-tool MCP server, detached `sessionEnd` extraction, installer with `--doctor`. |
 | `evals` | - | Deterministic evaluation corpora (S1-S12), metrics, gates and ablation runner. |
 | `prompts`, `data` | - | Prompt assets and synonym tables deployed to `~/.harnmem/` on first run. |
 | `docs` | - | Design docs, research notes, roadmap and user guide. |
 
 Adapter packages follow the `<harness>-harnmem` convention (`pi-harnmem`,
 `dsh-harnmem`, `claude-harnmem`, `codex-harnmem`, `opencode-harnmem`,
-`grok-harnmem`); harness-neutral packages live under the `@harnmem` scope.
-Adapter designs are in `docs/design/07`-`11`, with real-machine probe records
-for the Codex, opencode and Grok plugins under `docs/research/`.
+`grok-harnmem`, `cursor-harnmem`); harness-neutral packages live under the
+`@harnmem` scope. Adapter designs are in `docs/design/07`-`12`, with real-machine
+probe records for the Codex, opencode, Grok and Cursor plugins under
+`docs/research/`.
 
 ## Development setup
 

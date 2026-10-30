@@ -23,8 +23,7 @@ database, no embedding model, and no runtime dependencies in the engine.
   `pi-harnmem` (pi extension), `dsh-harnmem` (DSH plugin), `claude-harnmem`
   (Claude Code plugin), `codex-harnmem` (Codex CLI plugin),
   `opencode-harnmem` (opencode v2 plugin), `grok-harnmem` (Grok CLI plugin) and
-  `cursor-harnmem` (Cursor desktop plugin) — all published on npm except
-  `grok-harnmem` and `cursor-harnmem`, which ship in the next release. Install
+  `cursor-harnmem` (Cursor desktop plugin) — all published on npm. Install
   the CLI with `npm install -g @harnmem/cli`; the opencode adapter needs
   opencode 2.x and is verified end to end on the 2.1.4 binary (injection, native
   tools, per-turn journaling); the Grok adapter is verified on the 1.0.70 binary
@@ -32,14 +31,14 @@ database, no embedding model, and no runtime dependencies in the engine.
   the Cursor adapter is verified on Cursor 3.27.22 (first-prompt injection,
   plugin MCP tools, session-end journaling).
 - **License:** MIT.
-- **Status:** v0.6.2 — the engine, the CLI/migration tooling and the five
-  published adapters (pi, DeepSeek Harness, Claude Code, Codex, opencode) are
-  published and tested end to end; the Grok and Cursor adapters are implemented
-  and verified end to end, shipping in the next release. The release is a seven-package audit wave: 17 of 21
-  confirmed issues fixed, the structural remainder tracked as N18-N20 in the
-  roadmap. The Codex adapter also covers the CLI TUI trust flow and Codex
-  Desktop, and backfills sessions from `~/.codex/sessions` until Codex ships
-  SessionEnd hooks.
+- **Status:** v0.7.0 — the engine, the CLI/migration tooling and all seven
+  adapters (pi, DeepSeek Harness, Claude Code, Codex, opencode, Grok, Cursor) are
+  published and tested end to end. The 0.7.0 release adds the Grok and Cursor
+  adapters on top of the 0.6.2 seven-package audit wave (17 of 21 confirmed
+  issues fixed, the structural remainder tracked as N18-N20 in the roadmap). The
+  Codex adapter also covers the CLI TUI trust flow and Codex Desktop, and
+  backfills sessions from `~/.codex/sessions` until Codex ships SessionEnd
+  hooks.
 
 ## Why another memory plugin?
 
