@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import test from "node:test";
 
 import {
@@ -41,9 +42,16 @@ function claudeRegistry(...ids) {
 }
 
 test("claudePluginRegistryPath resolves under the Claude config directory", () => {
+  const claudeDir = path.join("home", "user", ".claude");
   assert.equal(
-    claudePluginRegistryPath("C:\\Users\\me\\.claude"),
-    "C:\\Users\\me\\.claude\\plugins\\installed_plugins.json",
+    claudePluginRegistryPath(claudeDir),
+    path.join(claudeDir, "plugins", "installed_plugins.json"),
+  );
+  assert.equal(
+    claudePluginRegistryPath(path.join("home", "user", ".claude")).endsWith(
+      path.join("plugins", "installed_plugins.json"),
+    ),
+    true,
   );
 });
 
