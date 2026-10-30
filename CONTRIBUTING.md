@@ -139,7 +139,7 @@ zero-runtime-dependency, vendored-core rules as the others.
 | `packages/claude-harnmem` | `claude-harnmem` | Claude Code plugin: `SessionStart` hook injection, bundled zero-dependency stdio MCP server, `/harnmem:memory`, detached session-end extraction. |
 | `packages/codex-harnmem` | `codex-harnmem` | Codex CLI plugin: `SessionStart` `mcp_tool` hook injection, bundled stdio MCP server (7 tools), skill, rollout backfill. |
 | `packages/opencode-harnmem` | `opencode-harnmem` | opencode v2 plugin: context-hook snapshot, five native tools, per-turn journaling. |
-| `packages/grok-harnmem` | `grok-harnmem` | Grok CLI plugin: memory index through MCP `initialize.instructions`, six tools, `/grok-harnmem:memory`, `SessionEnd` extraction from `chat_history.jsonl`. |
+| `packages/grok-harnmem` | `grok-harnmem` | Grok CLI plugin (declared id `harnmem`, deliberately shared with the Claude adapter so Grok shadows a Claude-loaded copy): memory index through MCP `initialize.instructions`, six tools, `/harnmem:memory`, `SessionEnd` extraction from `chat_history.jsonl`. |
 | `evals` | - | Deterministic evaluation corpora (S1-S12), metrics, gates and ablation runner. |
 | `prompts`, `data` | - | Prompt assets and synonym tables deployed to `~/.harnmem/` on first run. |
 | `docs` | - | Design docs, research notes, roadmap and user guide. |

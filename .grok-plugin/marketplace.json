@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "harnmem",
-      "description": "Cross-harness persistent memory for Grok CLI: a byte-stable memory index via the MCP server's initialize.instructions, six memory tools, a /grok-harnmem:memory command, and SessionEnd extraction from Grok's own session transcript.",
+      "description": "Cross-harness persistent memory for Grok CLI: a byte-stable memory index via the MCP server's initialize.instructions, six memory tools, a /harnmem:memory command, and SessionEnd extraction from Grok's own session transcript. The plugin id matches the Claude Code adapter so Grok's same-name precedence shadows an auto-loaded claude-harnmem instead of duplicating its MCP server and extractor.",
       "version": "0.1.0",
       "source": {
         "source": "local",
