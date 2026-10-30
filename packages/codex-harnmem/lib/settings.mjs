@@ -76,19 +76,34 @@ function pickKnown(source) {
   return out;
 }
 
+const BOOL_KEYS = ["enabled", "readOnly", "inject", "autoExtract", "debug"];
+
+/**
+ * Config files are user-edited JSON with no schema: coerce boolean-ish strings
+ * the same way the env path does ("enabled": "false" must disable, not stay
+ * truthy) and normalize the one numeric key ("1200" would poison core's token
+ * budget arithmetic).
+ */
+function coerceFileValues(settings) {
+  for (const key of BOOL_KEYS) {
+    if (typeof settings[key] !== "string") continue;
+    const v = truthy(settings[key]);
+    if (v === undefined) delete settings[key];
+    else settings[key] = v;
+  }
+  if (settings.maxInjectTokens !== undefined) {
+    settings.maxInjectTokens = normalizeMaxInjectTokens(settings.maxInjectTokens) ?? DEFAULTS.maxInjectTokens;
+  }
+  return settings;
+}
+
 export function resolveSettings(cwd = process.cwd(), env = process.env) {
   const homeFromEnv = env.HARNMEM_HOME && env.HARNMEM_HOME.trim() ? path.resolve(expandHome(env.HARNMEM_HOME)) : undefined;
   const baseHome = homeFromEnv || path.join(homedir(), ".harnmem");
 
   let settings = { ...DEFAULTS };
-  settings = { ...settings, ...pickKnown(readSettingsFile(path.join(baseHome, "config.json"))) };
-  settings = { ...settings, ...pickKnown(readSettingsFile(path.join(cwd, ".harnmem.json"))) };
-
-  // Config files have no schema: normalize the one numeric key that must not
-  // reach core as a string ("1200" would poison token budget arithmetic).
-  if (settings.maxInjectTokens !== DEFAULTS.maxInjectTokens) {
-    settings.maxInjectTokens = normalizeMaxInjectTokens(settings.maxInjectTokens) ?? DEFAULTS.maxInjectTokens;
-  }
+  settings = coerceFileValues({ ...settings, ...pickKnown(readSettingsFile(path.join(baseHome, "config.json"))) });
+  settings = coerceFileValues({ ...settings, ...pickKnown(readSettingsFile(path.join(cwd, ".harnmem.json"))) });
 
   const disabled = truthy(env.HARNMEM_DISABLED);
   if (disabled !== undefined) settings.enabled = !disabled;

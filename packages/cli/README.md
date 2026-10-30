@@ -123,7 +123,7 @@ Guarantees and rules:
   (`session.v4.jsonl.zstd`), pi session JSONL, or Claude Code session JSONL (first
   256 KiB per project directory), with `--path-map key=<project-id-or-existing-path>`
   and an `imports/unresolved/` bucket as explicit fallbacks.
-- Environment: `DSH_HOME` (default `~/.dsh`), `PI_AGENT_DIR` (default
+- Environment: `DSH_HOME` (default `~/.dsh`), `PI_CODING_AGENT_DIR` (default
   `~/.pi/agent`), `ZCODE_HOME` (default `~/.zcode`), `CLAUDE_CONFIG_DIR` (default
   `~/.claude`).
 

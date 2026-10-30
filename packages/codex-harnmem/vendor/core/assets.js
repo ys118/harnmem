@@ -20,12 +20,15 @@ import { fileURLToPath } from "node:url";
 let assetRootCache;
 /** Repository/package root that contains `prompts/extract.md`, if discoverable. */
 export function findAssetRoot() {
+    // An explicit override is honored live on every call: a long-lived process
+    // (or test harness) may repoint HARNMEM_ASSETS_DIR at runtime. Only the
+    // implicit directory walk below is worth caching.
+    const env = process.env.HARNMEM_ASSETS_DIR;
+    if (env)
+        return resolve(env);
     if (assetRootCache !== undefined)
         return assetRootCache;
     const candidates = [];
-    const env = process.env.HARNMEM_ASSETS_DIR;
-    if (env)
-        candidates.push(resolve(env));
     try {
         let dir = dirname(fileURLToPath(import.meta.url));
         for (let i = 0; i < 8; i += 1) {

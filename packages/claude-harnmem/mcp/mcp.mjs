@@ -16,12 +16,17 @@
  */
 
 import path from "node:path";
+import { readFileSync } from "node:fs";
 
 import { openEngine } from "../lib/engine.mjs";
 import { resolveSettings } from "../lib/settings.mjs";
 import { formatForget, formatRead, formatSearch, formatStats, formatWrite } from "../lib/format.mjs";
 
-const SERVER_INFO = { name: "harnmem", version: "0.4.0" };
+// Version tracks package.json so the MCP handshake never drifts (codex does the same).
+const SERVER_INFO = {
+  name: "harnmem",
+  version: JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version,
+};
 const PROTOCOL_VERSION = "2024-11-05";
 
 // Hard ceiling for any tool output (formatters already clip, but error paths

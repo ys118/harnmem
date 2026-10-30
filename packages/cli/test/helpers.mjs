@@ -33,7 +33,7 @@ export function envFor(overrides = {}) {
     "HARNMEM_DISABLED",
     "HARNMEM_READONLY",
     "DSH_HOME",
-    "PI_AGENT_DIR",
+    "PI_CODING_AGENT_DIR",
     "ZCODE_HOME",
     "CLAUDE_CONFIG_DIR",
   ]) {
@@ -108,7 +108,7 @@ export async function isolatedStores(prefix) {
   const env = envFor({
     HARNMEM_HOME: home,
     DSH_HOME: dsh,
-    PI_AGENT_DIR: pi,
+    PI_CODING_AGENT_DIR: pi,
     ZCODE_HOME: zcode,
     CLAUDE_CONFIG_DIR: claude,
   });

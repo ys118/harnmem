@@ -33,6 +33,29 @@ function truthy(value) {
   return true;
 }
 
+const BOOL_KEYS = ["enabled", "readOnly", "inject", "autoExtract", "debug"];
+
+/**
+ * Config files are user-edited JSON with no schema: coerce boolean-ish strings
+ * the same way the env path does ("enabled": "false" must disable, not stay
+ * truthy) and validate maxInjectTokens (a string would poison core's token
+ * budget arithmetic).
+ */
+function coerceFileValues(settings) {
+  for (const key of BOOL_KEYS) {
+    if (typeof settings[key] !== "string") continue;
+    const v = truthy(settings[key]);
+    if (v === undefined) delete settings[key];
+    else settings[key] = v;
+  }
+  if (settings.maxInjectTokens !== undefined) {
+    const n = Number(settings.maxInjectTokens);
+    if (!Number.isFinite(n) || n <= 0) delete settings.maxInjectTokens;
+    else settings.maxInjectTokens = Math.floor(n);
+  }
+  return settings;
+}
+
 function readSettingsFile(file) {
   if (!existsSync(file)) return undefined;
   try {
@@ -76,8 +99,8 @@ export function resolveSettings(cwd = process.cwd(), env = process.env) {
       : path.join(homedir(), ".harnmem");
 
   let settings = { ...DEFAULTS };
-  settings = { ...settings, ...pickKnown(readSettingsFile(path.join(baseHome, "config.json"))) };
-  settings = { ...settings, ...pickKnown(readSettingsFile(path.join(cwd, ".harnmem.json"))) };
+  settings = coerceFileValues({ ...settings, ...pickKnown(readSettingsFile(path.join(baseHome, "config.json"))) });
+  settings = coerceFileValues({ ...settings, ...pickKnown(readSettingsFile(path.join(cwd, ".harnmem.json"))) });
 
   const disabled = truthy(env.HARNMEM_DISABLED);
   if (disabled !== undefined) settings.enabled = !disabled;

@@ -1,6 +1,6 @@
 {
   "name": "harnmem",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "HarnMem for Codex: byte-stable memory injection at session start, rollout backfill/journaling (deferred extraction), and seven memory tools (search/read/write/forget/status + two internal hook targets) over a bundled MCP stdio server.",
   "author": {
     "name": "HarnMem contributors"

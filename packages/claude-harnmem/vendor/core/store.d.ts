@@ -139,6 +139,8 @@ export declare class Store {
         digests: number;
     }>;
 }
+/** File-safe directory/filename component; pure-dot results ("..") collapse to "x". */
+export declare function sanitizeFilePart(input: string): string;
 export declare function shardKey(shard: ShardRef): string;
 export declare function shardFromName(name: string): ShardRef;
 export { dirname };

@@ -74,7 +74,11 @@ export class Retriever {
         if (opts.asOf !== undefined) {
             if (doc.validFrom > opts.asOf)
                 return false;
-            if (doc.validTo !== null && doc.validTo > opts.asOf)
+            // "Valid at instant T" = validFrom <= T and not yet ended: a record is
+            // EXCLUDED only when its validity had already ended by asOf. Excluding
+            // on validTo > asOf (the old form) dropped exactly the records that
+            // were still valid at asOf and kept expired ones.
+            if (doc.validTo !== null && doc.validTo <= opts.asOf)
                 return false;
         }
         if (opts.entity && !doc.entities.some((e) => e.toLowerCase().includes(opts.entity)))

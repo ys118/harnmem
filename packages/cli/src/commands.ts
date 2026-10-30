@@ -84,7 +84,8 @@ function dshHome(): string {
 }
 
 function piAgentDir(): string {
-  const raw = process.env.PI_AGENT_DIR;
+  // pi's own agent-dir env var (pi-harnmem config.ts honours the same name).
+  const raw = process.env.PI_CODING_AGENT_DIR;
   return raw ? resolve(expandHome(raw)) : join(homedir(), ".pi", "agent");
 }
 

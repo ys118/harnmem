@@ -115,6 +115,35 @@ function truthy(value: string | undefined): boolean | undefined {
   return true;
 }
 
+const BOOL_KEYS = ["enabled", "readOnly", "inject", "statusLine", "autoExtract", "debug"] as const;
+const NUMBER_KEYS = ["maxInjectTokens", "maxSearchTokens"] as const;
+
+/**
+ * Config files are user-edited JSON with no schema: coerce boolean-ish strings
+ * ("enabled": "false" must disable, not stay truthy) and the token budget
+ * numbers ("1200" would poison core's budget arithmetic). Invalid values are
+ * dropped so the effective-settings defaults apply; env overrides (applied
+ * after this) already produce proper types.
+ */
+function coerceFileValues(settings: PiHarnMemSettings): PiHarnMemSettings {
+  const rec = settings as unknown as Record<string, unknown>;
+  for (const key of BOOL_KEYS) {
+    const value = rec[key];
+    if (value === undefined || typeof value === "boolean") continue;
+    const coerced = truthy(String(value));
+    if (coerced === undefined) delete rec[key];
+    else rec[key] = coerced;
+  }
+  for (const key of NUMBER_KEYS) {
+    const value = rec[key];
+    if (value === undefined) continue;
+    const n = Number(value);
+    if (!Number.isFinite(n) || n <= 0) delete rec[key];
+    else rec[key] = Math.floor(n);
+  }
+  return settings;
+}
+
 /**
  * Minimal JSONC support: strips // and served-up block comments outside strings.
  * Keeps line/column count irrelevant (config is only parsed, never printed).
@@ -210,6 +239,11 @@ export function resolveSettings(cwd: string, env: NodeJS.ProcessEnv = process.en
 
   // 3. harness config
   settings = mergeSettings(settings, readSettingsFile(path.join(agentDir, "harnmem.json"), warnings, sources));
+
+  // Config files have no schema: coerce boolean-ish strings ("enabled": "false"
+  // must disable, not stay truthy) and the token budget number before env
+  // overrides (which already produce proper types) on top.
+  settings = coerceFileValues(settings);
 
   // 4. env overrides
   const envPatch: PiHarnMemSettings = {};

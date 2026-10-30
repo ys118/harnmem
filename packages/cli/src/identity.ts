@@ -41,8 +41,7 @@ export function slugify(name: string): string {
     .replace(SLUG_RE, "-")
     .replace(/-+/g, "-")
     .replace(/^[-._]+|[-._]+$/g, "")
-    .slice(0, 40)
-    .replace(/[-._]+$/g, "");
+    .slice(0, 40);
   return slug || "p";
 }
 
@@ -56,27 +55,19 @@ export function normalizePathKey(absPath: string): string {
   return p.replace(/\/+$/, "");
 }
 
-/** Git remotes, as in core project.ts. */
+/** Git remotes, as in core project.ts (mirrored verbatim — keep in sync). */
 export function normalizeRemoteUrl(url: string): string {
   let u = url.trim();
   u = u.replace(/^git\+/, "");
-  u = u.replace(/^[a-z+]+:\/\//i, "");
+  u = u.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "");
   u = u.replace(/^[^@/]+@/, "");
-  // scp-like `host:owner/repo` → `host/owner/repo` (avoid scheme port ambiguity: host has no `/` yet).
-  if (!u.includes("/") && u.includes(":")) {
-    const idx = u.indexOf(":");
-    const host = u.slice(0, idx);
-    const path = u.slice(idx + 1);
-    u = `${host}/${path}`;
-  } else if (/^[^/]+:\d+\//.test(u)) {
-    u = u.replace(/:(\d+)\//, "/");
-  }
-  u = u.replace(/\/+/g, "/");
-  u = u.replace(/^\/+|\/+$/g, "");
-  u = u.replace(/\.git$/, "");
+  u = u.replace(/^([^/:]+):(\d+)\//, "$1/");
+  u = u.replace(/^([^/:]+):(?!\/)/, "$1/"); // scp-like host:path — applies even when a "/" is present later (git@host:owner/repo)
+  u = u.replace(/\/+/g, "/").replace(/\/+$/, "");
+  u = u.replace(/\.git$/i, "");
   const slash = u.indexOf("/");
-  if (slash === -1) return u.toLowerCase();
-  return `${u.slice(0, slash).toLowerCase()}${u.slice(slash)}`;
+  if (slash > 0) u = `${u.slice(0, slash).toLowerCase()}${u.slice(slash)}`;
+  return u;
 }
 
 async function resolveGitDir(repoRoot: string): Promise<string | null> {

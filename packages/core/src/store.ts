@@ -107,7 +107,7 @@ export class Store {
   shardDir(shard: ShardRef): string {
     return shard.scope === "user"
       ? this.path("memories", "user")
-      : this.path("memories", "projects", shard.project as string);
+      : this.path("memories", "projects", sanitizeFilePart(shard.project as string));
   }
 
   indexFile(shard: ShardRef): string {
@@ -152,6 +152,12 @@ export class Store {
       try {
         const raw = await fs.readFile(full, "utf8");
         const parsed = parseFrontmatter(raw);
+        if (parsed.noFrontmatter) {
+          // A truncated/corrupt file must not resurrect as a zero-time
+          // "(untitled)" active record; surface it as a read error instead.
+          errors.push({ file: full, message: "missing frontmatter; record skipped" });
+          continue;
+        }
         const fallbackId = basename(file, ".md");
         const record = recordFromFrontmatter(parsed.data, parsed.body, fallbackId, 0);
         record.id = record.id || fallbackId;
@@ -540,8 +546,10 @@ export class Store {
   }
 }
 
-function sanitizeFilePart(input: string): string {
-  return input.replace(/[^A-Za-z0-9_.-]+/g, "_").slice(0, 80) || "x";
+/** File-safe directory/filename component; pure-dot results ("..") collapse to "x". */
+export function sanitizeFilePart(input: string): string {
+  const cleaned = input.replace(/[^A-Za-z0-9_.-]+/g, "_").slice(0, 80);
+  return !cleaned || /^\.+$/.test(cleaned) ? "x" : cleaned;
 }
 
 /** Identity of a journal message: same ts+role+text = same append. */

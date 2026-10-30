@@ -24,7 +24,9 @@ export declare function parseFrontmatter(raw: string): ParsedFrontmatter & {
 /** Serialize a MemoryRecord into a markdown file with canonical frontmatter. */
 export declare function serializeRecord(record: MemoryRecord): string;
 export declare function recordFromFrontmatter(data: Record<string, unknown>, body: string, fallbackId: string, now: number): MemoryRecord;
-/** Filename for a record: `<id>.md` is enough; title is in frontmatter. */
+/** Filename for a record: `<id>.md` is enough; title is in frontmatter.
+ * Ids are engine-generated [a-z0-9]{26}, so this is a no-op for them; it
+ * guards imported/legacy ids so `${id}` cannot escape the shard directory. */
 export declare function recordFileName(id: string): string;
 /** Human-readable index line, e.g. `- [Title](mem_x.md) 📌 — description`. */
 export declare function indexLine(record: MemoryRecord): string;

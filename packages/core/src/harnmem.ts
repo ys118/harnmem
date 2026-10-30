@@ -31,7 +31,7 @@ import type {
 import { HARNMEM_API_VERSION } from "./types.js";
 import { loadConfig } from "./config.js";
 import { detectProject, findProject, registerProject, type ProjectInfo } from "./project.js";
-import { Store, shardKey, type ShardRef } from "./store.js";
+import { Store, sanitizeFilePart, shardKey, type ShardRef } from "./store.js";
 import { IndexManager } from "./indexer.js";
 import { Retriever } from "./retrieval.js";
 import { Consolidator } from "./consolidate.js";
@@ -236,8 +236,13 @@ export class HarnMem {
     if (!description) throw new Error("memory_write requires a description");
     if (!content) throw new Error("memory_write requires content");
     const maxBody = this.config.governance?.maxBodyBytes ?? 65536;
-    if (Buffer.byteLength(content, "utf8") > maxBody) {
-      content = `${content.slice(0, maxBody)}…`;
+    const bodyBytes = Buffer.from(content, "utf8");
+    if (bodyBytes.byteLength > maxBody) {
+      // Cut on a UTF-8 boundary: slicing by UTF-16 code units can keep ~3x
+      // the byte budget for CJK text and can split a surrogate pair.
+      let cut = bodyBytes.subarray(0, maxBody).toString("utf8");
+      if (cut.endsWith("\uFFFD")) cut = cut.slice(0, -1);
+      content = `${cut}…`;
       warnings.push(`content truncated to ${maxBody} bytes`);
     }
     const scope: MemoryScope = resolveScope(input, this.project.id);
@@ -715,17 +720,22 @@ export class HarnMem {
       if (this.config.readOnly) return skip("read_only");
       if (!write?.autoExtract) return skip("auto_extract_off");
       if (input.skipExtract) return skip("requested");
-      if (this.session.extracted) return skip("already_extracted");
-      // Cross-process idempotency: the in-memory flag dies with the process, so
-      // the audit trail is the durable record. Skip only when this attempt would
-      // cover no new messages — a session that continued after its last
-      // extraction still gets the newer turns (N2 resume catch-up).
+      // Cross-process idempotency: the audit trail is the durable record of
+      // what was already extracted, and it stays authoritative even inside
+      // one process — a long-lived caller may run sessionEnd repeatedly as
+      // the session grows (checkpoint/compaction), and the newer turns must
+      // still be extracted (N2 resume catch-up). The in-memory flag is only
+      // a fallback for when the audit has no entry for this session.
       const sessionId = input.sessionId ?? this.session.id;
       const completedThrough = await this.extractedMessageCount(sessionId);
-      if (completedThrough !== null && messages.length <= completedThrough) return skip("already_extracted");
+      if (completedThrough !== null) {
+        if (messages.length <= completedThrough) return skip("already_extracted");
+      } else if (this.session.extracted) {
+        return skip("already_extracted");
+      }
       if (!this.config.llm) return { status: "no_llm", added: [], superseded: [], skipped: 0 };
       if (this.session.modelWrites >= (write.skipExtractIfModelWrote ?? 1)) return skip("model_wrote");
-      const realUserMessages = messages.filter((message) => message.role === "user" && message.text.trim().split(/\s+/).length >= 1);
+      const realUserMessages = messages.filter((message) => message.role === "user" && message.text.trim().length > 0);
       if (realUserMessages.length < (write.minUserMessages ?? 3)) return skip("too_few_messages");
       // A digest below the extraction floor is a normal no-op, not a silent
       // `done/added:0`: name the reason so the audit line is self-explanatory.
@@ -779,7 +789,7 @@ export class HarnMem {
       this.session.extracted = true;
       this.session.contextDirty = true;
       this.session.pendingReason = 'memory_write';
-      const status: ExtractResult["status"] = added.length > 0 ? "done" : "done";
+      const status: ExtractResult["status"] = "done";
       return { status, added, superseded, skipped };
     } catch (error) {
       this.session.extractFailures++;
@@ -910,7 +920,11 @@ async function resolveExplicitProject(home: string, query: string, cwd: string):
   if (known) {
     return { id: known.id, slug: known.slug, name: known.name, key: `explicit:${known.id}`, root: known.paths[0] ?? cwd };
   }
-  return { id: query, slug: query, name: query, key: `explicit:${query}`, root: cwd };
+  // Unknown query: derive a path-safe identity so a hostile project string
+  // cannot escape <home> through shard directory names. The human-readable
+  // name keeps the original query; id/slug/key must be file-safe.
+  const safe = sanitizeFilePart(query);
+  return { id: safe, slug: safe, name: query, key: `explicit:${safe}`, root: cwd };
 }
 
 function defaultImportance(type: string | undefined): number {

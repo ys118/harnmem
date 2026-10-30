@@ -75,6 +75,7 @@ export class Adapter {
    * build the first byte-stable snapshot. Never throws.
    */
   async start(ctx: ExtensionContext, reason: SessionStartReason): Promise<void> {
+    const prevSessionId = this.sessionId;
     this.cwd = ctx.cwd;
     this.sessionId = ctx.sessionManager.getSessionId();
     try {
@@ -124,6 +125,17 @@ export class Adapter {
       this.logger.warn("engine.open.failed", { home: settings.home });
       this.notify(ctx, `harnmem: failed to open store at ${settings.home}`, "warning");
       return;
+    }
+
+    // Session switch (/new, resume, fork): the journal may still hold turns
+    // from the previous session. Flush them under THEIR session id (async,
+    // time-capped) and clear, so quit-time extraction can never attribute a
+    // previous session's messages to this one. A reload keeps the same
+    // session id — nothing to flush there.
+    if (prevSessionId && prevSessionId !== this.sessionId) {
+      void this.flushJournal(prevSessionId, "session_switch").catch((err) => {
+        this.logger?.warn("journal.switchFlush.error", { error: (err as Error).message });
+      });
     }
 
     this.snapshot = new SnapshotManager(() => this.eng, this.logger);
@@ -228,13 +240,60 @@ export class Adapter {
   }
 
   /**
+   * Extract the current journal contents under an explicit session id, time
+   * capped. Used at quit (the session's own end) and at session switches
+   * (/new etc.), where leftover turns belong to the OLD session id. Clears
+   * the journal immediately after snapshotting: a failed extraction loses
+   * the turns either way, but a stale journal would poison the next
+   * session's attribution.
+   */
+  private async flushJournal(sessionId: string, trigger: "quit" | "session_switch"): Promise<void> {
+    const log = this.logger;
+    if (!this.eng || !this.settings?.autoExtract || this.isChild) return;
+    const messages = this.journal.snapshot();
+    this.journal.clear();
+    if (!messages.some((m) => m.role === "user")) return;
+    const startedAt = Date.now();
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      const timeout = new Promise<"timeout">((resolve) => {
+        timer = setTimeout(() => resolve("timeout"), SHUTDOWN_EXTRACT_TIMEOUT_MS);
+        timer.unref?.();
+      });
+      const extraction = this.eng
+        .sessionEnd({ sessionId, cwd: this.cwd, messages, reason: trigger })
+        .then((result): ExtractResult => result)
+        .catch((err: unknown): ExtractResult => ({ status: "failed", added: [], superseded: [], skipped: 0, error: (err as Error).message }));
+      const outcome = await Promise.race([extraction, timeout]);
+      if (outcome === "timeout") {
+        log?.warn("endSession.timeout", { sessionId, trigger, elapsedMs: Date.now() - startedAt, messages: messages.length });
+      } else {
+        log?.info("endSession.done", {
+          sessionId,
+          trigger,
+          status: outcome.status,
+          added: outcome.added.length,
+          superseded: outcome.superseded.length,
+          skipped: outcome.skipped,
+          elapsedMs: Date.now() - startedAt,
+        });
+      }
+    } catch (err) {
+      log?.warn("endSession.error", { error: (err as Error).message });
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  /**
    * Session shutdown. Only `reason === "quit"` may run expensive work: the
    * engine's endSession extraction, hard-capped at 8s because pi waits for
    * shutdown handlers without a timeout. Other reasons just flush.
    *
    * Quit-only is intentional (D7): the durable journal/extraction cursor is
    * per session, so extracting on reload/new/fork would duplicate the previous
-   * session's extraction and race the new session's own endSession.
+   * session's extraction and race the new session's own endSession. Session
+   * switches already flushed the old session's turns in start() (see above).
    */
   async shutdown(ctx: ExtensionContext, reason: string): Promise<void> {
     const log = this.logger;
@@ -244,38 +303,8 @@ export class Adapter {
       // ignore
     }
 
-    if (reason === "quit" && this.eng && this.settings?.autoExtract && !this.isChild) {
-      const messages = this.journal.snapshot();
-      if (messages.some((m) => m.role === "user")) {
-        const startedAt = Date.now();
-        let timer: NodeJS.Timeout | undefined;
-        try {
-          const timeout = new Promise<"timeout">((resolve) => {
-            timer = setTimeout(() => resolve("timeout"), SHUTDOWN_EXTRACT_TIMEOUT_MS);
-            timer.unref?.();
-          });
-          const extraction = this.eng
-            .sessionEnd({ sessionId: this.sessionId, cwd: this.cwd, messages, reason: "quit" })
-            .then((result): ExtractResult => result)
-            .catch((err: unknown): ExtractResult => ({ status: "failed", added: [], superseded: [], skipped: 0, error: (err as Error).message }));
-          const outcome = await Promise.race([extraction, timeout]);
-          if (outcome === "timeout") {
-            log?.warn("endSession.timeout", { elapsedMs: Date.now() - startedAt, messages: messages.length });
-          } else {
-            log?.info("endSession.done", {
-              status: outcome.status,
-              added: outcome.added.length,
-              superseded: outcome.superseded.length,
-              skipped: outcome.skipped,
-              elapsedMs: Date.now() - startedAt,
-            });
-          }
-        } catch (err) {
-          log?.warn("endSession.error", { error: (err as Error).message });
-        } finally {
-          if (timer) clearTimeout(timer);
-        }
-      }
+    if (reason === "quit" && this.sessionId) {
+      await this.flushJournal(this.sessionId, "quit");
     }
 
     try {

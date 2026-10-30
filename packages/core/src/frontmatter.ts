@@ -88,7 +88,17 @@ export function parseYamlSubset(yaml: string): { data: Record<string, unknown>; 
         // fall through: keep the raw string for malformed/legacy values
       }
     }
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    if (value.startsWith('"') && value.endsWith('"')) {
+      // Double-quoted values are JSON.stringify output: parse the full escape
+      // set (\n, \t, \u…) exactly. Fall back to the legacy partial unescape for
+      // malformed/legacy literals.
+      try {
+        return JSON.parse(value) as unknown;
+      } catch {
+        return value.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+      }
+    }
+    if (value.startsWith("'") && value.endsWith("'")) {
       return value.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, "\\");
     }
     return value;
@@ -170,6 +180,7 @@ export function parseFrontmatter(raw: string): ParsedFrontmatter & { errors: str
 
 function needsQuote(value: string): boolean {
   if (value === "") return true;
+  if (value.includes("\n") || value.includes("\r")) return true;
   if (/^[\s]|[\s]$/.test(value)) return true;
   if (/^[-?:,[\]{}#&*!|>'"%@`]/.test(value)) return true;
   if (value.includes(": ") || value.includes(" #")) return true;
@@ -350,9 +361,11 @@ export function recordFromFrontmatter(data: Record<string, unknown>, body: strin
   };
 }
 
-/** Filename for a record: `<id>.md` is enough; title is in frontmatter. */
+/** Filename for a record: `<id>.md` is enough; title is in frontmatter.
+ * Ids are engine-generated [a-z0-9]{26}, so this is a no-op for them; it
+ * guards imported/legacy ids so `${id}` cannot escape the shard directory. */
 export function recordFileName(id: string): string {
-  return `${id}.md`;
+  return `${id.replace(/[^A-Za-z0-9_-]+/g, "_").slice(0, 80)}.md`;
 }
 
 /** Human-readable index line, e.g. `- [Title](mem_x.md) 📌 — description`. */
