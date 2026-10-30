@@ -1,0 +1,34 @@
+---
+description: HarnMem persistent memory is available in this workspace.
+alwaysApply: true
+---
+
+# HarnMem memory
+
+This workspace uses **HarnMem**, a cross-harness persistent memory store shared
+with the user's other AI harnesses (Claude Code, Codex, pi, DSH, opencode).
+The store lives in `~/.harnmem` as plain Markdown + YAML.
+
+A stable memory index may already be in your context as a system reminder
+(injected on the first prompt of the conversation). Treat it as orientation,
+not as the full store.
+
+## When to use the memory tools
+
+The bundled MCP server `harnmem` exposes `memory_search`, `memory_read`,
+`memory_write`, `memory_forget`, `memory_status`.
+
+- **Search before asking.** If the user refers to a preference, decision,
+  convention, or fact they may have stated before, call `memory_search` first.
+- **Read before citing.** `memory_search` returns ids and one-line
+  descriptions; call `memory_read` for the full record.
+- **Write durable facts only.** Use `memory_write` for user preferences,
+  feedback/corrections, project decisions and conventions, and references.
+  Do not store transient task state, code that is already in the repo, or
+  secrets/credentials.
+- **Forget carefully.** `memory_forget` moves a record to trash by default;
+  `hard: true` is irreversible, so confirm with the user first.
+- **Status** summarizes shards, index freshness, and health warnings.
+
+Never fabricate memory ids: the single-line results (`stored mem_x (NEW)`,
+`removed mem_x`, …) are authoritative.
