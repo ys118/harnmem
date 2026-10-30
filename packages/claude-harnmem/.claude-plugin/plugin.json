@@ -1,7 +1,7 @@
 {
   "name": "harnmem",
   "description": "Cross-harness persistent memory: injects a stable memory index at session start, exposes harnmem search/read/write/forget/status tools via MCP, and adds a /memory command. Store lives in ~/.harnmem as plain Markdown + YAML, shared with other harnesses.",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "author": { "name": "HarnMem contributors" },
   "license": "MIT",
   "keywords": ["memory", "harnmem", "mcp", "knowledge", "cross-harness"],

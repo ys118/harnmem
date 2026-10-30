@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-10-30
+
+### Fixed
+
+- Seven-package audit wave: two deep-review passes over core, the CLI and all
+  five adapter packages confirmed 21 real issues — 17 fixed here, the
+  structural/design remainder tracked as N18-N20 in `docs/ROADMAP.md`.
+  - `@harnmem/core` 0.4.2: `asOf` time filters compared `validTo` in the
+    wrong direction (historical queries dropped records that were valid at
+    that moment); the same-process extraction gate short-circuited before the
+    durable audit check, so a session that grew after extraction was never
+    re-extracted; hostile `projectId`/memory ids could traverse paths outside
+    the home (ids, slugs and record file names are sanitized now, dots-only
+    names hardened); a truncated/corrupt `.md` no longer revives as an
+    untitled active record (it is skipped and reported); `maxBodyBytes`
+    truncates on a UTF-8 byte boundary instead of UTF-16 code units (no more
+    split surrogate pairs or 3x CJK overshoot); multi-line titles survive the
+    YAML round trip; `HARNMEM_ASSETS_DIR` takes effect on every resolve
+    instead of only the first; dead code removed. +7 regression tests (59
+    total).
+  - `@harnmem/cli` 0.4.1: project identity for scp-style remotes
+    (`git@github.com:owner/repo.git`) now matches core — `import --apply`
+    previously wrote memories into a directory no adapter reads; honours pi's
+    real `PI_CODING_AGENT_DIR` env var.
+  - `pi-harnmem` 0.4.4: the transcript journal is flushed under the previous
+    session id and cleared on session switches (`/new`, resume, fork), so two
+    sessions can no longer be extracted as one transcript attributed to the
+    last one; config files coerce boolean-ish strings and token-budget
+    numbers (`"enabled": "false"` used to be silently ignored); ships a
+    `test` script and is wired into the root test chain.
+  - `claude-harnmem` 0.4.3 / `codex-harnmem` 0.2.3: config files coerce
+    boolean-ish strings the way opencode already did; plugin manifest
+    versions match the package versions; the claude MCP server reports its
+    real version (read from `package.json`); all vendored copies re-ship the
+    fixed core.
+  - `opencode-harnmem` 0.1.1: re-vendored with the fixed core.
+
 ## [0.6.1] - 2026-10-30
 
 ### Fixed

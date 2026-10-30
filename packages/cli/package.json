@@ -1,6 +1,6 @@
 {
   "name": "@harnmem/cli",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "HarnMem command-line interface: memory CRUD, search, consolidation and idempotent migration importers (DSH, pi, ZCode, Claude Code, Markdown, JSON/JSONL/stdin, auto-discovery).",
   "license": "MIT",
   "type": "module",

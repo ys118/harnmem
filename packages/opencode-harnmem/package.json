@@ -1,6 +1,6 @@
 {
   "name": "opencode-harnmem",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "type": "module",
   "description": "opencode v2 plugin for HarnMem: byte-stable memory injection (session context hook), five native memory tools, and per-turn session journaling — in-process, zero runtime dependencies.",
