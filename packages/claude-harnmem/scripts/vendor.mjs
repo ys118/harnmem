@@ -28,4 +28,24 @@ try {
 await rm(dest, { recursive: true, force: true });
 await mkdir(path.dirname(dest), { recursive: true });
 await cp(src, dest, { recursive: true });
-console.log(`[vendor] copied @harnmem/core dist -> ${path.relative(pkgRoot, dest)}`);
+
+// Ship the editable asset defaults too: core's findAssetRoot() walks up from
+// vendor/core looking for prompts/extract.md — copying them INTO vendor/core
+// makes a vendored install discover its own shipped prompts/synonym tables
+// (findAssetRoot checks the module directory first). Without them an
+// npm-installed plugin silently degrades to the inline fallbacks (shorter
+// extraction prompt, 6 builtin synonym groups -> worse zh/en recall).
+let assets = 0;
+for (const rel of ["prompts", "data"]) {
+  const from = path.join(pkgRoot, "..", "..", rel);
+  try {
+    await stat(from);
+  } catch {
+    console.warn(`[vendor] optional asset dir not found, skipped: ${path.relative(pkgRoot, from)}`);
+    continue;
+  }
+  await cp(from, path.join(dest, rel), { recursive: true });
+  assets += 1;
+}
+
+console.log(`[vendor] copied @harnmem/core dist -> ${path.relative(pkgRoot, dest)} (+${assets} asset dir(s))`);

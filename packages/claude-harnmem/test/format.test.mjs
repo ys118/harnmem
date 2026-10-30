@@ -40,6 +40,18 @@ test("formatSearch stays under the 12k-char tool budget with 50 pathological hit
   assert.match(text, /…\[truncated \d+ chars\]/);
 });
 
+test("formatSearch survives a non-array debug.shards (vendor/core shape drift)", () => {
+  const result = {
+    query: "q",
+    total: 1,
+    abstained: false,
+    results: [mkHit(0, "short content")],
+    debug: { candidateCount: 1, truncated: [], elapsedMs: 1, shards: "harnmem-test" },
+  };
+  const text = formatSearch(result);
+  assert.match(text, /shards=harnmem-test/);
+});
+
 test("formatRead stays under the budget for a 64KB memory and marks the cut", () => {
   const result = {
     record: {

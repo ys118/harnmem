@@ -461,7 +461,7 @@ Check boxes as items land, and update this file when the status changes.
   MCP hooks for now (declaration kept, warning harmless), unattended exec
   needs `--dangerously-bypass-hook-trust`, and MCP write tools need an
   approval mode that allows them.
-- [ ] **N16. Post-install polish:** the desktop trust flow, the GitHub
+- [x] **N16. Post-install polish:** the desktop trust flow, the GitHub
   marketplace path, per-event hook verification, and the extraction gap are
   done (2026-10-29: trust persists in `config.toml [hooks.state]`; `exec`
   and the desktop app both run the SessionStart hook after trusting;
@@ -469,8 +469,17 @@ Check boxes as items land, and update this file when the status changes.
   used for injection, it would re-inject every turn; `SessionEnd` mcp_tool
   hooks remain unsupported upstream, so v0.2.0 backfills the previous
   session's rollout at every session start under a durable cursor,
-  verified idempotent on the real store). Remaining: npm publish
-  (`codex-harnmem` 0.2.0, awaiting user OTP).
+  verified idempotent on the real store). npm publish done: `codex-harnmem`
+  0.2.1 is on npm (2026-10-29, local OTP flow).
+- [ ] **N17. opencode adapter follow-ups** (`opencode-harnmem` 0.1.0 shipped
+  in v0.6.0, verified end to end on the 2.1.4 binary; install =
+  `opencode plugin add opencode-harnmem`): wire `ctx.generate.text` as the
+  extraction LLM once the workspace-privacy question is settled; add an
+  exit-flush / last-turn journal fallback when the session-domain end/idle
+  hooks stabilize (opencode swallows plugin stderr, so all debug goes to a
+  file when `HARNMEM_DEBUG=1`); process the §7.2 MINORs (sessions-map
+  eviction, setup disposers return, journal timestamp dedup); keep the
+  version gate refusing 1.x binaries.
 
 ## 5. Decision log
 

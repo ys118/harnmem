@@ -61,7 +61,8 @@ export function formatSearch(result) {
     );
   }
   if (result.debug) {
-    lines.push(`debug: candidates=${result.debug.candidateCount} shards=${result.debug.shards.join(",")} elapsed=${result.debug.elapsedMs}ms`);
+    const shards = Array.isArray(result.debug.shards) ? result.debug.shards.join(",") : String(result.debug.shards ?? "?");
+    lines.push(`debug: candidates=${result.debug.candidateCount} shards=${shards} elapsed=${result.debug.elapsedMs}ms`);
   }
   lines.push("Call the memory read tool with a hit id to open the record.");
   return clip(lines.join("\n"));

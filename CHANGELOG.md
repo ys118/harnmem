@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-30
+
+### Fixed
+
+- `claude-harnmem` 0.4.2 / `codex-harnmem` 0.2.2: **ship the core asset
+  defaults in the vendored copy**. The vendoring script copied only core's
+  dist — so an npm/marketplace-installed plugin could not find
+  `prompts/extract.md` or the `data/synonyms.{en,zh}.txt` tables
+  (`findAssetRoot` starts at the module directory), silently degrading to the
+  inline fallbacks: a shorter extraction prompt and 6 builtin synonym groups,
+  i.e. measurably worse zh/en search recall. Both vendoring scripts now copy
+  `prompts/` and `data/` into `vendor/core` (mirroring `opencode-harnmem`
+  0.1.0, which shipped correct) and a dedicated test pins the vendored tree.
+  Also in `claude-harnmem`: `formatSearch` no longer throws when
+  `debug.shards` arrives as a non-array (the same guard codex and opencode
+  already had). No store-format or protocol changes.
+
 ## [0.6.0] - 2026-10-29
 
 ### Added
