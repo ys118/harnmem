@@ -1,7 +1,7 @@
 /**
  * In-memory transcript journal for session-end extraction.
  *
- * Fed by pi's `message_end` event, converted to the engine's
+ * Fed by omp's `message_end` event, converted to the engine's
  * `TranscriptMessage` shape, and bounded so long sessions stay cheap.
  * Nothing is written to disk from here: the engine owns all storage.
  */
@@ -58,7 +58,7 @@ export class TranscriptJournal {
     this.chars = 0;
   }
 
-  /** Convert + append one pi AgentMessage. Ignores system messages and noise. */
+  /** Convert + append one omp AgentMessage. Ignores system messages and noise. */
   add(message: unknown): void {
     const msg = (message ?? {}) as UnknownMessage;
     const role = msg.role;

@@ -44,3 +44,22 @@ test("config-file home supports ~ expansion; env wins", async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("config file with a UTF-8 BOM and JSONC comments still applies", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "harnmem-omp-bom-"));
+  const project = join(dir, "project");
+  try {
+    await mkdir(project, { recursive: true });
+    // PowerShell 5 `Set-Content -Encoding utf8` and some Windows editors emit a
+    // leading BOM; JSON.parse rejects it, so the config must still be honored.
+    const body = '\uFEFF{\n  // project store\n  "home": "~/bom-store" /* trailing comment */\n}';
+    await writeFile(join(project, ".harnmem.json"), body, "utf8");
+
+    const resolved = resolveSettings(project, {});
+    assert.equal(resolved.home, join(HOME, "bom-store"));
+    assert.ok(resolved.sources.includes(join(project, ".harnmem.json")));
+    assert.equal(resolved.warnings.length, 0);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

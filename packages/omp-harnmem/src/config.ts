@@ -153,9 +153,9 @@ function coerceFileValues(settings: OmpHarnMemSettings): OmpHarnMemSettings {
  * Keeps line/column count irrelevant (config is only parsed, never printed).
  */
 export function parseJsonc(raw: string): unknown {
-  // Windows editors and PowerShell 5 commonly emit a UTF-8 BOM; JSON.parse
-  // rejects it, so strip it (and any leading BOM variant) before parsing.
-  const text = raw.replace(/^\uFEFF/, "");
+  // A UTF-8 BOM (Windows editors, PowerShell 5 redirects) survives the scan
+  // below and lands at the head of `out`; JSON.parse(out.trim()) strips it
+  // because U+FEFF is ECMAScript WhiteSpace, so no explicit strip is needed.
   let out = "";
   let i = 0;
   let inString = false;

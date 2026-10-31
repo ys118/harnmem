@@ -213,13 +213,4 @@ export function registerTools(pi: ExtensionAPI, adapter: Adapter, toolPrefix = "
   });
 }
 
-/** Normalizes type/category/scope strings for code paths that bypass schema validation. */
-export function asMemoryType(value: unknown): MemoryType | undefined {
-  return typeof value === "string" && (MEMORY_TYPES as readonly string[]).includes(value) ? (value as MemoryType) : undefined;
-}
-
-export function asMemoryCategory(value: unknown): MemoryCategory | undefined {
-  return typeof value === "string" && (CATEGORIES as readonly string[]).includes(value) ? (value as MemoryCategory) : undefined;
-}
-
 

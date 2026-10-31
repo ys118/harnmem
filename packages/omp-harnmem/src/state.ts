@@ -209,7 +209,11 @@ export class Adapter {
     return this.opening;
   }
 
-  /** Lazy engine access for tools/commands (re-opens if the first open failed transiently). */
+  /**
+   * Lazy engine access for tools/commands. Fails closed: if the open attempt
+   * failed (`initFailed`), tools report the store as unavailable for the rest
+   * of the session; a successful `start()` on the next session resets state.
+   */
   async ensureEngine(ctx: ExtensionContext): Promise<HarnMem | null> {
     if (this.eng) return this.eng;
     if (!this.settings || this.initFailed) return null;
