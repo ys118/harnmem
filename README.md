@@ -20,7 +20,9 @@ a memory written in one harness is available in another — no server, no vector
 database, no embedding model, and no runtime dependencies in the engine.
 
 - **Packages:** `@harnmem/core` (engine), `@harnmem/cli` (`harnmem` command),
-  `pi-harnmem` (pi extension), `dsh-harnmem` (DSH plugin), `claude-harnmem`
+  `pi-harnmem` (pi extension, listed in the
+  [pi.dev package gallery](https://pi.dev/packages/pi-harnmem)), `dsh-harnmem`
+  (DSH plugin), `claude-harnmem`
   (Claude Code plugin), `codex-harnmem` (Codex CLI plugin),
   `opencode-harnmem` (opencode v2 plugin), `grok-harnmem` (Grok CLI plugin),
   `cursor-harnmem` (Cursor desktop plugin), `hermes-harnmem` (Hermes Agent

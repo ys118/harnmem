@@ -14,6 +14,8 @@ pi install npm:pi-harnmem
 # -l / --local installs into the current project's settings instead of user settings
 ```
 
+Listed in the [pi.dev package gallery](https://pi.dev/packages/pi-harnmem).
+
 ### Install into pi (local path)
 
 For development against a repo checkout:
