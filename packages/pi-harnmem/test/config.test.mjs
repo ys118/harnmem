@@ -44,3 +44,20 @@ test("config-file home supports ~ expansion; env wins", async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("config file with a UTF-8 BOM and JSONC comments still applies", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "harnmem-pi-settings-"));
+  const project = join(dir, "project");
+  try {
+    await mkdir(project, { recursive: true });
+    const body = '\uFEFF{\n  // project store\n  "home": "~/bom-store" /* trailing comment */\n}';
+    await writeFile(join(project, ".harnmem.json"), body, "utf8");
+
+    const resolved = resolveSettings(project, {});
+    assert.equal(resolved.home, join(HOME, "bom-store"));
+    assert.ok(resolved.sources.includes(join(project, ".harnmem.json")));
+    assert.deepEqual(resolved.warnings, []);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

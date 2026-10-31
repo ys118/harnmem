@@ -149,6 +149,9 @@ function coerceFileValues(settings: PiHarnMemSettings): PiHarnMemSettings {
  * Keeps line/column count irrelevant (config is only parsed, never printed).
  */
 export function parseJsonc(raw: string): unknown {
+  // Windows editors and PowerShell 5 commonly emit a UTF-8 BOM. JSON.parse
+  // rejects a leading BOM; U+FEFF is ECMAScript WhiteSpace, so the trim() in
+  // `JSON.parse(out.trim())` strips it (and any surrounding whitespace).
   let out = "";
   let i = 0;
   let inString = false;
@@ -187,7 +190,7 @@ export function parseJsonc(raw: string): unknown {
     out += ch;
     i += 1;
   }
-  return JSON.parse(out);
+  return JSON.parse(out.trim());
 }
 
 function readSettingsFile(file: string, warnings: string[], sources: string[]): PiHarnMemSettings | undefined {
