@@ -30,7 +30,7 @@ import type {
 } from "./types.js";
 import { HARNMEM_API_VERSION } from "./types.js";
 import { loadConfig } from "./config.js";
-import { detectProject, findProject, registerProject, type ProjectInfo } from "./project.js";
+import { detectProject, findProject, loadProjects, registerProject, type ProjectInfo } from "./project.js";
 import { Store, sanitizeFilePart, shardKey, type ShardRef } from "./store.js";
 import { IndexManager } from "./indexer.js";
 import { Retriever } from "./retrieval.js";
@@ -246,7 +246,14 @@ export class HarnMem {
       warnings.push(`content truncated to ${maxBody} bytes`);
     }
     const scope: MemoryScope = resolveScope(input, this.project.id);
-    const projectId = scope === "project" ? (input.project ? await this.resolveProjectId(input.project) : this.project.id) : undefined;
+    const projectId =
+      scope === "project"
+        ? input.project
+          ? input.looseProject
+            ? await this.resolveProjectIdLoose(input.project)
+            : await this.resolveProjectId(input.project)
+          : this.project.id
+        : undefined;
     const shard = this.shardFor(scope, projectId);
     const sensitive = input.sensitive ?? looksSensitive(`${title}\n${description}\n${content}`);
     const normalized: WriteInput = {
@@ -444,6 +451,8 @@ export class HarnMem {
             category: record.category,
             scope: record.scope,
             project: record.project,
+            // Import replay tolerates legacy project names (sanitized shard).
+            looseProject: true,
             title: record.title,
             description: record.description,
             content: record.content,
@@ -870,7 +879,25 @@ export class HarnMem {
   private async resolveProjectId(query: string): Promise<string> {
     if (query === this.project.id) return query;
     const known = await findProject(this.store.home, query);
-    return known?.id ?? query;
+    if (known) return known.id;
+    // An unknown project would land in a sanitized shard that no later
+    // session can see: the read side maps cwd -> projectId exclusively
+    // through the projects.json registry, so unregistered shards are silent
+    // data loss. Fail loudly and list the acceptable values instead.
+    const registry = await loadProjects(this.store.home);
+    const knownList = Object.values(registry.projects)
+      .map((p) => `${p.id} (${p.name})`)
+      .join(", ");
+    throw new Error(
+      `unknown project "${query}" — omit project to store against the current project, or use a registered id, name or path (${knownList || "registry is empty"})`,
+    );
+  }
+
+  /** Import replay path: tolerate legacy project names with a sanitized shard. */
+  private async resolveProjectIdLoose(query: string): Promise<string> {
+    if (query === this.project.id) return query;
+    const known = await findProject(this.store.home, query);
+    return known?.id ?? sanitizeFilePart(query);
   }
 
   private loadSynonyms(): Map<string, string[]> {

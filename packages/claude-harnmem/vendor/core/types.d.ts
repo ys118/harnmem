@@ -165,6 +165,12 @@ export interface WriteInput {
     category?: MemoryCategory;
     scope?: MemoryScope | "auto";
     project?: string;
+    /**
+     * Internal: tolerate unknown project names with a sanitized-shard fallback
+     * (import replay only). Interactive writes reject unknown projects instead
+     * of creating shards no later session can resolve.
+     */
+    looseProject?: boolean;
     title: string;
     description: string;
     content: string;

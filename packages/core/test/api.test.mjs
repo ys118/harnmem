@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { existsSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
@@ -102,6 +103,55 @@ test("search abstains on unrelated query and filters project scope", async () =>
   const nonsense = await eng.search({ query: "quantum gravitational wave dispersion relation", limit: 5 });
   assert.equal(nonsense.abstained, true);
   assert.equal(nonsense.results.length, 0);
+});
+
+test("write rejects unknown project ids instead of creating unreachable shards", async () => {
+  const { home, eng } = await fresh();
+  await assert.rejects(
+    eng.write({
+      type: "project",
+      scope: "project",
+      project: "made-up/project",
+      title: "Orphan bait",
+      description: "Must not be written anywhere",
+      content: "An unknown project id must fail loudly, not orphan a shard.",
+    }),
+    /unknown project "made-up\/project"/,
+  );
+  const projectsDir = join(home, "memories", "projects");
+  const dirs = existsSync(projectsDir) ? readdirSync(projectsDir) : [];
+  assert.ok(!dirs.some((d) => d.includes("made-up")), "orphan shard directory was created");
+});
+
+test("write honors registered project ids; import stays tolerant of legacy names", async () => {
+  const { root, home, eng } = await fresh();
+  const other = await HarnMem.open({ harness: "cli", cwd: join(root, "work", "reg"), home, project: "reg", autoExtract: false });
+  const registered = other.info().project;
+  const rec = await eng.write({
+    type: "project",
+    scope: "project",
+    project: registered,
+    title: "Cross-project note",
+    description: "Lands in the registered shard",
+    content: "Explicit registered project ids are honored on write.",
+  });
+  assert.equal(rec.action, "NEW");
+  assert.ok(existsSync(join(home, "memories", "projects", registered)), "registered shard missing");
+  const imported = await eng.importRecords([
+    {
+      id: "mem_importproj00000000001",
+      type: "reference",
+      scope: "project",
+      project: "legacy/unknown-name",
+      title: "Legacy import",
+      description: "Old project naming survives import",
+      content: "Legacy content.",
+      created: 1700000000000,
+      updated: 1700000000000,
+      provenance: ["import:test"],
+    },
+  ]);
+  assert.equal(imported.ids.length, 1);
 });
 
 test("forget -> restore keeps the record recoverable", async () => {
