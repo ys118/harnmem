@@ -26,8 +26,8 @@ database, no embedding model, and no runtime dependencies in the engine.
   `cursor-harnmem` (Cursor desktop plugin), `hermes-harnmem` (Hermes Agent
   memory provider, installed through Hermes' own plugin manager) and
   `omp-harnmem` (oh-my-pi extension plugin) — all published
-  on npm except `hermes-harnmem` and `omp-harnmem` (both land in the next
-  release). Install the CLI with
+  on npm except `hermes-harnmem`, which installs through Hermes' own plugin
+  manager (above). Install the CLI with
   `npm install -g @harnmem/cli`; the opencode adapter needs
   opencode 2.x and is verified end to end on the 2.1.4 binary (injection, native
   tools, per-turn journaling); the Grok adapter is verified on the 1.0.70 binary
@@ -39,14 +39,13 @@ database, no embedding model, and no runtime dependencies in the engine.
   (byte-stable system-prompt injection, five tools, `/memory`, session-end
   journaling).
 - **License:** MIT.
-- **Status:** v0.7.0 — the engine, the CLI/migration tooling and all seven
-  published adapters (pi, DeepSeek Harness, Claude Code, Codex, opencode, Grok,
-  Cursor) are published and tested end to end; the Hermes adapter
-  (`hermes-harnmem`, installed through the Hermes plugin manager and not on npm)
-  is implemented and verified end to end, shipping in the next release; the omp
-  adapter (`omp-harnmem`, oh-my-pi 18.14.1) is likewise implemented and verified
-  end to end, shipping in the next release. The 0.7.0
-  release adds the Grok and Cursor adapters on top of the 0.6.2 seven-package
+- **Status:** v0.7.2 — the engine, the CLI/migration tooling and all eight
+  npm-published adapters (pi, DeepSeek Harness, Claude Code, Codex, opencode,
+  Grok, Cursor, omp) are published and tested end to end; the Hermes adapter
+  (`hermes-harnmem`) is likewise implemented and verified end to end and
+  installs through the Hermes plugin manager. The 0.7.2 release ships the omp
+  and Hermes adapters and fixes a UTF-8 BOM config bug in `pi-harnmem` 0.4.5,
+  on top of the 0.7.0 Grok and Cursor adapters and the 0.6.2 seven-package
   audit wave (17 of 21 confirmed issues fixed, the structural remainder tracked
   as N18-N20 in the roadmap). The Codex adapter also covers the CLI TUI trust
   flow and Codex Desktop, and backfills sessions from `~/.codex/sessions` until

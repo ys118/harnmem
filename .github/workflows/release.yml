@@ -63,6 +63,13 @@ jobs:
           for pkg in packages/*/; do
             name=$(node -p "require('./' + process.argv[1] + 'package.json').name" "$pkg")
             version=$(node -p "require('./' + process.argv[1] + 'package.json').version" "$pkg")
+            # Skip private packages: pnpm publish refuses them, and adapters
+            # distributed through their harness' own plugin manager
+            # (hermes-harnmem) must never reach npm.
+            if [ "$(node -p "require('./' + process.argv[1] + 'package.json').private === true" "$pkg")" = "true" ]; then
+              echo "::notice::$name is private; skipping (not distributed via npm)."
+              continue
+            fi
             if npm view "$name@$version" version >/dev/null 2>&1; then
               echo "::notice::$name@$version is already published; skipping."
             else
