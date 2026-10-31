@@ -136,9 +136,11 @@ manager drops names that collide with `_HERMES_CORE_TOOLS` or an earlier provide
 1. skips unless `auto_extract` is on, the session is `primary` and not read-only;
 2. converts Hermes messages to `TranscriptMessage[]` (role filtering; multimodal `content` parts
    flattened; <20,000 chars per message; ≤4 MiB total, trimmed oldest-first);
-3. writes a temp payload under `<tmp>/harnmem-hermes/` and spawns `node lib/bridge.mjs --payload <file>`
-   **detached**, with `stdio: DEVNULL`; the bridge deletes the payload when it finishes and stale files
-   are swept at the next session end;
+3. writes an owner-only (`0600`, inside a `0700` directory) temp payload under `<tmp>/harnmem-hermes/`
+   and spawns `node lib/bridge.mjs --payload <file>` **detached**, with `stdio: DEVNULL`; the bridge
+   deletes the payload when it finishes and stale files are swept at the next session end. The
+   extraction key is not in the payload: it is resolved for the active profile and passed in the
+   child environment;
 4. returns immediately. The engine's cross-process watermark (`audit.jsonl` `extract` events) makes
    repeated calls idempotent (`already_extracted`) and the core gates still apply (`too_few_messages`,
    `digest_too_small`, `model_wrote`).
@@ -165,10 +167,17 @@ Commands: `ping`, `context`, `session-end`, `write`, `search`, `read`, `forget`,
 `sessionStart({sessionId, cwd, reason})` and returns `{text, ids, tokensEstimate, reason, snapshotAt,
 bytes, truncated}`.
 
-Extraction LLM: `createLlmFromEnv()` reads `HARNMEM_LLM_URL` / `HARNMEM_LLM_MODEL` /
-`HARNMEM_LLM_API_KEY` / `HARNMEM_LLM_TIMEOUT_MS` — exactly the variables `@harnmem/cli synonyms` uses —
-and posts an OpenAI-compatible `chat/completions` request (no custom headers, mirroring the CLI
-convention). The adapter passes `llm` to core **only** when `auto_extract` is on.
+Extraction LLM: `buildLlm()` combines the endpoint carried by the payload with the API key read from
+the **child environment**; when the environment has no key it falls back to `createLlmFromEnv()`
+(`HARNMEM_LLM_URL` / `HARNMEM_LLM_MODEL` / `HARNMEM_LLM_API_KEY` / `HARNMEM_LLM_TIMEOUT_MS` — exactly
+the variables `@harnmem/cli synonyms` uses) and posts an OpenAI-compatible `chat/completions` request
+(no custom headers, mirroring the CLI convention). The adapter passes `llm` to core **only** when
+`auto_extract` is on.
+
+Credentials follow Hermes' rule that plugin secrets go through `agent.secret_scope`: `config.secret()`
+resolves `HARNMEM_LLM_API_KEY` for the active profile (an unscoped read while multiplexing fails
+closed), `__init__.py` strips `apiKey` from the payload and passes it via `run_detached(env_extra=...)`,
+and the owner-only (`0600`) payload file never contains it.
 
 ## 7. Config, setup and CLI
 
@@ -185,7 +194,7 @@ answers):
 | `auto_extract` | `HARNMEM_AUTO_EXTRACT` | `false` | session-end extraction (needs the LLM triple below) |
 | `read_only` | `HARNMEM_READONLY` | `false` | inject + read tools only |
 | `llm_url` / `llm_model` | `HARNMEM_LLM_URL` / `HARNMEM_LLM_MODEL` | — | OpenAI-compatible endpoint |
-| `llm_api_key` | `HARNMEM_LLM_API_KEY` | — | secret, written to `.env` by the wizard |
+| `llm_api_key` | `HARNMEM_LLM_API_KEY` | — | secret; read through Hermes' secret scope, wizard writes `.env` |
 | `debug` | `HARNMEM_DEBUG` | `false` | bridge logs to stderr |
 
 `[verified]` Hermes' generic setup flow keeps the answers in a **detached** dict for a provider it has

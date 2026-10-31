@@ -52,6 +52,12 @@ MAX_PAYLOAD_BYTES = 8 * 1024 * 1024
 DEFAULT_CONTEXT_TIMEOUT_S = 7.0
 DEFAULT_TOOL_TIMEOUT_S = 20.0
 
+#: The only credential the plugin can use: an optional OpenAI-compatible API key
+#: for the opt-in session-end extraction pass. It is resolved through Hermes'
+#: profile-aware secret scope and passed to the child process in its environment,
+#: never written into the payload file.
+EXTRACTION_SECRET = "HARNMEM_LLM_API_KEY"
+
 _node_lock = threading.Lock()
 _cached_node: Optional[str] = None
 _cached_node_version = ""
@@ -152,22 +158,55 @@ def unavailable_reason() -> str:
     return ""
 
 
-def child_env() -> Dict[str, str]:
-    """Environment for bridge child processes.
+def _apply_secret_scope(env: Dict[str, str]) -> None:
+    """Copy the extraction key from Hermes' profile-aware scope into ``env``.
 
     Hermes loads the profile's ``.env`` into the process environment before
-    plugins run, so a plain copy is enough: the bridge needs ``PATH`` (to find
-    Node.js) and the ``HARNMEM_*`` overrides. Staying on the public
-    ``os.environ`` surface avoids Hermes-private imports that catalog validation
-    flags (rule 9: public surfaces only).
+    plugins run, but under multiplexing that environment can belong to another
+    profile. ``agent.secret_scope.get_secret`` is the documented route for a
+    declared plugin secret (catalog rule 11); it is imported lazily so tests and
+    standalone CLI use keep working when Hermes is absent.
+    """
+    try:
+        from agent.secret_scope import UnscopedSecretError, get_secret, is_multiplex_active
+    except Exception:  # pragma: no cover - Hermes absent in tests/CLI
+        return
+    try:
+        multiplexing = bool(is_multiplex_active())
+    except Exception:  # pragma: no cover - defensive
+        multiplexing = False
+    try:
+        value = (get_secret(EXTRACTION_SECRET, "") or "").strip()
+    except UnscopedSecretError:
+        value = ""
+    except Exception:  # pragma: no cover - defensive
+        value = ""
+    if multiplexing:
+        # Never let a copy of another profile's key reach the child process.
+        env.pop(EXTRACTION_SECRET, None)
+    if value:
+        env[EXTRACTION_SECRET] = value
+
+
+def child_env(extra: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    """Environment for bridge child processes.
+
+    Starts from the process environment (Hermes has already loaded the profile
+    ``.env`` there), re-reads the extraction secret through the profile-aware
+    scope, then prepends the resolved Node.js directory to ``PATH`` so the child
+    starts even when the runtime lives outside the inherited path. ``extra``
+    overrides individual variables without mutating ``os.environ``.
     """
     env = dict(os.environ)
+    _apply_secret_scope(env)
     node = resolve_node()
     if node is not None:
         node_dir = os.path.dirname(node)
         if node_dir:
             path = env.get("PATH", "")
             env["PATH"] = node_dir + (os.pathsep + path if path else "")
+    if extra:
+        env.update({key: str(value) for key, value in extra.items()})
     return env
 
 
@@ -193,11 +232,17 @@ def _parse_json_line(stdout: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def run_bridge(payload: Dict[str, Any], *, timeout: float = DEFAULT_TOOL_TIMEOUT_S) -> Dict[str, Any]:
+def run_bridge(
+    payload: Dict[str, Any],
+    *,
+    timeout: float = DEFAULT_TOOL_TIMEOUT_S,
+    env_extra: Optional[Dict[str, str]] = None,
+) -> Dict[str, Any]:
     """Run one bridge command synchronously and return its JSON answer.
 
     Returns ``{"ok": False, "error": ...}`` on every failure mode (missing
-    runtime, timeout, crash, garbage output) — never raises.
+    runtime, timeout, crash, garbage output) — never raises. ``env_extra``
+    overrides variables for this child only.
     """
     node = resolve_node()
     if node is None:
@@ -216,7 +261,7 @@ def run_bridge(payload: Dict[str, Any], *, timeout: float = DEFAULT_TOOL_TIMEOUT
             capture_output=True,
             timeout=timeout,
             cwd=workdir,
-            env=child_env(),
+            env=child_env(env_extra),
             check=False,
         )
     except subprocess.TimeoutExpired:
@@ -250,12 +295,20 @@ def _spawn_flags() -> tuple[int, bool]:
     return 0, True
 
 
-def run_detached(payload: Dict[str, Any], *, label: str) -> Optional[str]:
+def run_detached(
+    payload: Dict[str, Any],
+    *,
+    label: str,
+    env_extra: Optional[Dict[str, str]] = None,
+) -> Optional[str]:
     """Hand a payload to a detached bridge process and return its path.
 
     The process outlives this session (Hermes may exit right after
     ``on_session_end``); the bridge deletes the payload file once handled.
-    Returns ``None`` when the job could not be started.
+    Returns ``None`` when the job could not be started. The payload file is
+    created owner-only (0600) inside an owner-only directory: it carries the
+    session transcript, and secrets are deliberately kept out of it — the
+    extraction key travels only in the child's environment (``env_extra``).
     """
     node = resolve_node()
     if node is None or not BRIDGE_SCRIPT.is_file():
@@ -266,15 +319,25 @@ def run_detached(payload: Dict[str, Any], *, label: str) -> Optional[str]:
         logger.warning("harnmem: dropping oversized %s payload (%d bytes)", label, len(raw))
         return None
     try:
-        PAYLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        PAYLOAD_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
     except OSError as error:
         logger.warning("harnmem: cannot create payload directory %s: %s", PAYLOAD_DIR, error)
         return None
     path = PAYLOAD_DIR / f"{label}-{int(time.time())}-{uuid.uuid4().hex[:8]}.json"
     try:
-        path.write_bytes(raw)
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except OSError as error:
+        logger.warning("harnmem: cannot create payload %s: %s", path, error)
+        return None
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(raw)
     except OSError as error:
         logger.warning("harnmem: cannot write payload %s: %s", path, error)
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            pass
         return None
     cwd = payload.get("cwd")
     workdir = str(cwd) if isinstance(cwd, str) and Path(cwd).is_dir() else None
@@ -286,7 +349,7 @@ def run_detached(payload: Dict[str, Any], *, label: str) -> Optional[str]:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             cwd=workdir,
-            env=child_env(),
+            env=child_env(env_extra),
             close_fds=True,
             start_new_session=new_session,
             creationflags=flags,

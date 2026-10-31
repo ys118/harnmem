@@ -88,6 +88,29 @@ async function loadCore() {
   return corePromise;
 }
 
+/**
+ * Build the extraction LLM from the payload plus the child environment.
+ *
+ * The Python side resolves the API key through Hermes' profile-aware secret
+ * scope and passes it in this process' environment only, so the payload that
+ * may be written to disk never carries a credential. When the environment has
+ * no key, fall back to the standalone ``HARNMEM_LLM_*`` configuration.
+ */
+function buildLlm(payload) {
+  const options = payload.llm ?? {};
+  const key = (process.env.HARNMEM_LLM_API_KEY ?? "").trim();
+  if (key) {
+    const configured = createLlm({
+      url: options.url,
+      model: options.model,
+      apiKey: key,
+      timeoutMs: options.timeoutMs,
+    });
+    if (configured) return configured;
+  }
+  return createLlmFromEnv();
+}
+
 async function openEngine(core, payload) {
   const debug = payload.debug === true;
   const config = {
@@ -102,7 +125,7 @@ async function openEngine(core, payload) {
   if (typeof payload.project === "string" && payload.project.trim() !== "") config.project = payload.project.trim();
   if (typeof payload.sessionId === "string" && payload.sessionId.trim() !== "") config.sessionId = payload.sessionId.trim();
   if (config.write.autoExtract) {
-    config.llm = createLlm(payload.llm ?? {}) ?? createLlmFromEnv();
+    config.llm = buildLlm(payload);
   }
   return core.HarnMem.open(config);
 }
