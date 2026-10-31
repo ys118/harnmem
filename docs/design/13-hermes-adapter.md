@@ -277,9 +277,10 @@ Hermes-specific checks: `hermes plugins validate` clean `[verified]`; provider v
 - `on_pre_compress` checkpoint API v2 (fail-closed archive before compaction) once users run with
   compaction-heavy sessions.
 - Catalog submission and a `--ref`-pinned release policy.
-- Optional `HARNMEM_LLM_HEADERS` (JSON object) so gateways that need proprietary headers — such as the
-  `opencode-go` endpoint observed here — can serve extraction; the CLI needs the same flag to stay
-  consistent.
+- Deferred to the backlog (2026-10-31): optional `HARNMEM_LLM_HEADERS` (JSON object) so gateways
+  that need proprietary headers — such as the `opencode-go` endpoint observed here — can serve
+  extraction; the CLI needs the same flag to stay consistent. Not scheduled: the affected path is
+  optional extraction only, and no other adapter uses the HTTP LLM route.
 - Optional shared per-turn dedupe: if the provider could remember what the previous turn already
   injected, the same block could be skipped on retries; today the cache rebuilds only on real changes,
   which is the safer default.
