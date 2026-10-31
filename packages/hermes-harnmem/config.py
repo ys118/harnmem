@@ -8,6 +8,11 @@ provider class and the rest of the plugin.
 Resolution order per key: ``HARNMEM_*`` environment variable (the setup wizard
 stores secrets in ``.env``), then the ``memory.harnmem`` block from
 ``config.yaml``, then the built-in default.
+
+Secrets are the exception: they go through :func:`secret`, which asks Hermes'
+profile-aware ``agent.secret_scope.get_secret`` when Hermes is available. A bare
+``os.environ`` read is only a fallback for standalone CLI use and tests — under
+multiplexing the process environment can belong to another profile.
 """
 
 from __future__ import annotations
@@ -54,6 +59,30 @@ def _coerce_int(value: Any, default: int, *, minimum: int = 0, maximum: int | No
 
 def _expand_home(value: str) -> str:
     return os.path.expandvars(os.path.expanduser(value.strip()))
+
+
+def secret(name: str, default: str = "") -> str:
+    """Read a declared plugin secret through Hermes' profile-aware scope.
+
+    Hermes routes credentials through ``agent.secret_scope.get_secret``, which
+    honours the active profile; a bare ``os.environ`` read can pick up another
+    profile's value under multiplexing. ``default`` is returned when Hermes is
+    not importable (tests, standalone CLI use) or the variable is unset. When
+    multiplexing is active without a bound scope the read fails closed instead
+    of falling back to the environment.
+    """
+    try:
+        from agent.secret_scope import UnscopedSecretError, get_secret
+    except Exception:  # pragma: no cover - Hermes is absent in tests and CLI use
+        return default
+    try:
+        value = get_secret(name, "")
+    except UnscopedSecretError:
+        return ""
+    except Exception:  # pragma: no cover - defensive: never break config load
+        return default
+    resolved = (value or "").strip()
+    return resolved or default
 
 
 def default_store_home() -> str:
@@ -120,7 +149,10 @@ def resolve_config(block: Dict[str, Any]) -> Dict[str, Any]:
         "llm": {
             "url": str(pick("llm_url", "HARNMEM_LLM_URL", "") or "").strip(),
             "model": str(pick("llm_model", "HARNMEM_LLM_MODEL", "") or "").strip(),
-            "apiKey": str(pick("llm_api_key", "HARNMEM_LLM_API_KEY", "") or "").strip(),
+            "apiKey": secret(
+                "HARNMEM_LLM_API_KEY",
+                str(pick("llm_api_key", "HARNMEM_LLM_API_KEY", "") or "").strip(),
+            ),
         },
     }
 

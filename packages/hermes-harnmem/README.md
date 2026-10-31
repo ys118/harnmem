@@ -83,6 +83,12 @@ provider registrations are read at startup.
 `HARNMEM_*` environment variables win over the file (secrets live in
 `$HERMES_HOME/.env`).
 
+The extraction key is a declared plugin secret: it is read through Hermes'
+profile-aware `agent.secret_scope.get_secret`, so a multiplexed host can never
+hand this profile another profile's key (an unscoped read fails closed). It is
+passed to the detached child process in its environment and never written into
+the transcript payload on disk.
+
 | Key | Default | Env var | Meaning |
 | --- | --- | --- | --- |
 | `home` | `~/.harnmem` | `HARNMEM_HOME` | Store directory shared with the other adapters |
@@ -95,7 +101,7 @@ provider registrations are read at startup.
 | `debug` | `false` | `HARNMEM_DEBUG` | Bridge diagnostics in the Hermes log |
 | `llm_url` | — | `HARNMEM_LLM_URL` | OpenAI-compatible base URL (extraction only) |
 | `llm_model` | — | `HARNMEM_LLM_MODEL` | Model name for extraction |
-| `llm_api_key` | — | `HARNMEM_LLM_API_KEY` | API key (written to `.env` as a secret) |
+| `llm_api_key` | — | `HARNMEM_LLM_API_KEY` | Secret; read through Hermes' secret scope (setup writes `.env`) |
 
 `enabled` / `HARNMEM_ENABLED` and `HARNMEM_DISABLED` toggle the provider without
 uninstalling it.
@@ -159,6 +165,13 @@ outbound call is the extraction pass against the endpoint **you** configure,
 made only when `auto_extract` is `true`. The plugin sends the session
 transcript to that endpoint when extraction runs; disable extraction to keep
 everything local.
+
+The transcript payload handed to the detached extractor is written owner-only
+(`0600` inside a `0700` directory) and deleted as soon as it is read. The
+extraction key is never part of that payload: it is resolved through Hermes'
+profile-aware secret scope and passed in the child's environment. HarnMem itself
+keeps memories as plain Markdown under `~/.harnmem/`, never uploads them, and
+emits no telemetry.
 
 ## License
 

@@ -51,6 +51,7 @@ from .config import (
     _expand_home,
     _load_plugin_config,
     resolve_config,
+    secret,
 )
 
 logger = logging.getLogger(__name__)
@@ -302,7 +303,15 @@ class HarnmemMemoryProvider(MemoryProvider):
                     "autoExtract": True,
                 }
             )
-            if bridge.run_detached(payload, label="session-end") is not None:
+            # The extraction key is resolved for the active profile right before
+            # the detached child starts and travels in its environment only: the
+            # payload file on disk never contains a credential.
+            api_key = secret(
+                "HARNMEM_LLM_API_KEY",
+                str(self._config["llm"].get("apiKey") or "").strip(),
+            )
+            env_extra = {"HARNMEM_LLM_API_KEY": api_key} if api_key else None
+            if bridge.run_detached(payload, label="session-end", env_extra=env_extra) is not None:
                 bridge.sweep_payloads()
         except Exception:  # never let memory bookkeeping break shutdown
             logger.warning("harnmem: session-end extraction could not be scheduled", exc_info=True)
@@ -740,7 +749,11 @@ class HarnmemMemoryProvider(MemoryProvider):
         if self._config["project"]:
             payload["project"] = self._config["project"]
         if self._config["llm"]["url"] and self._config["llm"]["model"]:
-            payload["llm"] = dict(self._config["llm"])
+            llm = dict(self._config["llm"])
+            # Credentials never reach the on-disk payload: the bridge reads the
+            # key from the child environment instead.
+            llm.pop("apiKey", None)
+            payload["llm"] = llm
         return payload
 
 

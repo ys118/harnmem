@@ -26,8 +26,14 @@ PACKAGE_NAME = "harnmem_plugin"
 
 CONFIG = {"memory": {}}
 
+#: Mirrors Hermes' ``agent.secret_scope``: ``{name: value}`` bound to the active
+#: profile, plus a multiplexing switch that makes unscoped reads fail closed.
+SCOPED_SECRETS = {}
+MULTIPLEX = {"active": False}
+
 plugin = None
 cli = None
+plugin_config = None
 
 
 def _install_stubs():
@@ -51,6 +57,26 @@ def _install_stubs():
     memory_provider.RecallStatus = RecallStatus
     memory_provider.spawn_context_thread = spawn_context_thread
     agent.memory_provider = memory_provider
+
+    secret_scope = types.ModuleType("agent.secret_scope")
+
+    class UnscopedSecretError(RuntimeError):
+        pass
+
+    def get_secret(name, default=None):
+        if name in SCOPED_SECRETS:
+            return SCOPED_SECRETS[name]
+        if MULTIPLEX["active"]:
+            raise UnscopedSecretError(name)
+        return os.environ.get(name, default)
+
+    def is_multiplex_active():
+        return bool(MULTIPLEX["active"])
+
+    secret_scope.UnscopedSecretError = UnscopedSecretError
+    secret_scope.get_secret = get_secret
+    secret_scope.is_multiplex_active = is_multiplex_active
+    agent.secret_scope = secret_scope
 
     tools = types.ModuleType("tools")
     tools.__path__ = []
@@ -77,6 +103,7 @@ def _install_stubs():
         {
             "agent": agent,
             "agent.memory_provider": memory_provider,
+            "agent.secret_scope": secret_scope,
             "tools": tools,
             "tools.registry": registry,
             "hermes_cli": hermes_cli,
@@ -99,9 +126,10 @@ def _load_package():
 
 def setUpModule():
     _install_stubs()
-    global plugin, cli
+    global plugin, cli, plugin_config
     plugin = _load_package()
     cli = importlib.import_module(PACKAGE_NAME + ".cli")
+    plugin_config = importlib.import_module(PACKAGE_NAME + ".config")
 
 
 def _parser():
@@ -115,12 +143,18 @@ def _parser():
 class ProviderTestCase(unittest.TestCase):
     def setUp(self):
         self._env_backup = {key: os.environ.pop(key) for key in list(os.environ) if key.startswith("HARNMEM_")}
+        self._secret_backup = dict(SCOPED_SECRETS)
+        SCOPED_SECRETS.clear()
+        MULTIPLEX["active"] = False
         self._reset_config()
 
     def tearDown(self):
         for key in [key for key in os.environ if key.startswith("HARNMEM_")]:
             del os.environ[key]
         os.environ.update(self._env_backup)
+        SCOPED_SECRETS.clear()
+        SCOPED_SECRETS.update(self._secret_backup)
+        MULTIPLEX["active"] = False
         self._reset_config()
 
     @staticmethod
@@ -260,6 +294,54 @@ class ConfigTests(ProviderTestCase):
         self.assertEqual(status["node"], "v22.15.0")
         self.assertEqual(status["mode"], "read-write")
         self.assertIn("store", status)
+
+
+class SecretScopeTests(ProviderTestCase):
+    """The extraction key is a declared secret (catalog rule 11).
+
+    Hermes routes plugin credentials through ``agent.secret_scope``; a bare
+    environment read can belong to another profile while multiplexing.
+    """
+
+    def test_secret_prefers_the_profile_scope_over_the_environment(self):
+        os.environ["HARNMEM_LLM_API_KEY"] = "plain-env"
+        SCOPED_SECRETS["HARNMEM_LLM_API_KEY"] = "scoped-key"
+        self.assertEqual(plugin_config.secret("HARNMEM_LLM_API_KEY", "fallback"), "scoped-key")
+
+    def test_secret_falls_back_when_hermes_is_not_available(self):
+        with mock.patch.dict(sys.modules, {"agent.secret_scope": None}):
+            self.assertEqual(plugin_config.secret("HARNMEM_LLM_API_KEY", "fallback"), "fallback")
+
+    def test_secret_fails_closed_when_multiplexing_without_a_scope(self):
+        os.environ["HARNMEM_LLM_API_KEY"] = "foreign-key"
+        MULTIPLEX["active"] = True
+        self.assertEqual(plugin_config.secret("HARNMEM_LLM_API_KEY", "fallback"), "")
+
+    def test_resolve_config_reads_the_key_through_the_scope(self):
+        SCOPED_SECRETS["HARNMEM_LLM_API_KEY"] = "scoped-key"
+        config = plugin_config.resolve_config(
+            {
+                "llm_url": "https://llm.example.test/v1",
+                "llm_model": "test-model",
+                "llm_api_key": "block-key",
+            }
+        )
+        self.assertEqual(config["llm"]["apiKey"], "scoped-key")
+
+    def test_child_env_never_forwards_a_foreign_key_while_multiplexing(self):
+        os.environ["HARNMEM_LLM_API_KEY"] = "foreign-key"
+        MULTIPLEX["active"] = True
+        with mock.patch.object(plugin.bridge, "resolve_node", return_value=None):
+            env = plugin.bridge.child_env()
+        self.assertNotIn("HARNMEM_LLM_API_KEY", env)
+
+    def test_child_env_uses_the_scoped_key_and_honours_overrides(self):
+        os.environ["HARNMEM_LLM_API_KEY"] = "plain-env"
+        SCOPED_SECRETS["HARNMEM_LLM_API_KEY"] = "scoped-key"
+        with mock.patch.object(plugin.bridge, "resolve_node", return_value=None):
+            self.assertEqual(plugin.bridge.child_env()["HARNMEM_LLM_API_KEY"], "scoped-key")
+            overridden = plugin.bridge.child_env({"HARNMEM_LLM_API_KEY": "extra-key"})
+        self.assertEqual(overridden["HARNMEM_LLM_API_KEY"], "extra-key")
 
 
 class InjectionTests(ProviderTestCase):
@@ -458,13 +540,22 @@ class ExtractionTests(ProviderTestCase):
 
     def test_session_end_spawns_a_detached_extraction(self):
         captured = {}
+        SCOPED_SECRETS["HARNMEM_LLM_API_KEY"] = "scoped-key"
 
-        def fake_detached(payload, *, label):
+        def fake_detached(payload, *, label, env_extra=None):
             captured["payload"] = payload
             captured["label"] = label
+            captured["env_extra"] = env_extra
             return "/tmp/payload.json"
 
-        provider = self._provider({"auto_extract": "true"})
+        provider = self._provider(
+            {
+                "auto_extract": "true",
+                "llm_url": "https://llm.example.test/v1",
+                "llm_model": "test-model",
+                "llm_api_key": "block-key",
+            }
+        )
         with mock.patch.object(plugin.bridge, "run_detached", side_effect=fake_detached), mock.patch.object(
             plugin.bridge, "sweep_payloads"
         ):
@@ -479,6 +570,9 @@ class ExtractionTests(ProviderTestCase):
         self.assertEqual(captured["payload"]["command"], "session-end")
         self.assertTrue(captured["payload"]["autoExtract"])
         self.assertEqual(captured["payload"]["messages"][0]["role"], "user")
+        # The key goes through the child environment, never the on-disk payload.
+        self.assertEqual(captured["payload"]["llm"], {"url": "https://llm.example.test/v1", "model": "test-model"})
+        self.assertEqual(captured["env_extra"], {"HARNMEM_LLM_API_KEY": "scoped-key"})
 
     def test_session_end_does_nothing_without_auto_extract(self):
         provider = self._provider()
