@@ -87,6 +87,12 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/hermes-harnmem:
+    devDependencies:
+      '@harnmem/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/opencode-harnmem:
     devDependencies:
       '@harnmem/core':

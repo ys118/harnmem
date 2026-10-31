@@ -1,0 +1,61 @@
+# HarnMem synonym table v1 (English)
+# Purpose: BM25 query expansion for English queries. English tokenization is word-based, so the same-meaning-rewording gap is much smaller than in Chinese; this table therefore stays small.
+# Format: canonical<TAB>syn1,syn2,...   — exactly one ASCII TAB; the second column is comma-separated with no spaces around commas.
+# Rules:
+#   - canonical is unique across the file; synonyms within a row must not repeat, and must not equal the canonical.
+#   - English terms are lowercase; no explanatory content.
+#   - Terms may contain spaces (e.g. rate limit, pull request); no spaces around commas.
+#   - Lines may cross-reference each other; expansion is one-hop and deduplicated, never transitive closure.
+#   - Used only for query expansion, never changes stored text; terms hit through expansion are down-weighted in scoring (see docs/design/03-retrieval.md).
+#   - Keep the shipped table generic (common development/AI vocabulary). Personal or project-specific terms belong in the user's <home>/data/synonyms.en.txt copy, never in the repository.
+# Language files: the engine loads every data/synonyms.<lang>.txt it finds (this file = English, data/synonyms.zh.txt = Chinese); the <home> copy of a filename overrides the shipped default of the same name. Add a language by adding data/synonyms.<lang>.txt — no code change.
+# Maintenance: add rows grouped by topic; verify changes with a reworded `harnmem search` query. The repository eval suite uses its own fixture (evals/data/synonyms.zh.tsv), so it does not cover edits to this file.
+
+## Development workflow
+deploy	deployment,release,ship
+install	setup,provision
+upgrade	update,bump
+rollback	revert,undo
+build	compile,bundle
+
+## Errors and debugging
+bug	defect,regression
+error	failure,exception,issue
+fix	patch,resolve
+debug	diagnose,troubleshoot
+memory leak	leak
+
+## Configuration and dependencies
+config	configuration,setting
+dependency	dep,package,library
+
+## Code refactoring
+refactor	rewrite,restructure
+
+## Version control and collaboration
+branch	feature branch
+commit	checkin
+pull request	pr,merge request,mr
+review	code review,cr
+
+## Testing and quality
+test	spec,suite
+coverage	code coverage
+lint	linter,static check
+eval	evaluation,benchmark
+baseline	bench,reference score
+
+## AI / LLM / memory
+agent	assistant,bot
+memory	memories
+embedding	embed,vectorize
+context	context window,ctx
+prompt	system prompt,instruction
+token	tokens
+session	conversation,thread
+retrieval	recall,search
+decay	aging,downweight
+dedupe	deduplicate,dedup
+archive	cold storage
+hook	callback,lifecycle hook
+plugin	extension,addon

@@ -22,23 +22,29 @@ database, no embedding model, and no runtime dependencies in the engine.
 - **Packages:** `@harnmem/core` (engine), `@harnmem/cli` (`harnmem` command),
   `pi-harnmem` (pi extension), `dsh-harnmem` (DSH plugin), `claude-harnmem`
   (Claude Code plugin), `codex-harnmem` (Codex CLI plugin),
-  `opencode-harnmem` (opencode v2 plugin), `grok-harnmem` (Grok CLI plugin) and
-  `cursor-harnmem` (Cursor desktop plugin) — all published on npm. Install
-  the CLI with `npm install -g @harnmem/cli`; the opencode adapter needs
+  `opencode-harnmem` (opencode v2 plugin), `grok-harnmem` (Grok CLI plugin),
+  `cursor-harnmem` (Cursor desktop plugin) and `hermes-harnmem` (Hermes Agent
+  memory provider, installed through Hermes' own plugin manager) — all published
+  on npm except `hermes-harnmem`. Install the CLI with
+  `npm install -g @harnmem/cli`; the opencode adapter needs
   opencode 2.x and is verified end to end on the 2.1.4 binary (injection, native
   tools, per-turn journaling); the Grok adapter is verified on the 1.0.70 binary
   (MCP `initialize.instructions` injection, six tools, session-end extraction);
   the Cursor adapter is verified on Cursor 3.27.22 (first-prompt injection,
-  plugin MCP tools, session-end journaling).
+  plugin MCP tools, session-end journaling); the Hermes adapter is verified on
+  Hermes Agent 0.22.5 (prefetch injection, five native tools, detached
+  session-end extraction).
 - **License:** MIT.
 - **Status:** v0.7.0 — the engine, the CLI/migration tooling and all seven
-  adapters (pi, DeepSeek Harness, Claude Code, Codex, opencode, Grok, Cursor) are
-  published and tested end to end. The 0.7.0 release adds the Grok and Cursor
-  adapters on top of the 0.6.2 seven-package audit wave (17 of 21 confirmed
-  issues fixed, the structural remainder tracked as N18-N20 in the roadmap). The
-  Codex adapter also covers the CLI TUI trust flow and Codex Desktop, and
-  backfills sessions from `~/.codex/sessions` until Codex ships SessionEnd
-  hooks.
+  published adapters (pi, DeepSeek Harness, Claude Code, Codex, opencode, Grok,
+  Cursor) are published and tested end to end; the Hermes adapter
+  (`hermes-harnmem`, installed through the Hermes plugin manager and not on npm)
+  is implemented and verified end to end, shipping in the next release. The 0.7.0
+  release adds the Grok and Cursor adapters on top of the 0.6.2 seven-package
+  audit wave (17 of 21 confirmed issues fixed, the structural remainder tracked
+  as N18-N20 in the roadmap). The Codex adapter also covers the CLI TUI trust
+  flow and Codex Desktop, and backfills sessions from `~/.codex/sessions` until
+  Codex ships SessionEnd hooks.
 
 ## Why another memory plugin?
 
@@ -57,7 +63,8 @@ the local process, and lifecycle decisions are explainable and reversible.**
 
 - **Cross-harness by construction.** The store and data model are
   harness-agnostic; adapters are thin. The same store is shared by the pi,
-  DeepSeek Harness, Claude Code, Codex, opencode and Grok adapters and by the CLI
+  DeepSeek Harness, Claude Code, Codex, opencode, Grok, Cursor and Hermes
+  adapters and by the CLI
   without any harness.
 - **File-native SSOT.** One memory per Markdown file with YAML frontmatter.
   Indexes and digests are derived and rebuildable; a corrupt index costs a
@@ -123,6 +130,10 @@ grok plugin install grok-harnmem --trust
 # Cursor desktop: copy the plugin into ~/.cursor/plugins/local, merge the
 # user-level hooks, then run Developer: Reload Window
 npx cursor-harnmem
+
+# Hermes Agent memory provider (requires Hermes v0.22.5+ and Node 22.15+ on PATH)
+hermes plugins install ys118/harnmem/packages/hermes-harnmem --enable
+hermes memory setup
 ```
 
 All adapters read and write the same `~/.harnmem/` store, so installing more
@@ -231,6 +242,26 @@ See the [package README](packages/codex-harnmem/README.md) for configuration
 and the [probe record](docs/research/codex-plugin.md) for the full
 verification trail.
 
+### Hermes adapter
+
+Installed through Hermes' own plugin manager (requires Hermes Agent v0.22.5+;
+Node.js 22.15+ must be on PATH because the plugin drives the engine through a
+small Node bridge). The adapter is a Python `MemoryProvider` plugin:
+
+- injects the snapshot through `prefetch()` before each model call — cached in
+  Python and rebuilt only on session switch, day rollover, a memory write or a
+  compaction, so consecutive turns inject identical bytes;
+- exposes `harnmem_write/search/read/forget/status` as native Hermes tools;
+- extracts once per real session boundary in a detached child process, so
+  closing Hermes can never wait on extraction;
+- runs read-only for subagent and cron sessions and when `read_only` is set;
+- is configured by `hermes memory setup` (10 fields), and reports through
+  `hermes harnmem status`.
+
+See the [package README](packages/hermes-harnmem/README.md) for installation,
+configuration and troubleshooting, and the
+[design doc](docs/design/13-hermes-adapter.md) for the seam mapping.
+
 ### CLI
 
 ```bash
@@ -273,6 +304,7 @@ flowchart LR
     CX[Codex plugin]
     OP[opencode plugin]
     GK[Grok plugin]
+    HE[Hermes plugin]
   end
   CLI[harnmem CLI + migration]
   CORE["@harnmem/core<br/>store · retrieval · writing · lifecycle · extraction"]
@@ -282,6 +314,7 @@ flowchart LR
   CX --> CORE
   OP --> CORE
   GK --> CORE
+  HE --> CORE
   CLI --> CORE
   CORE --> STD[(~/.harnmem plain files)]
   CORE --> IDX[(rebuildable BM25F index)]
@@ -406,7 +439,8 @@ the roadmap. Details, per-suite numbers, ablations and gate definitions are in
 | Claude Code 2.1.x | **Supported** | `claude-harnmem` plugin (SessionStart hook + stdio MCP + `/harnmem:memory`); verified end to end against 2.1.310; `harnmem import claude` migrates existing stores |
 | Codex CLI 0.164/0.165 alpha | **Supported** (Windows) | `codex-harnmem` plugin (SessionStart `mcp_tool` hook → developer-message injection + stdio MCP + skill + rollout backfill); verified end to end on the CLI, the TUI trust flow and Codex Desktop; extraction is backfilled until Codex ships SessionEnd hooks |
 | opencode 2.1.4 | **Supported** (2.x) | `opencode-harnmem` plugin (byte-stable `session.hook("context")` snapshot + five native tools + per-turn journaling; child sessions run read-only); verified end to end on the 2.1.4 binary |
-| Grok CLI 1.0.70 | **Supported** (1.0.x) | `grok-harnmem` plugin (memory index via MCP `initialize.instructions` — Grok's `SessionStart` is observe-only; six tools + `/grok-harnmem:memory` + `SessionEnd` extraction from `chat_history.jsonl`); verified end to end on the 1.0.70 binary |
+| Grok CLI 1.0.70 | **Supported** (1.0.x) | `grok-harnmem` plugin (memory index via MCP `initialize.instructions` — Grok's `SessionStart` is observe-only; six tools + `/grok-harnmem:memory` + `SessionEnd` extraction from `chat_history.jsonl`; plugin id `harnmem` shadows an auto-loaded `claude-harnmem` so only one MCP server and extractor run); verified end to end on the 1.0.70 binary |
+| Hermes Agent 0.22.5 | **Supported** (Node 22.15+ on PATH) | `hermes-harnmem` Python `MemoryProvider` plugin + vendored-engine Node bridge (per-turn `prefetch` injection with a Python-side snapshot cache, five native tools, detached session-end extraction, read-only subagent/cron sessions); verified end to end on a scratch `HERMES_HOME` (injection, recall, tool write, `hermes plugins validate` clean) |
 | Other harnesses | Welcome | See the adapter contract and `CONTRIBUTING.md` |
 
 ## Documentation
@@ -422,6 +456,7 @@ Start with the [documentation index](docs/README.md). Highlights:
 - [Evaluation](docs/design/05-evaluation.md)
 - [Adapter contract](docs/design/07-adapter-contract.md)
 - [Migration onboarding](docs/design/10-migration-onboarding.md)
+- [Hermes adapter](docs/design/13-hermes-adapter.md)
 - [Adapter authoring guide](docs/adapter-authoring.md)
 - [Agent workflow contract](AGENTS.md)
 
@@ -436,6 +471,14 @@ numbers, the running trial, known issues) and the ordered next steps.
 - **Grok adapter** — shipped as `grok-harnmem`; see its
   [README](packages/grok-harnmem/README.md), [`docs/design/11-grok-adapter.md`](docs/design/11-grok-adapter.md)
   and the probe record in [`docs/research/grok-plugin.md`](docs/research/grok-plugin.md).
+- **Cursor adapter** — shipped as `cursor-harnmem`; see its
+  [README](packages/cursor-harnmem/README.md), [`docs/design/12-cursor-adapter.md`](docs/design/12-cursor-adapter.md)
+  and the probe record in [`docs/research/cursor-plugin.md`](docs/research/cursor-plugin.md).
+- **Hermes adapter** — implemented as `hermes-harnmem` and shipping in the next
+  release (installed through the Hermes plugin manager, not npm); see its
+  [README](packages/hermes-harnmem/README.md), [`docs/design/13-hermes-adapter.md`](docs/design/13-hermes-adapter.md)
+  and the research note in
+  [`docs/research/hermes-plugin.md`](docs/research/hermes-plugin.md).
 - Persist and incrementally update indexes so large stores warm up faster;
   reduce index size.
 - Validate npm installs on Linux/macOS/Windows and publish provenance for

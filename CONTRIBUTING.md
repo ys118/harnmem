@@ -124,11 +124,13 @@ only record an approval that was already granted in an issue comment.
 
 ## Project layout
 
-All nine packages are published on npm: `@harnmem/core` 0.4.2,
+Nine packages are published on npm: `@harnmem/core` 0.4.2,
 `@harnmem/cli` 0.4.1, `pi-harnmem` 0.4.4, `dsh-harnmem` 0.4.2, `claude-harnmem`
 0.4.3, `codex-harnmem` 0.2.3, `opencode-harnmem` 0.1.1, `grok-harnmem` 0.1.0 and
 `cursor-harnmem` 0.1.1. The two newest adapters follow the same
-zero-runtime-dependency, vendored-core rules as the others.
+zero-runtime-dependency, vendored-core rules as the others. `hermes-harnmem`
+0.1.0 is the exception: it is a Python plugin installed through Hermes' own
+plugin manager (`hermes plugins install`), so it is not published to npm.
 
 | Path | Package | What it is |
 | ---- | ------- | ---------- |
@@ -141,16 +143,17 @@ zero-runtime-dependency, vendored-core rules as the others.
 | `packages/opencode-harnmem` | `opencode-harnmem` | opencode v2 plugin: context-hook snapshot, five native tools, per-turn journaling. |
 | `packages/grok-harnmem` | `grok-harnmem` | Grok CLI plugin: memory index through MCP `initialize.instructions`, six tools, `/grok-harnmem:memory`, `SessionEnd` extraction from `chat_history.jsonl`. |
 | `packages/cursor-harnmem` | `cursor-harnmem` | Cursor desktop plugin: `beforeSubmitPrompt` snapshot injection, always-on rules, five-tool MCP server, detached `sessionEnd` extraction, installer with `--doctor`. |
+| `packages/hermes-harnmem` | `hermes-harnmem` | Hermes Agent memory provider: Python `MemoryProvider` plugin over a vendored-engine Node bridge; `prefetch` injection with a Python-side snapshot cache, five native tools, detached session-end extraction, read-only subagent/cron sessions. |
 | `evals` | - | Deterministic evaluation corpora (S1-S12), metrics, gates and ablation runner. |
 | `prompts`, `data` | - | Prompt assets and synonym tables deployed to `~/.harnmem/` on first run. |
 | `docs` | - | Design docs, research notes, roadmap and user guide. |
 
 Adapter packages follow the `<harness>-harnmem` convention (`pi-harnmem`,
 `dsh-harnmem`, `claude-harnmem`, `codex-harnmem`, `opencode-harnmem`,
-`grok-harnmem`, `cursor-harnmem`); harness-neutral packages live under the
-`@harnmem` scope. Adapter designs are in `docs/design/07`-`12`, with real-machine
-probe records for the Codex, opencode, Grok and Cursor plugins under
-`docs/research/`.
+`grok-harnmem`, `cursor-harnmem`, `hermes-harnmem`); harness-neutral packages
+live under the `@harnmem` scope. Adapter designs are in `docs/design/07`-`13`,
+with real-machine probe records for the Codex, opencode, Grok, Cursor and Hermes
+plugins under `docs/research/`.
 
 ## Development setup
 
