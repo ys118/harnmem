@@ -82,6 +82,8 @@ export declare class HarnMem {
     private autoFlushUsage;
     private shardFor;
     private resolveProjectId;
+    /** Import replay path: tolerate legacy project names with a sanitized shard. */
+    private resolveProjectIdLoose;
     private loadSynonyms;
 }
 //# sourceMappingURL=harnmem.d.ts.map
