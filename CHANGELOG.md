@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-10-31
+
+### Added
+
+- `omp-harnmem` 0.1.0: oh-my-pi (omp) adapter. omp is a deep fork of pi, so the
+  adapter ports the pi extension model onto omp's extension host: the memory
+  index is injected as a trailing `before_agent_start` system-prompt segment
+  (omp's runtime applies a string-valued return even though its type
+  declaration says `string[]`, so the adapter is written against the string
+  shape and verified byte-stable across provider requests), five memory tools
+  register with schemas built from the host-bundled `pi.typebox` (no TypeBox
+  dependency), `/memory` offers status/search/read/forget/restore/consolidate
+  in both TUI and print mode, and the transcript journal is flushed on quit,
+  session switch and branch before `sessionEnd` extraction (omp gives shutdown
+  handlers a ~2 s budget, so the quit flush is capped at 1.5 s; session-switch
+  flushes keep the 8 s pi budget). Child sessions (`ctx.agent.depth > 0`) are
+  read-only. Config resolves through `$HARNMEM_HOME`/`~/.harnmem/config.json`,
+  the project `.harnmem.json` and `~/.omp/agent/harnmem.json`, tolerating a
+  UTF-8 BOM and JSONC comments. Install with
+  `omp plugin install @harnmem/omp-harnmem`. Verified on the oh-my-pi 18.14.1
+  binary (byte-stable injection across provider requests, tools, `/memory` in
+  print mode, resume inference on `-c`, and the journal → `sessionEnd` →
+  audit pipeline with the model-wrote-this-turn extraction gate); a review
+  pass removed dead code, corrected the README and added a BOM + JSONC config
+  regression test.
+- `hermes-harnmem` 0.1.0: Hermes Agent memory provider. A Python
+  `MemoryProvider` plugin drives a vendored-engine Node bridge: `prefetch`
+  injection with a Python-side snapshot cache, five native tools, detached
+  session-end extraction and read-only subagent/cron sessions, with the
+  extraction API key routed through Hermes' secret scope. Verified on Hermes
+  Agent 0.22.5. Distributed through Hermes' own plugin manager
+  (`hermes plugins install`) rather than npm.
+
+### Fixed
+
+- `pi-harnmem` 0.4.5: strip the UTF-8 BOM when parsing config files (#37).
+  `JSON.parse` rejects a leading BOM, so a `.harnmem.json` saved by Windows
+  editors or PowerShell 5 was silently ignored and the adapter fell back to
+  the defaults — potentially writing memories to the wrong store. `U+FEFF` is
+  ECMAScript WhiteSpace, so `JSON.parse(out.trim())` strips it. +1 regression
+  test.
+- Release workflow: skip `private: true` packages in the publish loop. The
+  loop published every workspace package whose exact version was missing from
+  npm, so the private `hermes-harnmem` package (plugin-manager-distributed)
+  would have made `pnpm publish` fail the whole step at the next tag.
+
 ## [0.7.1] - 2026-10-30
 
 ### Fixed
