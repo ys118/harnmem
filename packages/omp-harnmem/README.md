@@ -46,7 +46,7 @@ In an omp session:
 
 ```text
 You: remember this project uses pnpm — never npm install.
-pi:  → memory_write(...) → stored mem_01J8... (NEW)
+omp: → memory_write(...) → stored mem_01J8... (NEW)
 ```
 
 Next session, the hot index is injected automatically as a trailing system-prompt segment:
@@ -186,7 +186,7 @@ Plain files are the source of truth: back up or sync `~/.harnmem` directly. The 
 ```bash
 pnpm --filter @harnmem/core build
 pnpm --filter @harnmem/omp-harnmem build   # tsdown bundle + asset vendoring into dist/
-pnpm test                                  # core test suite
+pnpm --filter @harnmem/omp-harnmem test    # config unit tests (also runs under the root pnpm test)
 ```
 
 Source layout: `src/index.ts` (event wiring), `state.ts` (engine lifecycle), `context.ts` (snapshot manager), `tools.ts`, `command.ts`, `llm.ts` (omp model bridge via `completeSimple`), `journal.ts`, `log.ts`, `subagent.ts`, `config.ts`, `format.ts`.
@@ -197,7 +197,7 @@ specifiers onto its host-bundled copies before evaluation.
 ## Limitations
 
 - omp only for this package; other harnesses use their own adapters.
-- No automated tests for this package; behavior is covered by manual end-to-end runs against omp 18.14.1.
+- Config resolution has unit tests (`node --test test/*.test.mjs`); runtime behavior is covered by manual end-to-end runs against omp 18.14.1.
 - `autoExtract` extraction window is bounded to 1.5 s at shutdown (omp budget); long transcripts may not fully extract — prefer explicit `memory_write`.
 - omp's session_stop event fires per turn settle, so extraction is anchored to `session_shutdown` instead.
 

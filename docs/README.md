@@ -77,6 +77,8 @@ specifications; the design docs above are the source of truth.
   opencode plugin install and verification.
 - [`../packages/grok-harnmem/README.md`](../packages/grok-harnmem/README.md) —
   Grok CLI plugin install and verification.
+- [`../packages/omp-harnmem/README.md`](../packages/omp-harnmem/README.md) —
+  oh-my-pi plugin install and verification.
 
 ## Conventions
 

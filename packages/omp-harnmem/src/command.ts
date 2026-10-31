@@ -3,7 +3,7 @@
  * consolidate and extraction diagnostics that the model does not need.
  *
  * In the TUI output goes through ctx.ui.notify; in headless modes it is printed
- * to stdout so `pi -p` runs stay scriptable.
+ * to stdout so `omp -p` runs stay scriptable.
  */
 
 import type { ExtensionAPI, ExtensionCommandContext } from "@oh-my-pi/pi-coding-agent";
