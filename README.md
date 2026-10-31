@@ -143,7 +143,7 @@ hermes plugins install ys118/harnmem/packages/hermes-harnmem --enable
 hermes memory setup
 
 # oh-my-pi plugin (requires omp 18.14.1+)
-omp plugin install @harnmem/omp-harnmem
+omp plugin install omp-harnmem
 ```
 
 All adapters read and write the same `~/.harnmem/` store, so installing more

@@ -15,7 +15,7 @@ Requires `omp >= 18.14.1` (peer range `<19.0.0`). The same store is shared with 
 ## Install
 
 ```bash
-omp plugin install @harnmem/omp-harnmem
+omp plugin install omp-harnmem
 # --scope project installs into the current project instead of user scope
 ```
 
@@ -185,8 +185,8 @@ Plain files are the source of truth: back up or sync `~/.harnmem` directly. The 
 
 ```bash
 pnpm --filter @harnmem/core build
-pnpm --filter @harnmem/omp-harnmem build   # tsdown bundle + asset vendoring into dist/
-pnpm --filter @harnmem/omp-harnmem test    # config unit tests (also runs under the root pnpm test)
+pnpm --filter omp-harnmem build   # tsdown bundle + asset vendoring into dist/
+pnpm --filter omp-harnmem test    # config unit tests (also runs under the root pnpm test)
 ```
 
 Source layout: `src/index.ts` (event wiring), `state.ts` (engine lifecycle), `context.ts` (snapshot manager), `tools.ts`, `command.ts`, `llm.ts` (omp model bridge via `completeSimple`), `journal.ts`, `log.ts`, `subagent.ts`, `config.ts`, `format.ts`.

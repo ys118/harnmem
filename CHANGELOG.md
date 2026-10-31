@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read-only. Config resolves through `$HARNMEM_HOME`/`~/.harnmem/config.json`,
   the project `.harnmem.json` and `~/.omp/agent/harnmem.json`, tolerating a
   UTF-8 BOM and JSONC comments. Install with
-  `omp plugin install @harnmem/omp-harnmem`. Verified on the oh-my-pi 18.14.1
+  `omp plugin install omp-harnmem`. Verified on the oh-my-pi 18.14.1
   binary (byte-stable injection across provider requests, tools, `/memory` in
   print mode, resume inference on `-c`, and the journal → `sessionEnd` →
   audit pipeline with the model-wrote-this-turn extraction gate); a review
