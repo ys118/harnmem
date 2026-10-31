@@ -3,7 +3,7 @@
 Single source of truth for **where the project stands and what to do next**.
 Design intent lives in [`design/`](design/); this file tracks execution state.
 
-Last updated: **2026-10-30** (seven-package audit: 17 of 21 confirmed issues fixed in the 0.6.2 patch wave; structural/design backlog tracked as N18-N20; Grok adapter implemented as N21 and probe-verified on Grok CLI 1.0.70; Grok plugin id kept as `grok-harnmem` after verifying the explicit `[plugins] enabled` entry wins the shared `harnmem` MCP server; Cursor adapter implemented as N23 and verified on Cursor desktop 3.27.22, with an installer `--doctor` self-check following as N24; the Grok P2 follow-up verified TUI parity, the UserPromptSubmit and `$GROK_HOME/rules` channels, remote marketplace install and the `grok-harnmem@0.1.0` npm publish; the remaining Grok verification backlog is tracked as N25; Cursor 0.1.1 was published to npm and rolled out to the Cursor marketplace, with the marketplace install path, the next patch's packaging fixes and the per-upgrade drill tracked as N26-N28; Hermes adapter implemented as N29 and probe-verified on Hermes Agent 0.22.5).
+Last updated: **2026-10-31** (seven-package audit: 17 of 21 confirmed issues fixed in the 0.6.2 patch wave; structural/design backlog tracked as N18-N20; Grok adapter implemented as N21 and probe-verified on Grok CLI 1.0.70; Grok plugin id kept as `grok-harnmem` after verifying the explicit `[plugins] enabled` entry wins the shared `harnmem` MCP server; Cursor adapter implemented as N23 and verified on Cursor desktop 3.27.22, with an installer `--doctor` self-check following as N24; the Grok P2 follow-up verified TUI parity, the UserPromptSubmit and `$GROK_HOME/rules` channels, remote marketplace install and the `grok-harnmem@0.1.0` npm publish; the remaining Grok verification backlog is tracked as N25; Cursor 0.1.1 was published to npm and rolled out to the Cursor marketplace, with the marketplace install path, the next patch's packaging fixes and the per-upgrade drill tracked as N26-N28; Hermes adapter implemented as N29 and probe-verified on Hermes Agent 0.22.5; its catalog entry is under review as N30a, and custom extraction headers were assessed and deferred to the backlog).
 
 ## 1. Snapshot
 
@@ -791,11 +791,20 @@ backlog by user decision (2026-10-30).
 - [ ] **N30. Hermes adapter follow-ups.** (a) Submit `hermes-harnmem` to the
   Hermes plugin catalog (`plugin-catalog/harnmem.yaml`: `repo`, a 40-hex `sha`
   pin and `subdir: packages/hermes-harnmem`, `category: memory`,
-  `requires_hermes >= 0.22.5`); (b) support extraction endpoints that require
-  extra request headers (for example `opencode-go`'s `x-opencode-session`) if a
-  compatible `HARNMEM_LLM_*` extension lands in the CLI; (c) re-run the live
-  probe against the next Hermes stable release and re-stamp the design doc's
-  verification table (R1 in `docs/design/13-hermes-adapter.md`).
+  `requires_hermes >= 0.22.5`); (b) re-run the live probe against the next
+  Hermes stable release and re-stamp the design doc's verification table (R1 in
+  `docs/design/13-hermes-adapter.md`).
+
+  *Deferred to the backlog (2026-10-31):* custom request headers for extraction
+  endpoints (`HARNMEM_LLM_HEADERS`) so gateways that require proprietary headers
+  — for example `opencode-go`'s `x-opencode-session` — can serve extraction.
+  Scope check: only the optional HTTP extraction path is affected; injection and
+  the five `harnmem_*` tools need no LLM at all. That path is currently shared
+  only with the CLI `synonyms` command (pi and DSH bridge the host model;
+  claude, Codex, opencode, Grok and Cursor default `autoExtract: false` and pass
+  no `llm`), so the change would be Hermes-only unless the CLI grows the same
+  flag. Not a blocker for the catalog submission or the release; revisit when a
+  real endpoint needs it.
 
 ## 5. Decision log
 
@@ -828,6 +837,7 @@ backlog by user decision (2026-10-30).
 | 2026-10-30 | `prefetch` returns the cached snapshot and rebuilds only on session switch, day rollover, memory write or compaction | Hermes appends prefetch text to every user message; re-rendering each turn would re-pay the injected tokens and churn `api_content`. The cache validity rules mirror the core's own dirty flags |
 | 2026-10-30 | No private Hermes imports in the plugin (catalog rule 9); the bridge inherits the host environment and only prepends the Node directory to `PATH` | `hermes plugins validate` flags `tools.environments.local` / `agent.secret_scope` imports, and the host loads the profile `.env` before plugins run, so a plain `os.environ` copy is sufficient |
 | 2026-10-30 | `hermes-harnmem` stays out of npm and ships through the Hermes plugin manager | The plugin is Python; the Hermes catalog installs git subdirectories, so npm would add no distribution path |
+| 2026-10-31 | Hermes extraction-endpoint custom headers (`HARNMEM_LLM_HEADERS`) deferred to the backlog | Scope check: the affected path is the optional `HARNMEM_LLM_*` HTTP extraction — injection and the five `harnmem_*` tools work without any LLM. No other adapter uses that path (pi/DSH bridge the host model; claude, Codex, opencode, Grok and Cursor default `autoExtract: false` and inject no `llm`), so the change would be Hermes-only unless the CLI's `synonyms` command grows the same flag. Not a blocker for the catalog submission or the release |
 
 ### Trial notes (N1)
 
