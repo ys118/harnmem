@@ -41,13 +41,18 @@ database, no embedding model, and no runtime dependencies in the engine.
   (byte-stable system-prompt injection, five tools, `/memory`, session-end
   journaling).
 - **License:** MIT.
-- **Status:** v0.7.2 — the engine, the CLI/migration tooling and all eight
+- **Status:** v0.7.3 — the engine, the CLI/migration tooling and all eight
   npm-published adapters (pi, DeepSeek Harness, Claude Code, Codex, opencode,
   Grok, Cursor, omp) are published and tested end to end; the Hermes adapter
   (`hermes-harnmem`) is likewise implemented and verified end to end and
-  installs through the Hermes plugin manager. The 0.7.2 release ships the omp
-  and Hermes adapters and fixes a UTF-8 BOM config bug in `pi-harnmem` 0.4.5,
-  on top of the 0.7.0 Grok and Cursor adapters and the 0.6.2 seven-package
+  installs through the Hermes plugin manager. The 0.7.3 release fixes a
+  silent-data-loss core bug (writes with an unknown project id used to create
+  shards no later session could resolve, #42) and re-bumps the
+  engine-embedding adapters; it also publishes `pi-harnmem` 0.4.6 with a
+  preview image in the [pi.dev package gallery](https://pi.dev/packages/pi-harnmem)
+  and the docs-recommended `"*"` peer ranges for host packages; 0.7.2 shipped
+  the omp and Hermes adapters and the UTF-8 BOM config fix, on top of
+  the 0.7.0 Grok and Cursor adapters and the 0.6.2 seven-package
   audit wave (17 of 21 confirmed issues fixed, the structural remainder tracked
   as N18-N20 in the roadmap). The Codex adapter also covers the CLI TUI trust
   flow and Codex Desktop, and backfills sessions from `~/.codex/sessions` until

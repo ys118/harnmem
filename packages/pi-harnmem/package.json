@@ -1,6 +1,6 @@
 {
   "name": "pi-harnmem",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "description": "HarnMem memory extension for the pi coding agent: byte-stable hot-index injection, memory tools, and session-end extraction.",
   "license": "MIT",
   "type": "module",
@@ -11,6 +11,7 @@
     "harnmem"
   ],
   "pi": {
+    "image": "https://raw.githubusercontent.com/ys118/harnmem/master/packages/pi-harnmem/logo.png",
     "extensions": [
       "./pi-harnmem.js"
     ]
@@ -20,6 +21,7 @@
   "files": [
     "pi-harnmem.js",
     "dist/",
+    "logo.png",
     "README.md"
   ],
   "engines": {
@@ -31,9 +33,9 @@
     "test": "node --test test/*.test.mjs"
   },
   "peerDependencies": {
-    "@earendil-works/pi-ai": ">=1.3.0 <2.0.0",
-    "@earendil-works/pi-coding-agent": ">=1.3.0 <2.0.0",
-    "typebox": "^1.3.27"
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
   },
   "devDependencies": {
     "@earendil-works/pi-ai": "1.3.0",

@@ -7,7 +7,7 @@
     {
       "name": "grok-harnmem",
       "description": "Cross-harness persistent memory for Grok CLI: a byte-stable memory index via the MCP server's initialize.instructions, six memory tools, a /grok-harnmem:memory command, and SessionEnd extraction from Grok's own session transcript.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "source": {
         "source": "local",
         "path": "./packages/grok-harnmem"

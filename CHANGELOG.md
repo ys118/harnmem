@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-10-31
+
+### Added
+
+- `pi-harnmem` 0.4.6: `pi.image` preview for the
+  [pi.dev package gallery](https://pi.dev/packages/pi-harnmem) listing, plus the
+  1024×1024 logo in the package so the preview URL stays stable on `master`.
+
+### Changed
+
+- `pi-harnmem` 0.4.6: host-provided peer ranges (`@earendil-works/pi-ai`,
+  `@earendil-works/pi-coding-agent`, `typebox`) are now `"*"`, as the pi package
+  documentation requires for host packages. The UTF-8 BOM config parse fix
+  (#37) first shipped in 0.4.5, which was published manually after the release
+  workflow skipped npm for lack of an `NPM_TOKEN`; 0.4.6 re-publishes it with
+  the gallery metadata and peer ranges.
+
+### Fixed
+
+- `@harnmem/core` 0.4.3: interactive writes with an unknown `project` id fail
+  loudly and list the registered ids instead of creating a sanitized shard no
+  later session can resolve (#42) — a model-driven `memory_write` with a
+  made-up project name used to orphan the record (silent data loss and an
+  empty project-scope hot injection). `importRecords` replays keep tolerating
+  legacy names (`looseProject: true`), and the omp/pi `memory_write` and
+  `memory_search` tool schemas now document the `project` parameter.
+- Engine-embedding adapters are re-bumped so published artifacts carry the
+  fix: `pi-harnmem` 0.4.6 and `omp-harnmem` 0.1.1 (bundled core), plus the
+  vendored `claude-harnmem` 0.4.4, `codex-harnmem` 0.2.4, `cursor-harnmem`
+  0.1.2, `grok-harnmem` 0.1.1, `opencode-harnmem` 0.1.2 and `hermes-harnmem`
+  0.1.1. `@harnmem/cli` and `dsh-harnmem` declare `@harnmem/core` at
+  `^0.4.2` as a runtime dependency and pick the fix up without a bump.
+
 ## [0.7.2] - 2026-10-31
 
 ### Added
