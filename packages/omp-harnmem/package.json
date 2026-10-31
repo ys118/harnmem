@@ -1,6 +1,6 @@
 {
   "name": "omp-harnmem",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "HarnMem memory plugin for oh-my-pi (omp): byte-stable hot-index injection, memory tools, and session-end extraction.",
   "license": "MIT",
   "type": "module",

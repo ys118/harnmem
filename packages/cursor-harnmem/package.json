@@ -1,6 +1,6 @@
 {
   "name": "cursor-harnmem",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": false,
   "type": "module",
   "description": "Cursor plugin for HarnMem: injects a byte-stable memory index on the first prompt of every conversation, exposes five memory tools over a bundled MCP stdio server, and journals transcripts on session end. Store lives in ~/.harnmem as plain Markdown + YAML, shared with other harnesses.",

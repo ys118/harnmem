@@ -124,12 +124,12 @@ only record an approval that was already granted in an issue comment.
 
 ## Project layout
 
-Ten packages are published on npm: `@harnmem/core` 0.4.2,
-`@harnmem/cli` 0.4.1, `pi-harnmem` 0.4.5, `dsh-harnmem` 0.4.2, `claude-harnmem`
-0.4.3, `codex-harnmem` 0.2.3, `opencode-harnmem` 0.1.1, `grok-harnmem` 0.1.0,
-`cursor-harnmem` 0.1.1 and `omp-harnmem` 0.1.0. The newest adapters follow the
+Ten packages are published on npm: `@harnmem/core` 0.4.3,
+`@harnmem/cli` 0.4.1, `pi-harnmem` 0.4.6, `dsh-harnmem` 0.4.2, `claude-harnmem`
+0.4.4, `codex-harnmem` 0.2.4, `opencode-harnmem` 0.1.2, `grok-harnmem` 0.1.1,
+`cursor-harnmem` 0.1.2 and `omp-harnmem` 0.1.1. The newest adapters follow the
 same zero-runtime-dependency, vendored-core rules as the others. `hermes-harnmem`
-0.1.0 is the exception: it is a Python plugin installed through Hermes' own
+0.1.1 is the exception: it is a Python plugin installed through Hermes' own
 plugin manager (`hermes plugins install`), so it is not published to npm.
 
 | Path | Package | What it is |
