@@ -1,0 +1,57 @@
+{
+  "name": "@harnmem/omp-harnmem",
+  "version": "0.1.0",
+  "description": "HarnMem memory plugin for oh-my-pi (omp): byte-stable hot-index injection, memory tools, and session-end extraction.",
+  "license": "MIT",
+  "type": "module",
+  "keywords": [
+    "omp",
+    "omp-plugin",
+    "oh-my-pi",
+    "memory",
+    "harnmem"
+  ],
+  "omp": {
+    "extensions": [
+      "./omp-harnmem.js"
+    ]
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "omp-harnmem.js",
+    "dist/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22.15"
+  },
+  "scripts": {
+    "build": "tsdown && node scripts/vendor-assets.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test test/*.test.mjs"
+  },
+  "peerDependencies": {
+    "@oh-my-pi/pi-ai": ">=18.14.1 <19.0.0",
+    "@oh-my-pi/pi-coding-agent": ">=18.14.1 <19.0.0"
+  },
+  "devDependencies": {
+    "@harnmem/core": "workspace:^",
+    "@oh-my-pi/pi-ai": "18.14.1",
+    "@oh-my-pi/pi-coding-agent": "18.14.1",
+    "tsdown": "^0.22.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ys118/harnmem.git",
+    "directory": "packages/omp-harnmem"
+  },
+  "homepage": "https://github.com/ys118/harnmem/tree/master/packages/omp-harnmem#readme",
+  "bugs": {
+    "url": "https://github.com/ys118/harnmem/issues"
+  },
+  "author": "HarnMem contributors"
+}

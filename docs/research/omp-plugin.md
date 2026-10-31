@@ -35,6 +35,7 @@
 - `before_agent_start` 事件 keys=`[reason, prompt, images, systemPrompt]`（`reason:"prompt"`）；事件到达时 `systemPrompt` 长度仅 2（完整系统提示此时尚未组装）。
 - **mutation `event.systemPrompt=...` 与 return `{systemPrompt}` 都生效**：两个 marker 都出现在最终 provider payload 的 `messages[0]`（role=system）**末尾**（payload len=10997，marker@10988）——追加语义，与 pi-harnmem 的快照注入模式吻合。payload 为 OpenAI 形状 `{model, messages, stream, stream_options, tools, max_completion_tokens, reasoning_effort}`，无顶层 `system` 字段。
 - 源码确认返回契约：`before_agent_start` handler 返回 `{message?, systemPrompt?: string[]}`（`types.ts:1733-1737`），"Replace policy for the next request and its continuations"；handlers 从当前 base system prompt 链式覆盖，base 变更触发重试（最多 3 次）。
+- **实现期修正（omp-harnmem e2e，2026-10-31）**：运行时 `event.systemPrompt` 实际是 **string**（"长度仅 2" 即 2 字符字符串）；按类型声明返回 `{systemPrompt: string[]}` 会被**静默丢弃**（provider payload 与无注入基线字节一致），原地 mutation 数组同样无效。只有返回 `{systemPrompt: <string>}`（base + `"\n\n"` + block）才落 payload——omp-harnmem 按字符串语义实现并经 `before_provider_request` 字节断言验证（`injected:true`，sha 与注入日志一致，同会话多 turn 字节稳定）。类型与运行时不一致是 omp 18.14.1 自身缺陷。
 - TUI 下无 provider/shortcut/composer/file-fallback 的扩展**延迟加载**（composer 接受输入后才 bind，`session_start` 补发，首条消息等待加载）→ **注入必须锚在 `before_agent_start`，不能锚 `session_start`**。resume/`--tools`/未知 flag 启动则全量预载。
 
 ### 3.4 事件面 ✅（注册全部成功，顺序实测）
