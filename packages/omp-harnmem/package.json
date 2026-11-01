@@ -1,6 +1,6 @@
 {
   "name": "omp-harnmem",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "oh-my-pi (omp) plugin for HarnMem, the cross-harness agent memory: byte-stable system-prompt injection, five memory tools, /memory, and session-end journaling. One shared store of plain, human-editable Markdown under ~/.harnmem — no server, no vector database.",
   "license": "MIT",
   "type": "module",

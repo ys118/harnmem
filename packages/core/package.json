@@ -1,6 +1,6 @@
 {
   "name": "@harnmem/core",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Cross-harness agent memory engine: one shared store of plain, human-editable Markdown under ~/.harnmem — no server, no vector database, no embedding model, zero runtime dependencies. Memories written in one coding agent are available in every other.",
   "license": "MIT",
   "type": "module",

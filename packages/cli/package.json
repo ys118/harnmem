@@ -1,6 +1,6 @@
 {
   "name": "@harnmem/cli",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "CLI for HarnMem, the cross-harness agent memory: inspect, edit, search and consolidate the shared store of plain, human-editable Markdown under ~/.harnmem. Idempotent importers for DSH, pi, ZCode and Claude Code sessions, Markdown, JSON/JSONL/stdin, with auto-discovery. No server, no vector database, no embedding model.",
   "license": "MIT",
   "type": "module",

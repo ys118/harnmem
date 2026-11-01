@@ -1,6 +1,6 @@
 {
   "name": "dsh-harnmem",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "DSH (DeepSeek Harness) plugin for HarnMem, the cross-harness agent memory: byte-stable hot-index injection, memory tools, session-end extraction, and a read-only memory browser panel. One shared store of plain, human-editable Markdown under ~/.harnmem — no server, no vector database.",
   "license": "MIT",
   "type": "module",
