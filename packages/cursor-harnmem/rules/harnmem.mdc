@@ -14,24 +14,24 @@ A stable memory index may already be in your context as a system reminder
 not as the full store.
 
 If no snapshot is present, this install did not register the injection hook:
-call `memory_search` yourself before answering questions about the user's
+call `harnmem_search` yourself before answering questions about the user's
 preferences, decisions, conventions or past project facts, and mention once that
 `npx cursor-harnmem` enables automatic injection.
 
 ## When to use the memory tools
 
-The bundled MCP server `harnmem` exposes `memory_search`, `memory_read`,
-`memory_write`, `memory_forget`, `memory_status`.
+The bundled MCP server `harnmem` exposes `harnmem_search`, `harnmem_read`,
+`harnmem_write`, `harnmem_forget`, `harnmem_status`.
 
 - **Search before asking.** If the user refers to a preference, decision,
-  convention, or fact they may have stated before, call `memory_search` first.
-- **Read before citing.** `memory_search` returns ids and one-line
-  descriptions; call `memory_read` for the full record.
-- **Write durable facts only.** Use `memory_write` for user preferences,
+  convention, or fact they may have stated before, call `harnmem_search` first.
+- **Read before citing.** `harnmem_search` returns ids and one-line
+  descriptions; call `harnmem_read` for the full record.
+- **Write durable facts only.** Use `harnmem_write` for user preferences,
   feedback/corrections, project decisions and conventions, and references.
   Do not store transient task state, code that is already in the repo, or
   secrets/credentials.
-- **Forget carefully.** `memory_forget` moves a record to trash by default;
+- **Forget carefully.** `harnmem_forget` moves a record to trash by default;
   `hard: true` is irreversible, so confirm with the user first.
 - **Status** summarizes shards, index freshness, and health warnings.
 

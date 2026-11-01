@@ -5,13 +5,13 @@
  * One server carries all four adapter-contract layers (probe-verified,
  * docs/research/codex-plugin.md):
  *  - Tools: the five canonical memory tools
- *    (memory_search / memory_read / memory_write / memory_forget /
- *    memory_status) as mcp__harnmem__memory_* once installed as a plugin.
+ *    (harnmem_search / harnmem_read / harnmem_write / harnmem_forget /
+ *    harnmem_status) as mcp__harnmem__memory_* once installed as a plugin.
  *  - Injection: the SessionStart hook is a mcp_tool hook targeting
- *    `memory_context`; Codex materializes the tool's text return as a
+ *    `harnmem_context`; Codex materializes the tool's text return as a
  *    developer message (content kind `hooks.additional_context`), which is how
  *    the byte-stable snapshot enters the rollout.
- *  - Lifecycle: the SessionEnd hook targets `memory_session_end`, which writes
+ *  - Lifecycle: the SessionEnd hook targets `harnmem_session_end`, which writes
  *    a payload file and spawns the detached extract worker (Codex hook
  *    timeouts are 1-3 s, far below extraction budget; see
  *    lib/extract-worker.mjs).
@@ -65,7 +65,7 @@ function textResult(text, isError = false) {
 
 const TOOL_DEFINITIONS = [
   {
-    name: "memory_search",
+    name: "harnmem_search",
     description:
       "Search persistent cross-harness memory (user preferences, feedback, project decisions, references). Natural-language query; Chinese is matched by bigram. Prefer this before re-asking the user for known preferences or decisions.",
     inputSchema: {
@@ -83,7 +83,7 @@ const TOOL_DEFINITIONS = [
     },
   },
   {
-    name: "memory_read",
+    name: "harnmem_read",
     description: "Read one memory in full by id, including backlinks and optionally older versions.",
     inputSchema: {
       type: "object",
@@ -96,7 +96,7 @@ const TOOL_DEFINITIONS = [
     },
   },
   {
-    name: "memory_write",
+    name: "harnmem_write",
     description:
       "Store one durable memory (preference, lesson, decision, project fact). Only when genuinely valuable; do not store transient task state. Returns one line with the id and action (NEW/SKIP/MERGE/SUPERSEDE/LINK).",
     inputSchema: {
@@ -120,7 +120,7 @@ const TOOL_DEFINITIONS = [
     },
   },
   {
-    name: "memory_forget",
+    name: "harnmem_forget",
     description: "Forget one memory. Default moves it to trash for a grace period; hard=true deletes physically and cannot be undone.",
     inputSchema: {
       type: "object",
@@ -132,8 +132,8 @@ const TOOL_DEFINITIONS = [
     },
   },
   {
-    // No parameters: core stats() is store-wide (same as pi memory_status).
-    name: "memory_status",
+    // No parameters: core stats() is store-wide (same as pi harnmem_status).
+    name: "harnmem_status",
     description: "Show HarnMem store health: shards, index freshness, duplicates, extraction backlog.",
     inputSchema: { type: "object", properties: {} },
   },
@@ -141,9 +141,9 @@ const TOOL_DEFINITIONS = [
     // Internal: target of the SessionStart mcp_tool hook. Registered in
     // tools/list because Codex resolves hook tools by name, but the model is
     // not expected to call it.
-    name: "memory_context",
+    name: "harnmem_context",
     description:
-      "Internal (SessionStart hook target). Returns the byte-stable HarnMem memory snapshot injected at session start. Do not call manually; use memory_search instead.",
+      "Internal (SessionStart hook target). Returns the byte-stable HarnMem memory snapshot injected at session start. Do not call manually; use harnmem_search instead.",
     inputSchema: {
       type: "object",
       properties: {
@@ -156,7 +156,7 @@ const TOOL_DEFINITIONS = [
   {
     // Internal: target of the SessionEnd mcp_tool hook. Spawns the detached
     // extract worker and returns immediately (hook timeout 1-3 s).
-    name: "memory_session_end",
+    name: "harnmem_session_end",
     description:
       "Internal (SessionEnd hook target). Schedules deferred HarnMem extraction for the ending session. Do not call manually.",
     inputSchema: {
@@ -214,14 +214,14 @@ async function callTool(name, args, ctx) {
   }
   const { settings, sessionId, cwd } = ctx;
   switch (name) {
-    case "memory_context":
+    case "harnmem_context":
       return memoryContext(args, ctx);
-    case "memory_session_end":
+    case "harnmem_session_end":
       return memorySessionEnd(args, ctx);
   }
   const eng = await getEngine(settings, { sessionId, cwd, readOnly: false });
   switch (name) {
-    case "memory_search": {
+    case "harnmem_search": {
       const result = await eng.search({
         query: String(args.query || ""),
         limit: Number.isFinite(Number(args.limit)) && Number(args.limit) > 0 ? Math.floor(Number(args.limit)) : 8,
@@ -233,14 +233,14 @@ async function callTool(name, args, ctx) {
       });
       return textResult(formatSearch(result));
     }
-    case "memory_read": {
+    case "harnmem_read": {
       const result = await eng.read(String(args.id || ""), {
         asOf: typeof args.as_of === "string" ? args.as_of : undefined,
         includeHistory: args.include_history === true,
       });
       return textResult(formatRead(result, String(args.id || "")));
     }
-    case "memory_write": {
+    case "harnmem_write": {
       // Schema is a hint, not a guard (contract §3.6): old prompts may send
       // out-of-range numbers, so clamp like pi tools.ts does. The engine
       // clamps again, but never trust the transport.
@@ -263,11 +263,11 @@ async function callTool(name, args, ctx) {
       eng.noteModelWrite();
       return textResult(formatWrite(result));
     }
-    case "memory_forget": {
+    case "harnmem_forget": {
       const result = await eng.forget(String(args.id || ""), { hard: args.hard === true });
       return textResult(formatForget(result));
     }
-    case "memory_status": {
+    case "harnmem_status": {
       const stats = await eng.stats();
       return textResult(formatStats(stats));
     }
@@ -401,8 +401,8 @@ async function handleRequest(msg, ctx) {
         if (ctx.settings.enabled === false) {
           // Hook targets must degrade silently (empty injection, no capture)
           // instead of surfacing an error text into the rollout.
-          if (params.name === "memory_context") return textResult("");
-          if (params.name === "memory_session_end") return textResult("harnmem is disabled, skipped session-end capture");
+          if (params.name === "harnmem_context") return textResult("");
+          if (params.name === "harnmem_session_end") return textResult("harnmem is disabled, skipped session-end capture");
           return textResult("HarnMem is disabled on this machine (HARNMEM_DISABLED or config). Enable it in ~/.harnmem/config.json.", true);
         }
         return await callTool(params.name, params.arguments || {}, ctx);

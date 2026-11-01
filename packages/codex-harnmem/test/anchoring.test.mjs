@@ -16,8 +16,8 @@ const THREAD = "019a2b3c-anchor";
  * Session anchoring is the adapter's provenance contract: only the hook
  * templates carry the real Codex thread id, and every later model tool call
  * (which has no session_id) must reuse it instead of opening an unanchored
- * engine. Pinned down end-to-end: the anchor arrives through memory_context,
- * a session-less memory_write lands with source.session === anchor, and the
+ * engine. Pinned down end-to-end: the anchor arrives through harnmem_context,
+ * a session-less harnmem_write lands with source.session === anchor, and the
  * anchoring cwd re-resolves settings so a project-level .harnmem.json
  * (inject:false) silences injection.
  */
@@ -35,7 +35,7 @@ test("hook call anchors the session; session-less writes inherit it; anchored cw
       id: 2,
       method: "tools/call",
       params: {
-        name: "memory_context",
+        name: "harnmem_context",
         arguments: { hook_event_name: "SessionStart", session_id: THREAD, cwd: project },
       },
     });
@@ -48,7 +48,7 @@ test("hook call anchors the session; session-less writes inherit it; anchored cw
       id: 3,
       method: "tools/call",
       params: {
-        name: "memory_write",
+        name: "harnmem_write",
         arguments: {
           type: "project",
           title: "anchoring probe",
@@ -82,7 +82,7 @@ test("hook call anchors the session; session-less writes inherit it; anchored cw
 });
 
 function startServer(env) {
-  // Pin CODEX_HOME and the payload dir to empty tmp dirs: memory_context
+  // Pin CODEX_HOME and the payload dir to empty tmp dirs: harnmem_context
   // triggers backfill, which would otherwise scan the developer's real
   // ~/.codex and race detached workers against the tmp-home cleanup below.
   const sandboxCodexHome = mkdtempSync(path.join(os.tmpdir(), "harnmem-cx-anchor-code-"));

@@ -10,7 +10,7 @@
  * Four layers, all in-process (no MCP server, no transcript files):
  *   1. Injection  — ctx.session.hook("context"): push one byte-stable part
  *                   into inp.system on every LLM request (cached per session).
- *   2. Tools      — ctx.tool.transform: native memory_write/search/read/
+ *   2. Tools      — ctx.tool.transform: native harnmem_write/search/read/
  *                   forget/status with plain JSON-Schema args (no zod).
  *   3. Lifecycle  — ctx.session.hook("prompt"): journal the transcript tail
  *                   via eng.sessionEnd each turn; abrupt exits lose at most
@@ -39,7 +39,7 @@ const MAX_ENGINES = 8;
 const MEMORY_TYPES = ["user", "feedback", "project", "reference"];
 const CATEGORIES = ["profile", "preference", "decision", "convention", "lesson", "pitfall", "state", "external"];
 const SCOPES = ["auto", "user", "project"];
-/** memory_search scope: SearchOptions.scope has no "auto" mode (write-only concept). */
+/** harnmem_search scope: SearchOptions.scope has no "auto" mode (write-only concept). */
 const SEARCH_SCOPES = ["user", "project", "all"];
 
 /**
@@ -302,7 +302,7 @@ export function createPluginState(deps = {}) {
 
     async toolWrite(rawArgs, tc) {
       const args = normalizeArgs(rawArgs);
-      return this.toolRun("memory_write", args, tc, async (eng) => {
+      return this.toolRun("harnmem_write", args, tc, async (eng) => {
         const input = { ...args };
         // Clamp only real numbers; null/junk must be dropped entirely so
         // core's defaults apply (importance 5 / confidence 0.7), not 0.
@@ -320,13 +320,13 @@ export function createPluginState(deps = {}) {
         const result = await eng.write(input);
         if (["NEW", "MERGE", "SUPERSEDE", "LINK"].includes(result.action)) eng.noteModelWrite();
         this.debug("tool.write", { id: result.id, action: result.action });
-        return { title: "memory_write", content: [{ type: "text", text: formatWrite(result) }], metadata: { id: result.id, action: result.action } };
+        return { title: "harnmem_write", content: [{ type: "text", text: formatWrite(result) }], metadata: { id: result.id, action: result.action } };
       });
     },
 
     async toolSearch(rawArgs, tc) {
       const args = normalizeArgs(rawArgs, "query");
-      return this.toolRun("memory_search", args, tc, async (eng) => {
+      return this.toolRun("harnmem_search", args, tc, async (eng) => {
         const scope = args.scope === "auto" ? "all" : args.scope; // defensive: "auto" was a write-only concept
         const result = await eng.search({
           query: args.query,
@@ -340,33 +340,33 @@ export function createPluginState(deps = {}) {
           debug: args.debug,
         });
         this.debug("tool.search", { query: args.query, hits: result.results?.length, abstained: result.abstained });
-        return { title: "memory_search", content: [{ type: "text", text: formatSearch(result) }], metadata: { total: result.total, abstained: result.abstained } };
+        return { title: "harnmem_search", content: [{ type: "text", text: formatSearch(result) }], metadata: { total: result.total, abstained: result.abstained } };
       });
     },
 
     async toolRead(rawArgs, tc) {
       const args = normalizeArgs(rawArgs, "id");
-      return this.toolRun("memory_read", args, tc, async (eng) => {
+      return this.toolRun("harnmem_read", args, tc, async (eng) => {
         const result = await eng.read(args.id, { asOf: args.as_of, includeHistory: args.include_history });
         this.debug("tool.read", { id: args.id, found: result !== null });
-        return { title: "memory_read", content: [{ type: "text", text: formatRead(result, args.id) }], metadata: { found: result !== null } };
+        return { title: "harnmem_read", content: [{ type: "text", text: formatRead(result, args.id) }], metadata: { found: result !== null } };
       });
     },
 
     async toolForget(rawArgs, tc) {
       const args = normalizeArgs(rawArgs, "id");
-      return this.toolRun("memory_forget", args, tc, async (eng) => {
+      return this.toolRun("harnmem_forget", args, tc, async (eng) => {
         const result = await eng.forget(args.id, { hard: args.hard === true });
         this.debug("tool.forget", { id: args.id, mode: result.mode, ok: result.ok });
-        return { title: "memory_forget", content: [{ type: "text", text: formatForget(result) }], metadata: { ok: result.ok, mode: result.mode } };
+        return { title: "harnmem_forget", content: [{ type: "text", text: formatForget(result) }], metadata: { ok: result.ok, mode: result.mode } };
       });
     },
 
     async toolStatus(rawArgs, tc) {
       const args = normalizeArgs(rawArgs);
-      return this.toolRun("memory_status", args, tc, async (eng) => {
+      return this.toolRun("harnmem_status", args, tc, async (eng) => {
         const stats = await eng.stats();
-        return { title: "memory_status", content: [{ type: "text", text: formatStats(stats) }], metadata: { version: stats.version } };
+        return { title: "harnmem_status", content: [{ type: "text", text: formatStats(stats) }], metadata: { version: stats.version } };
       });
     },
 
@@ -388,18 +388,18 @@ export function createPluginState(deps = {}) {
 }
 
 const TOOL_DESCRIPTIONS = {
-  memory_write:
+  harnmem_write:
     "Store a durable memory (user preference, feedback/lesson, project fact, reference). " +
     "Use for facts worth remembering across sessions; do not store transient chat. " +
     "Returns a one-line outcome (NEW/SKIP/MERGE/SUPERSEDE/LINK).",
-  memory_search:
+  harnmem_search:
     "Search long-term memory by lexical/semantic-free BM25 over titles, descriptions, tags, entities and bodies. " +
     "Use before asking the user to repeat something or before making project decisions.",
-  memory_read: "Open one memory record by id (frontmatter summary + body + backlinks).",
-  memory_forget:
+  harnmem_read: "Open one memory record by id (frontmatter summary + body + backlinks).",
+  harnmem_forget:
     "Forget a memory. Default moves it to trash (restorable); hard=true deletes permanently. " +
     "Use when the user corrects a fact or asks to forget something.",
-  memory_status: "Show memory store health: shards, counts, capacities and pending events. Useful before large writes.",
+  harnmem_status: "Show memory store health: shards, counts, capacities and pending events. Useful before large writes.",
 };
 
 const strEnum = (values, description) => ({ type: "string", enum: [...values], ...(description ? { description } : {}) });
@@ -410,7 +410,7 @@ const strArr = (description) => ({ type: "array", items: { type: "string" }, ...
 const opt = (schema, description) => ({ ...schema, ...(description ? { description } : {}), optional: true });
 
 const TOOL_ARGS = {
-  memory_write: {
+  harnmem_write: {
     type: strEnum(MEMORY_TYPES, "Memory type."),
     title: { type: "string", description: "Short title (<=80 chars), shown in the hot index." },
     content: { type: "string", description: "Full memory body in markdown." },
@@ -428,7 +428,7 @@ const TOOL_ARGS = {
     evidence: opt(strArr()),
     sensitive: opt({ type: "boolean" }, "Do not inject into the prompt; retrieval only."),
   },
-  memory_search: {
+  harnmem_search: {
     query: { type: "string", description: "Keywords, names, or a short natural-language query." },
     limit: opt({ type: "number" }, "Max results, default 8."),
     scope: opt(strEnum(SEARCH_SCOPES), "Search scope."),
@@ -439,16 +439,16 @@ const TOOL_ARGS = {
     entity: opt({ type: "string" }),
     debug: opt({ type: "boolean" }, "Return match diagnostics with the results."),
   },
-  memory_read: {
+  harnmem_read: {
     id: { type: "string", description: "Memory id, e.g. mem_..." },
     as_of: opt({ type: "string" }, "ISO date or epoch-ms: view the record as it was at that instant."),
     include_history: opt({ type: "boolean" }, "Include superseded versions."),
   },
-  memory_forget: {
+  harnmem_forget: {
     id: { type: "string", description: "Memory id, e.g. mem_..." },
     hard: opt({ type: "boolean" }, "true = permanent delete; default move to trash"),
   },
-  memory_status: {},
+  harnmem_status: {},
 };
 
 export default {
@@ -482,11 +482,11 @@ export default {
     try {
       disposers.push(
         await ctx.tool.transform((reg) => {
-          reg.add({ name: "memory_write", description: TOOL_DESCRIPTIONS.memory_write, args: TOOL_ARGS.memory_write, execute: (a, tc) => state.toolWrite(a, tc) });
-          reg.add({ name: "memory_search", description: TOOL_DESCRIPTIONS.memory_search, args: TOOL_ARGS.memory_search, execute: (a, tc) => state.toolSearch(a, tc) });
-          reg.add({ name: "memory_read", description: TOOL_DESCRIPTIONS.memory_read, args: TOOL_ARGS.memory_read, execute: (a, tc) => state.toolRead(a, tc) });
-          reg.add({ name: "memory_forget", description: TOOL_DESCRIPTIONS.memory_forget, args: TOOL_ARGS.memory_forget, execute: (a, tc) => state.toolForget(a, tc) });
-          reg.add({ name: "memory_status", description: TOOL_DESCRIPTIONS.memory_status, args: TOOL_ARGS.memory_status, execute: (a, tc) => state.toolStatus(a, tc) });
+          reg.add({ name: "harnmem_write", description: TOOL_DESCRIPTIONS.harnmem_write, args: TOOL_ARGS.harnmem_write, execute: (a, tc) => state.toolWrite(a, tc) });
+          reg.add({ name: "harnmem_search", description: TOOL_DESCRIPTIONS.harnmem_search, args: TOOL_ARGS.harnmem_search, execute: (a, tc) => state.toolSearch(a, tc) });
+          reg.add({ name: "harnmem_read", description: TOOL_DESCRIPTIONS.harnmem_read, args: TOOL_ARGS.harnmem_read, execute: (a, tc) => state.toolRead(a, tc) });
+          reg.add({ name: "harnmem_forget", description: TOOL_DESCRIPTIONS.harnmem_forget, args: TOOL_ARGS.harnmem_forget, execute: (a, tc) => state.toolForget(a, tc) });
+          reg.add({ name: "harnmem_status", description: TOOL_DESCRIPTIONS.harnmem_status, args: TOOL_ARGS.harnmem_status, execute: (a, tc) => state.toolStatus(a, tc) });
         }),
       );
     } catch (err) {

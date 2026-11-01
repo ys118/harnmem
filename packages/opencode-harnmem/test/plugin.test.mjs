@@ -183,7 +183,7 @@ test("setup registers context+prompt hooks and five tools; version gate blocks v
   assert.equal(good.tools.length, 5);
   assert.deepEqual(
     good.tools.map((t) => t.name),
-    ["memory_write", "memory_search", "memory_read", "memory_forget", "memory_status"],
+    ["harnmem_write", "harnmem_search", "harnmem_read", "harnmem_forget", "harnmem_status"],
   );
   for (const t of good.tools) {
     assert.equal(typeof t.execute, "function");

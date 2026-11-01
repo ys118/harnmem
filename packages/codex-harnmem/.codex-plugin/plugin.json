@@ -27,7 +27,7 @@
             {
               "type": "mcp_tool",
               "server": "harnmem",
-              "tool": "memory_context",
+              "tool": "harnmem_context",
               "input": {
                 "hook_event_name": "${hook_event_name}",
                 "session_id": "${session_id}",
@@ -43,7 +43,7 @@
             {
               "type": "mcp_tool",
               "server": "harnmem",
-              "tool": "memory_session_end",
+              "tool": "harnmem_session_end",
               "input": {
                 "hook_event_name": "${hook_event_name}",
                 "session_id": "${session_id}",

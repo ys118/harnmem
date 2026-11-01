@@ -59,7 +59,7 @@ export {
   type SyncHotContextOptions,
   type SyncHotContextResult,
 } from "./hot-context.js";
-export { layoutHotContext, renderContextText, CONTEXT_HEADER, CONTEXT_FOOTER } from "./retrieval.js";
+export { layoutHotContext, renderContextText, contextFooter, CONTEXT_HEADER, CONTEXT_FOOTER } from "./retrieval.js";
 export type { HotContextLayout, HotContextOptions, HotDigest } from "./retrieval.js";
 export { MemoryInspector, openInspector } from "./inspect.js";
 export type {

@@ -65,6 +65,8 @@ export class Adapter {
       project: settings.settings.project,
       llm: this.readOnly || this.isChild ? null : llm?.fn ?? null,
       readOnly: this.readOnly,
+      // Keep the injected SSOT footer in sync with the registered tool names.
+      toolPrefix: settings.toolPrefix,
       budget: settings.settings.maxInjectTokens ? { injectTokens: settings.settings.maxInjectTokens } : undefined,
       write: {
         autoExtract: settings.autoExtract && !this.isChild,

@@ -46,10 +46,10 @@ export interface OmpHarnMemSettings {
   /** Override search result token budget (engine default 1200). */
   maxSearchTokens?: number;
   /**
-   * Prefix for the registered tool names (default `memory_`, giving
-   * `memory_write`, `memory_search`, ...). Set another prefix such as
-   * `harnmem_` to run side by side with an extension that already owns the
-   * `memory_*` names.
+   * Prefix for the registered tool names (default `harnmem_`, giving
+   * `harnmem_write`, `harnmem_search`, ...). The default used to be
+   * `memory_`, which collided with extensions that own the `memory_*` names;
+   * set `memory_` explicitly to restore the old behavior.
    */
   toolPrefix?: string;
   log?: LogMode;
@@ -65,7 +65,7 @@ export interface EffectiveSettings {
   /** Draw the footer status line (default true). */
   statusLine: boolean;
   autoExtract: boolean;
-  /** Prefix used for the registered tool names, e.g. `memory_` or `harnmem_`. */
+  /** Prefix used for the registered tool names, e.g. `harnmem_` or `memory_`. */
   toolPrefix: string;
   log: LogMode;
   debug: boolean;
@@ -82,7 +82,7 @@ const DEFAULTS = {
   inject: true,
   statusLine: true,
   autoExtract: false,
-  toolPrefix: "memory_",
+  toolPrefix: "harnmem_",
   log: "errors" as LogMode,
   debug: false,
 };

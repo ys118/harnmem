@@ -17,7 +17,7 @@ import { budgetOf, retrievalOf } from "./config.js";
 import { parseFrontmatter } from "./frontmatter.js";
 import type { DocMeta, ShardIndexJson } from "./indexer.js";
 import { normalizePathKey, type ProjectsFile } from "./project.js";
-import { layoutHotContext, renderContextText, type HotDigest } from "./retrieval.js";
+import { layoutHotContext, renderContextText, contextFooter, type HotDigest } from "./retrieval.js";
 import type { HarnMemConfig } from "./types.js";
 
 /** Options accepted by {@link renderHotContextSync}. */
@@ -28,8 +28,8 @@ export interface SyncHotContextOptions {
   cwd?: string;
   /** Clock override for deterministic tests. */
   now?: number;
-  /** Budget/retrieval overrides; omitted fields fall back to defaults. */
-  config?: Partial<Pick<HarnMemConfig, "budget" | "retrieval">>;
+  /** Budget/retrieval/tool-prefix overrides; omitted fields fall back to defaults. */
+  config?: Partial<Pick<HarnMemConfig, "budget" | "retrieval" | "toolPrefix">>;
 }
 
 /** Result of the synchronous cold-start render. */
@@ -188,7 +188,7 @@ export function renderHotContextSync(options: SyncHotContextOptions): SyncHotCon
     hotEntries: budgetConfig.hotEntries,
     decayPerHour: retrieval.decayPerHour,
   });
-  const text = layout.hasContent ? renderContextText(layout.sections) : "";
+  const text = layout.hasContent ? renderContextText(layout.sections, contextFooter(options.config?.toolPrefix)) : "";
   return {
     text,
     ids: layout.ids,

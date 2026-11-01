@@ -12,7 +12,7 @@ The plugin is a thin adapter. Storage, retrieval, deduplication and lifecycle li
 
 - **Injection** — one prompt section (`harnmem:hot-index`, order `4050`) renders the
   in-memory hot index. Text is identical across turns (provider prefix cache stays warm);
-  it is rebuilt only at session start, compaction, after a `memory_write` in the same
+  it is rebuilt only at session start, compaction, after a write in the same
   session, on a local-day rollover, and after manual consolidation. An empty store
   injects `""` (zero tokens). On the first prompt of a fresh process the snapshot may not
   be ready yet, so the section falls back to a synchronous disk render of the persisted
@@ -158,7 +158,7 @@ failures `500`. The browser bundle (`dist/client.js`) is built by `tsdown` into 
 
 - No credentials, tokens or cookies should be stored; core redacts obvious secrets before
   injection and keeps sensitive records out of the default search path.
-- `memory_forget` moves records to a 30-day trash by default; `hard: true` deletes
+- `harnmem_forget` moves records to a 30-day trash by default; `hard: true` deletes
   physically and is audited.
 - The plugin never writes to DSH's own config, session logs or profile directory.
 

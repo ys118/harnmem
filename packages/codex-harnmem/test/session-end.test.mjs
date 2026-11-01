@@ -27,7 +27,7 @@ function userMsg(text) {
  * autoExtract=false the extraction itself records the audited
  * `auto_extract_off` skip — the journal is what this test pins down.
  */
-test("memory_session_end (sync): journals the rollout and consumes the payload", async () => {
+test("harnmem_session_end (sync): journals the rollout and consumes the payload", async () => {
   const home = await mkdtemp(path.join(os.tmpdir(), "harnmem-cx-end-"));
   const codexHome = await mkdtemp(path.join(os.tmpdir(), "harnmem-cx-codehome-"));
   try {
@@ -107,14 +107,14 @@ test("memory_session_end (sync): journals the rollout and consumes the payload",
         jsonrpc: "2.0",
         id: 2,
         method: "tools/call",
-        params: { name: "memory_context", arguments: { hook_event_name: "SessionStart", session_id: THREAD, cwd: CWD } },
+        params: { name: "harnmem_context", arguments: { hook_event_name: "SessionStart", session_id: THREAD, cwd: CWD } },
       });
       await recv(2);
       send({
         jsonrpc: "2.0",
         id: 3,
         method: "tools/call",
-        params: { name: "memory_session_end", arguments: { hook_event_name: "SessionEnd", session_id: THREAD, cwd: CWD } },
+        params: { name: "harnmem_session_end", arguments: { hook_event_name: "SessionEnd", session_id: THREAD, cwd: CWD } },
       });
       const end = await recv(3);
       const text = end.result.content[0].text;

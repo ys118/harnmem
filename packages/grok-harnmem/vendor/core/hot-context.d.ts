@@ -7,8 +7,8 @@ export interface SyncHotContextOptions {
     cwd?: string;
     /** Clock override for deterministic tests. */
     now?: number;
-    /** Budget/retrieval overrides; omitted fields fall back to defaults. */
-    config?: Partial<Pick<HarnMemConfig, "budget" | "retrieval">>;
+    /** Budget/retrieval/tool-prefix overrides; omitted fields fall back to defaults. */
+    config?: Partial<Pick<HarnMemConfig, "budget" | "retrieval" | "toolPrefix">>;
 }
 /** Result of the synchronous cold-start render. */
 export interface SyncHotContextResult {

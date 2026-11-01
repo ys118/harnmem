@@ -41,7 +41,7 @@ In a pi session:
 
 ```text
 You: remember this project uses pnpm — never npm install.
-pi:  → memory_write(...) → stored mem_01J8... (NEW)
+pi:  → harnmem_write(...) → stored mem_01J8... (NEW)
 ```
 
 Next session, the hot index is injected automatically:
@@ -51,7 +51,7 @@ Next session, the hot index is injected automatically:
 
 - 📌 [user] Dependencies in this project use pnpm — never npm install (avoids lockfile drift) (mem_01J8...)
 
-<!-- SSOT: ~/.harnmem. Use memory_search for details; never invent memory ids. ... -->
+<!-- SSOT: ~/.harnmem. Use harnmem_search for details; never invent memory ids. ... -->
 ```
 
 An empty store injects **nothing** (0 bytes).
@@ -79,37 +79,38 @@ Settings are read (lowest → highest priority) from: built-in defaults → `<ho
     "timeoutMs": 60000
   },
   "log": "errors",          // off | errors | on  → <home>/logs/pi.jsonl
-  "toolPrefix": "memory_",  // model-facing tool prefix; use "harnmem_" when pi-memory is also installed
+  "toolPrefix": "harnmem_",  // model-facing tool prefix (default); "memory_" only when no other memory extension is installed
   "debug": false
 }
 ```
 
-Environment overrides: `HARNMEM_HOME`, `HARNMEM_DISABLED=1`, `HARNMEM_READONLY=1`, `HARNMEM_INJECT=1|0`, `HARNMEM_STATUS_LINE=1|0`, `HARNMEM_AUTO_EXTRACT=1`, `HARNMEM_DEBUG=1`.
+Environment overrides: `HARNMEM_HOME`, `HARNMEM_DISABLED=1`, `HARNMEM_READONLY=1`, `HARNMEM_INJECT=1|0`, `HARNMEM_STATUS_LINE=1|0`, `HARNMEM_AUTO_EXTRACT=1`, `HARNMEM_TOOL_PREFIX`, `HARNMEM_DEBUG=1`.
 
 > **Clean footer.** The one-line `harnmem: 22 entries · ~1061 tokens · <sha>` status is
 > informational; set `"statusLine": false` in `<agentDir>/harnmem.json` (or
 > `HARNMEM_STATUS_LINE=0`) to hide it. Memory injection, tools and extraction are unaffected;
-> `/memory status` and the `memory_status` tool still report the snapshot.
+> `/memory status` and the `harnmem_status` tool still report the snapshot.
 
-> **Coexisting with pi-memory.** Both extensions otherwise register the same tool names
-> (`memory_write`, `memory_search`, …), and pi silently keeps one of the duplicates. Set
-> `"toolPrefix": "harnmem_"` in `<agentDir>/harnmem.json` to expose `harnmem_write`,
-> `harnmem_search`, `harnmem_read`, `harnmem_forget`, `harnmem_status` instead. The
-> `/memory` command keeps its name (pi-memory ships no conflicting command).
+> **Coexisting with pi-memory.** The default `harnmem_` prefix means pi-harnmem registers
+> `harnmem_write`, `harnmem_search`, `harnmem_read`, `harnmem_forget` and `harnmem_status`,
+> so it loads cleanly next to pi-memory (pi refuses to start an extension that registers a
+> duplicate tool name; the default used to be `memory_` and the two extensions
+> collided). The `/memory` command keeps its name (pi-memory ships no conflicting command).
+> Only set `"toolPrefix": "memory_"` when no other memory extension is installed.
 
 ## Tools (model-facing)
 
 | Tool | Parameters | Notes |
 |---|---|---|
-| `memory_write` | `type` (user/feedback/project/reference), `title`, `description`, `content`, `category`, `scope` (auto/user/project), `importance` (0–10), `confidence` (0–1), `pinned`, `tags`, `entities`, `links`, `supersedes`, `evidence` | Returns one line: `stored … (NEW)` / `already exists … (SKIP)` / `merged into … (MERGE)` / `superseded … → …` / `linked to existing … (LINK)` |
-| `memory_search` | `query`, `limit` (8), `scope`, `project`, `include_archived`, `include_history`, `as_of`, `entity`, `debug` | BM25F + synonyms + link diffusion; abstains when not confident |
-| `memory_read` | `id`, `as_of`, `include_history` | Frontmatter summary + body + backlinks |
-| `memory_forget` | `id`, `hard` | Default moves to `trash/` (30-day grace); `hard` is permanent |
-| `memory_status` | — | Shards, index state, health, extraction counters |
+| `harnmem_write` | `type` (user/feedback/project/reference), `title`, `description`, `content`, `category`, `scope` (auto/user/project), `importance` (0–10), `confidence` (0–1), `pinned`, `tags`, `entities`, `links`, `supersedes`, `evidence` | Returns one line: `stored … (NEW)` / `already exists … (SKIP)` / `merged into … (MERGE)` / `superseded … → …` / `linked to existing … (LINK)` |
+| `harnmem_search` | `query`, `limit` (8), `scope`, `project`, `include_archived`, `include_history`, `as_of`, `entity`, `debug` | BM25F + synonyms + link diffusion; abstains when not confident |
+| `harnmem_read` | `id`, `as_of`, `include_history` | Frontmatter summary + body + backlinks |
+| `harnmem_forget` | `id`, `hard` | Default moves to `trash/` (30-day grace); `hard` is permanent |
+| `harnmem_status` | — | Shards, index state, health, extraction counters |
 
-`memory_write` marks the snapshot dirty; every successful write refreshes the injected index in the next step.
+`harnmem_write` marks the snapshot dirty; every successful write refreshes the injected index in the next step.
 
-Tool names follow the `toolPrefix` setting (`memory_` by default, `harnmem_` in the recommended coexistence setup); the table above uses the default names.
+Tool names follow the `toolPrefix` setting (`harnmem_` by default; the table above uses the default names). The injected SSOT footer follows the same prefix.
 
 ## Commands (human-facing)
 
@@ -126,8 +127,8 @@ Tool names follow the `toolPrefix` setting (`memory_` by default, `harnmem_` in 
 ## How it works
 
 - **Stable snapshot (Option-P):** the context block is rebuilt only on session start, before compaction, after a successful write, and on day rollover. Within a session it is byte-identical, so the provider prompt cache is not invalidated. Rebuild cost is well under 20 ms for typical stores.
-- **Injection budget:** `maxInjectTokens` (default 1200). Pinned entries first, then user/project/digest sections; whole entries only. Body text is never injected — the model calls `memory_read` for detail.
-- **Read-only children:** subagent sessions (child markers such as `PI_SUBAGENT_CHILD`) get no LLM and cannot write: `memory_write failed: HarnMem is read-only`.
+- **Injection budget:** `maxInjectTokens` (default 1200). Pinned entries first, then user/project/digest sections; whole entries only. Body text is never injected — the model calls `harnmem_read` for detail.
+- **Read-only children:** subagent sessions (child markers such as `PI_SUBAGENT_CHILD`) get no LLM and cannot write: `harnmem_write failed: HarnMem is read-only`.
 - **Session end:** the transcript (last ≤200 messages, assistant truncated) is journaled; when `autoExtract` is on, extraction runs at quit with an 8 s hard timeout, ≥3 user messages, and is skipped if the model wrote a memory itself that session. Extracted candidates below `confidence 0.5` are dropped; at most 6 are stored.
 - **Custom extraction prompt:** `<home>/prompts/extract.md` is loaded when present and parsed into `## system` / `## user` sections; placeholders such as `{{observation_date}}`, `{{existing_memories}}` and `{{transcript}}` are substituted into the user template. Missing files or sections fall back to built-in English defaults, and editing the file takes effect on the next extraction without restarting.
 

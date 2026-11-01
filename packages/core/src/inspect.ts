@@ -24,7 +24,7 @@
  */
 import { promises as fs } from "node:fs";
 import { basename, join, relative } from "node:path";
-import { DEFAULT_BUDGET } from "./config.js";
+import { DEFAULT_BUDGET, DEFAULT_CONFIG, loadConfig } from "./config.js";
 import { parseFrontmatter, recordFromFrontmatter } from "./frontmatter.js";
 import { renderHotContextSync } from "./hot-context.js";
 import { loadProjects, type ProjectRegistryEntry, type ProjectsFile } from "./project.js";
@@ -47,6 +47,13 @@ export interface MemoryInspectorOptions {
   now?: number;
   /** Parsed-shard cache TTL in milliseconds; `0` disables caching. */
   cacheTtlMs?: number;
+  /**
+   * Tool-name prefix used when rendering the hot-context preview, so the
+   * injected SSOT footer names the search tool exactly as the adapter
+   * registers it. Defaults to the `toolPrefix` in `<home>/config.json`, and
+   * ultimately to the core `"memory_"` default.
+   */
+  toolPrefix?: string;
 }
 
 /** One diagnostics/warning row surfaced by the inspector. */
@@ -334,25 +341,37 @@ export class MemoryInspector {
   readonly store: Store;
   private readonly fixedNow: number | null;
   private readonly cacheTtlMs: number;
+  private readonly toolPrefix: string | undefined;
   private readonly snapshots = new Map<string, ShardSnapshot>();
   private registryCache: { at: number; file: ProjectsFile } | null = null;
 
-  private constructor(options: { home: string; now?: number; cacheTtlMs?: number }) {
+  private constructor(options: { home: string; now?: number; cacheTtlMs?: number; toolPrefix?: string }) {
     this.home = options.home;
     this.store = new Store(options.home);
     this.fixedNow = options.now ?? null;
     this.cacheTtlMs = options.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
+    this.toolPrefix = options.toolPrefix;
   }
 
   /**
    * Open an inspector over `home` (resolved like the engine: explicit option,
-   * then `HARNMEM_HOME`, then `~/.harnmem`). Never writes to disk.
+   * then `HARNMEM_HOME`, then `~/.harnmem`). Never writes to disk. The
+   * rendered hot-context preview picks up `toolPrefix` from the explicit
+   * option first, then `<home>/config.json`, mirroring how the engine
+   * resolves it.
    */
   static async open(options: MemoryInspectorOptions = {}): Promise<MemoryInspector> {
+    const home = resolveHome(options.home);
+    const config = await loadConfig(
+      home,
+      undefined,
+      options.toolPrefix !== undefined ? { ...DEFAULT_CONFIG, home, toolPrefix: options.toolPrefix } : undefined,
+    );
     return new MemoryInspector({
-      home: resolveHome(options.home),
+      home,
       now: options.now,
       cacheTtlMs: options.cacheTtlMs,
+      toolPrefix: config.toolPrefix,
     });
   }
 
@@ -489,7 +508,7 @@ export class MemoryInspector {
       home: this.home,
       cwd: options.cwd,
       now: this.clock(),
-      config: { budget },
+      config: { budget, toolPrefix: this.toolPrefix },
     });
     const projectName = result.projectId ? names.get(result.projectId) ?? fallbackProjectName(result.projectId) : null;
     return {

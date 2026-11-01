@@ -47,13 +47,13 @@ class HarnMem {
 | Layer | Responsibility | Failure degradation |
 |---|---|---|
 | **Injection layer** | At session start, add `ensureContext()`'s text to the context (system-prompt append / hook additionalContext) | Injection failure does not affect the session; record it in the audit only |
-| **Tool layer** | `memory_write / memory_search / memory_read / memory_forget / memory_status` (optionally `memory_restore / memory_consolidate / memory_pin`) | If tool registration fails, degrade to "injection only" mode |
+| **Tool layer** | `harnmem_write / harnmem_search / harnmem_read / harnmem_forget / harnmem_status` (optionally `harnmem_restore / harnmem_consolidate / memory_pin`) | If tool registration fails, degrade to "injection only" mode |
 | **Lifecycle layer** | Hooks for session start/turn end/compaction/end; call `ensureContext` to refresh and `sessionEnd` to trigger extraction | Extraction failure is audited only and never blocks exit |
 | **Config layer** | Read harness user config + environment variables and map them into `HarnMemConfig` | Use defaults |
 
 ## 3. Unified tool semantics (same names across harnesses, optional prefix)
 
-### `memory_write`
+### `harnmem_write`
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `type` | `user\|feedback\|project\|reference` | yes | Four types; use `project` when unsure |
@@ -68,18 +68,18 @@ class HarnMem {
 | `pinned` | boolean | no | user explicitly asked to "remember forever" |
 | `links` / `supersedes` | string[] | no | old memory ids (taken from search results) |
 
-Return text must be a **model-readable one-line conclusion**: `stored mem_xxx (NEW)` / `already exists mem_xxx (SKIP)` / `superseded mem_old → mem_new`, plus "use memory_read for details".
+Return text must be a **model-readable one-line conclusion**: `stored mem_xxx (NEW)` / `already exists mem_xxx (SKIP)` / `superseded mem_old → mem_new`, plus "use harnmem_read for details".
 
-### `memory_search`
+### `harnmem_search`
 Parameters: `query` (required), `limit` (default 8), `scope`, `include_archived`, `as_of`, `entity`, `debug`. Returns JSON (see 03 §5.4); when `abstained:true`, tell the model "no sufficiently confident memories".
 
-### `memory_read`
+### `harnmem_read`
 Parameters: `id`, `as_of?`, `include_history?`. Returns a frontmatter summary + body + `backlinks` + a `(historical)` marker.
 
-### `memory_forget`
+### `harnmem_forget`
 Parameters: `id`, `hard?`. Moves to `trash/` by default (30-day grace); `hard:true` physically deletes immediately (including the index), leaving only id/time/reason in the audit.
 
-### `memory_status`
+### `harnmem_status`
 No parameters or `scope`. Returns a plain-language summary of `stats` (counts/capacity/pinned/health/last consolidation).
 
 ### 3.6 Enforcement surface: schema vs engine (added 2026-10-20)
@@ -95,7 +95,7 @@ Tool schemas (pi's TypeBox, Claude MCP's JSON Schema) are only **hints and type 
 | Dedupe/supersede decisions | **engine** | `packages/core/src/lifecycle.ts` `decideDedupe` |
 | Tool return text | each adapter | `packages/pi-harnmem/src/format.ts` |
 
-Corollary: **no adapter may rely on the schema alone to reject invalid values** (models/MCP clients can bypass schemas); the engine must re-validate and emit warnings. Known adapter schema defects (`importance` documented as 0..1, `memory_search.scope` enum including `auto`) are fixed on the pi side and do not affect engine semantics; the Claude MCP side is designed per this table to allow only `user|project|all`.
+Corollary: **no adapter may rely on the schema alone to reject invalid values** (models/MCP clients can bypass schemas); the engine must re-validate and emit warnings. Known adapter schema defects (`importance` documented as 0..1, `harnmem_search.scope` enum including `auto`) are fixed on the pi side and do not affect engine semantics; the Claude MCP side is designed per this table to allow only `user|project|all`.
 
 ## 4. pi adapter (first, `packages/pi-harnmem`)
 
@@ -123,7 +123,7 @@ Corollary: **no adapter may rely on the schema alone to reject invalid values** 
 ### 4.3 Prefix cache (KV-cache)
 
 The "Option P" from pi-memory must be replicated:
-1. `session_start` / `session_before_compact` / this session's `memory_write` / day rollover → rebuild the snapshot;
+1. `session_start` / `session_before_compact` / this session's `harnmem_write` / day rollover → rebuild the snapshot;
 2. Every other turn returns the same byte string (**forbidden** in per-turn text: timestamps, counters, random ordering);
 3. A fixed caveat line at the snapshot tail (including the snapshot time, unchanged within the session);
 4. Real-time tool results never enter the system prompt (only tool results).
@@ -192,7 +192,7 @@ CLI arguments / environment variables HARNMEM_HOME, HARNMEM_DISABLED
 
 - [ ] Empty store injects 0 bytes without errors
 - [ ] Write one memory → visible in a new session's injection (verify once cross-session and once cross-harness)
-- [ ] `memory_search` hits a Chinese query (bigram works)
+- [ ] `harnmem_search` hits a Chinese query (bigram works)
 - [ ] Two turns in the same session inject identical bytes (cache stability)
 - [ ] Session exit does not hang (timeout protection works)
 - [ ] Read-only mode works (no llm / no write permission)

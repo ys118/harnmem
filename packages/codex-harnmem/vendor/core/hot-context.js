@@ -16,7 +16,7 @@ import { join } from "node:path";
 import { budgetOf, retrievalOf } from "./config.js";
 import { parseFrontmatter } from "./frontmatter.js";
 import { normalizePathKey } from "./project.js";
-import { layoutHotContext, renderContextText } from "./retrieval.js";
+import { layoutHotContext, renderContextText, contextFooter } from "./retrieval.js";
 const indexCache = new Map();
 function readJsonSync(path) {
     return JSON.parse(readFileSync(path, "utf8"));
@@ -167,7 +167,7 @@ export function renderHotContextSync(options) {
         hotEntries: budgetConfig.hotEntries,
         decayPerHour: retrieval.decayPerHour,
     });
-    const text = layout.hasContent ? renderContextText(layout.sections) : "";
+    const text = layout.hasContent ? renderContextText(layout.sections, contextFooter(options.config?.toolPrefix)) : "";
     return {
         text,
         ids: layout.ids,

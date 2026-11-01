@@ -37,7 +37,7 @@ const DEFAULTS = {
   maxInjectTokens: 1200,
   // Grok truncates the aggregate "MCP servers connected" reminder at ~4.3 KB
   // (probe P19). Stay well below it so several other MCP servers with their
-  // own instructions can still fit; the rest is reachable via memory_context.
+  // own instructions can still fit; the rest is reachable via harnmem_context.
   maxInstructBytes: 2500,
 };
 

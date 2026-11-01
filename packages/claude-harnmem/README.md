@@ -5,7 +5,7 @@ Cross-harness persistent memory for [Claude Code](https://docs.claude.com/en/doc
 ## What it does
 
 - **Stable injection** — a `SessionStart` hook prints a byte-stable snapshot of your hottest memories into the session context. Empty store ⇒ zero bytes injected. The snapshot only rebuilds on session start/resume/compact, after a write, or at day rollover, so prompt caching stays intact across turns.
-- **Five MCP tools** — `memory_search`, `memory_read`, `memory_write`, `memory_forget`, `memory_status` over a zero-dependency stdio MCP server, so the model can pull memories on demand and store durable ones explicitly (ADD-only, bi-temporal supersede, trash restore).
+- **Five MCP tools** — `harnmem_search`, `harnmem_read`, `harnmem_write`, `harnmem_forget`, `harnmem_status` over a zero-dependency stdio MCP server, so the model can pull memories on demand and store durable ones explicitly (ADD-only, bi-temporal supersede, trash restore).
 - **`/harnmem:memory` command** — a manual operator entry point to search/read/write/forget/status without leaving the chat (plugin commands are namespaced by the plugin name `harnmem`).
 - **Session-end extraction** — the session transcript tail is journaled and re-processed by a detached child process, so the hook returns instantly (plugin hook timeouts are not honored upstream) and extraction never blocks your exit.
 - **Subagent-safe** — subagent sessions (`agent_type` set) run read-only and never extract; only the main session writes.

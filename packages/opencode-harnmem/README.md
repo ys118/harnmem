@@ -5,7 +5,7 @@ Cross-harness persistent memory for [opencode](https://opencode.ai) v2.x, powere
 ## What it does
 
 - **Stable injection** — a `session.hook("context")` callback pushes a byte-stable snapshot of your hottest memories as a system part. Empty store ⇒ zero parts pushed. The snapshot is computed once per session and only rebuilt after a write or at day rollover, so prompt caching stays intact across turns.
-- **Five native tools** — `memory_search`, `memory_read`, `memory_write`, `memory_forget`, `memory_status` registered through `tool.transform`. No MCP child process: the tools run in-process against the vendored core.
+- **Five native tools** — `harnmem_search`, `harnmem_read`, `harnmem_write`, `harnmem_forget`, `harnmem_status` registered through `tool.transform`. No MCP child process: the tools run in-process against the vendored core.
 - **Per-turn journaling** — every `session.hook("prompt")` appends the transcript tail (capped: 400 messages × 4,000 chars) to the shared session journal, deduplicated by signature, so another harness (or a future `harnmem` CLI extraction pass) can mine this session later. Two caveats, both inherent to the hook firing before the current turn's messages exist: single-turn CLI runs journal nothing, and the **final turn of any session is captured only when that session continues later** (`--continue` / TUI resume). Extraction with an in-process LLM (`ctx.generate.text`) is planned for v0.2; the journal is written today regardless.
 - **Subagent-safe** — child sessions (`parentID` set) run read-only: no injection, no journaling, and the write tool answers read-only instead of writing.
 

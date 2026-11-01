@@ -46,10 +46,11 @@ export interface PiHarnMemSettings {
   /** Override search result token budget (engine default 1200). */
   maxSearchTokens?: number;
   /**
-   * Prefix for the registered tool names (default `memory_`, giving
-   * `memory_write`, `memory_search`, ...). Set another prefix such as
-   * `harnmem_` to run side by side with an extension that already owns the
-   * `memory_*` names (for example pi-memory).
+   * Prefix for the registered tool names (default `harnmem_`, giving
+   * `harnmem_write`, `harnmem_search`, ...). The default keeps the extension
+   * loadable next to pi-memory, which owns the bare `memory_*` names (newer pi
+   * versions refuse to load an extension that registers a duplicate tool).
+   * Set `memory_` only when no other extension claims those names.
    */
   toolPrefix?: string;
   log?: LogMode;
@@ -82,7 +83,7 @@ const DEFAULTS = {
   inject: true,
   statusLine: true,
   autoExtract: false,
-  toolPrefix: "memory_",
+  toolPrefix: "harnmem_",
   log: "errors" as LogMode,
   debug: false,
 };

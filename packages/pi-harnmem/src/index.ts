@@ -23,8 +23,9 @@ import { registerTools } from "./tools.js";
 export default function harnmemExtension(pi: ExtensionAPI): void {
   // Tool names are fixed at registration time, so resolve the (sync, file-based)
   // config here; session_start later re-resolves with the session cwd.
-  // `toolPrefix` lets HarnMem coexist with extensions that already register the
-  // default `memory_*` names (for example pi-memory): set it to "harnmem_".
+  // The `harnmem_` default keeps HarnMem loadable next to extensions that
+  // register the `memory_*` names (for example pi-memory): newer pi versions
+  // refuse to load an extension that registers a duplicate tool name.
   const toolPrefix = resolveSettings(process.cwd()).toolPrefix;
   const adapter = new Adapter();
   registerTools(pi, adapter, toolPrefix);

@@ -7,7 +7,7 @@ export { deployDefaultAssets, findAssetRoot, listSynonymFiles, loadPromptAsset, 
 export type { PromptAsset } from "./assets.js";
 export type { ProjectInfo } from "./project.js";
 export { renderHotContextSync, type SyncHotContextOptions, type SyncHotContextResult, } from "./hot-context.js";
-export { layoutHotContext, renderContextText, CONTEXT_HEADER, CONTEXT_FOOTER } from "./retrieval.js";
+export { layoutHotContext, renderContextText, contextFooter, CONTEXT_HEADER, CONTEXT_FOOTER } from "./retrieval.js";
 export type { HotContextLayout, HotContextOptions, HotDigest } from "./retrieval.js";
 export { MemoryInspector, openInspector } from "./inspect.js";
 export type { InspectContext, InspectContextOptions, InspectFileError, InspectIndexOptions, InspectIndexStatus, InspectIndexText, InspectIssue, InspectList, InspectListOptions, InspectMemory, InspectOverview, InspectOverviewOptions, InspectProject, InspectReadOptions, InspectRow, InspectShard, MemoryInspectorOptions, } from "./inspect.js";

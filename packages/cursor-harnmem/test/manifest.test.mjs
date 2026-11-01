@@ -75,7 +75,7 @@ test("hooks and MCP declarations point at shipped files", () => {
 test("always-apply rules file ships and documents the installer fallback", () => {
   const rules = readFileSync(join(packageRoot, "rules/harnmem.mdc"), "utf8");
   assert.match(rules, /^---\n[\s\S]*alwaysApply: true[\s\S]*?\n---\n/);
-  assert.match(rules, /memory_search/);
+  assert.match(rules, /harnmem_search/);
   assert.match(rules, /`npx cursor-harnmem` enables automatic injection/);
 });
 
