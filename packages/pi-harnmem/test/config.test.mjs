@@ -61,3 +61,34 @@ test("config file with a UTF-8 BOM and JSONC comments still applies", async () =
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+/**
+ * Tool-name defaults must stay collision-free out of the box: pi-memory owns the
+ * bare `memory_*` names and newer pi versions refuse to load an extension that
+ * registers a duplicate tool. The default prefix is therefore `harnmem_`.
+ */
+test("toolPrefix defaults to harnmem_ so pi-memory can coexist", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "harnmem-pi-prefix-"));
+  try {
+    // Empty isolated home: no real user config may influence the assertion.
+    const resolved = resolveSettings(CWD, { HARNMEM_HOME: dir });
+    assert.equal(resolved.toolPrefix, "harnmem_");
+    assert.deepEqual(resolved.warnings, []);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("HARNMEM_TOOL_PREFIX overrides the default; invalid values fall back with a warning", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "harnmem-pi-prefix-"));
+  try {
+    const legacy = resolveSettings(CWD, { HARNMEM_HOME: dir, HARNMEM_TOOL_PREFIX: "memory_" });
+    assert.equal(legacy.toolPrefix, "memory_");
+
+    const bad = resolveSettings(CWD, { HARNMEM_HOME: dir, HARNMEM_TOOL_PREFIX: "1bad-prefix" });
+    assert.equal(bad.toolPrefix, "harnmem_");
+    assert.ok(bad.warnings.some((warning) => warning.includes("toolPrefix")), bad.warnings.join("; "));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

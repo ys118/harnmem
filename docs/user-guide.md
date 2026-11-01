@@ -17,7 +17,7 @@ Labels: **[Verified]** actually ran in this repo; **[Syntax-verified]** the comm
 | **DSH** | ✅ Usable (0.2.x) | `dsh-harnmem` plugin: five `harnmem_*` tools, attach-time catch-up extraction (60 s budget); see `packages/dsh-harnmem/README.md` |
 | **Claude Code** | 📐 Design only | `docs/design/09`; no package yet |
 
-Writing memories relies on the model calling `memory_write` explicitly; end-of-session background extraction is **off by default** (§5).
+Writing memories relies on the model calling `harnmem_write` explicitly; end-of-session background extraction is **off by default** (§5).
 
 ## 1. Installation
 
@@ -60,7 +60,7 @@ npm installation: `pi install npm:pi-harnmem@0.2.0` (all four packages are publi
 
 ## 2. First use
 
-Say "from now on this project uses pnpm, not npm"; the model calls `memory_write` and gets a one-line result:
+Say "from now on this project uses pnpm, not npm"; the model calls `harnmem_write` and gets a one-line result:
 
 ```text
 stored mem_xxxxxxxxxxxxxxxxxxxxxxxxxx (NEW)
@@ -81,10 +81,10 @@ stored mem_xxxxxxxxxxxxxxxxxxxxxxxxxx (NEW)
 
 | What you say | What the model calls | Result |
 |---|---|---|
-| "What was our dependency policy?" | `memory_search` | A hit list, or `... (abstained)` |
-| "Show me the full text" | `memory_read` | Frontmatter summary + body + backlinks |
-| "Forget this one" | `memory_forget` (trash for 30 days by default) | `moved mem_xxx to trash` |
-| "Delete it permanently" | `memory_forget(hard=true)` | Permanent, unrecoverable |
+| "What was our dependency policy?" | `harnmem_search` | A hit list, or `... (abstained)` |
+| "Show me the full text" | `harnmem_read` | Frontmatter summary + body + backlinks |
+| "Forget this one" | `harnmem_forget` (trash for 30 days by default) | `moved mem_xxx to trash` |
+| "Delete it permanently" | `harnmem_forget(hard=true)` | Permanent, unrecoverable |
 | Restore manually | `/memory restore <id>` | Restores from trash |
 
 Note: `memory_restore` is **not** a model tool; use the `/memory restore` command instead.
@@ -194,24 +194,25 @@ Privacy: the command reads only your local store, and nothing leaves the machine
 
 ## 6. How it works
 
-- **Injection (KV-cache friendly)**: rebuilt only at session start, before compaction, after writing a memory, or across a day boundary; byte-stable within a session. Default **1200 tokens** (configurable 800–2000); pinned memories first, then reweighted fill by `importance/confidence/recency/use count/pin` when over budget. Only "index lines" are injected (type/title/description); **bodies are not injected** — the model calls `memory_read` when it needs details. The snapshot ends with a fixed HTML comment `<!-- SSOT: ~/.harnmem … -->` warning that it may be stale; it **contains no timestamp**, so byte stability is not broken every turn.
+- **Injection (KV-cache friendly)**: rebuilt only at session start, before compaction, after writing a memory, or across a day boundary; byte-stable within a session. Default **1200 tokens** (configurable 800–2000); pinned memories first, then reweighted fill by `importance/confidence/recency/use count/pin` when over budget. Only "index lines" are injected (type/title/description); **bodies are not injected** — the model calls `harnmem_read` when it needs details. The snapshot ends with a fixed HTML comment `<!-- SSOT: ~/.harnmem … -->` warning that it may be stale; it **contains no timestamp**, so byte stability is not broken every turn.
 - **Tools (5)**:
 
 | Tool | Key parameters | Behavior |
 |---|---|---|
-| `memory_write` | `type` (user/feedback/project/reference), `title`, `description`, `content`, `scope`, `category`, `importance`, `confidence`, `pinned`, `tags`, `entities`, `links`, `supersedes`, `evidence` | Returns a single line: `stored/skip/merged/superseded/linked` |
-| `memory_search` | `query`, `limit` (8), `scope`, `include_archived`, `as_of`, `entity`, `debug` | BM25F hybrid retrieval; `abstained: true` when not confident |
-| `memory_read` | `id`, `as_of`, `include_history` | Body + metadata + backlinks |
-| `memory_forget` | `id`, `hard` | Trash for 30 days by default |
-| `memory_status` | — | Store stats, index state, health checks |
+| `harnmem_write` | `type` (user/feedback/project/reference), `title`, `description`, `content`, `scope`, `category`, `importance`, `confidence`, `pinned`, `tags`, `entities`, `links`, `supersedes`, `evidence` | Returns a single line: `stored/skip/merged/superseded/linked` |
+| `harnmem_search` | `query`, `limit` (8), `scope`, `include_archived`, `as_of`, `entity`, `debug` | BM25F hybrid retrieval; `abstained: true` when not confident |
+| `harnmem_read` | `id`, `as_of`, `include_history` | Body + metadata + backlinks |
+| `harnmem_forget` | `id`, `hard` | Trash for 30 days by default |
+| `harnmem_status` | — | Store stats, index state, health checks |
 
-The `memory_` prefix is configurable (`toolPrefix` in `<agentDir>/harnmem.json`). If another
-extension already registers these tool names — pi-memory does — set `"toolPrefix": "harnmem_"`
-so HarnMem exposes `harnmem_write`, `harnmem_search`, `harnmem_read`, `harnmem_forget` and
-`harnmem_status` instead (`toolPrefix` is described in §4).
+Tools register under the `harnmem_` prefix by default (`toolPrefix` in `<agentDir>/harnmem.json`),
+so they cannot collide with extensions that own the bare `memory_*` names — pi-memory does, and
+newer pi versions refuse to load an extension that registers a duplicate tool name. Set
+`"toolPrefix": "memory_"` only when no other memory extension is installed (`toolPrefix` is
+described in §4).
 
 - **`/memory` commands**: `status` / `search <q> [--limit N]` / `read <id> [--history]` / `forget <id> [--hard]` / `restore <id>` / `consolidate [--dry-run] [--mechanical]` / `help`.
-- **Subagents are read-only**: in child sessions `memory_write` returns `HarnMem is read-only` and never pollutes the main session.
+- **Subagents are read-only**: in child sessions `harnmem_write` returns `HarnMem is read-only` and never pollutes the main session.
 - **Logs**: `<home>/logs/pi.jsonl` (injection size/hash, tool calls, extraction results, errors).
 
 ## 7. Typical scenarios
@@ -292,11 +293,11 @@ Safety: dry-run is the default; `--apply` backs up the source first, writes a le
 |---|---|---|
 | No memory block visible | Empty store (normal, 0 injected) | Write one first; check `size` in `/memory status` |
 | Memories exist but are not injected | `HARNMEM_DISABLED=1`/`inject:false`/subagent | Check environment variables and config |
-| Said "remember" but nothing was written | The model did not call the tool | Explicitly ask it to call `memory_write`; or turn on autoExtract |
+| Said "remember" but nothing was written | The model did not call the tool | Explicitly ask it to call `harnmem_write`; or turn on autoExtract |
 | `HarnMem is read-only` | Subagent/`readOnly`/`HARNMEM_READONLY=1` | Go back to the main session to write |
 | `stale=true` | Index awaits rebuild after a write in the same session | Normal; rebuilt in the next session |
 | Duplicate memories | Wording differs enough to miss dedupe | Use `supersedes` to replace the old entry |
-| Want to see the old wording | Only the new value is injected after a supersede | Call `memory_read` with `as_of <date>` or `include_history` |
+| Want to see the old wording | Only the new value is injected after a supersede | Call `harnmem_read` with `as_of <date>` or `include_history` |
 | Garbled Chinese in the Windows terminal | Terminal encoding (files are UTF-8) | `chcp 65001` or use Windows Terminal |
 | Exit hangs for 8 seconds | Auto-extraction wait cap | Normal; disable autoExtract if unwanted |
 | Extraction reports `failed` | Missing API key/timeout/non-JSON reply | Check `logs/pi.jsonl`; switch models or disable extraction |
@@ -310,7 +311,7 @@ Safety: dry-run is the default; `--apply` backs up the source first, writes a le
 
 - **Backup**: copy `~/.harnmem` directly (plain files, diffable); a private git repo or cloud sync is recommended.
 - **Privacy**: extraction prompts are told to skip secrets/passwords; still, do not feed the memory system anything sensitive. The audit log records injection events (not full bodies).
-- **Deletion semantics**: `memory_forget` moves to `trash/` by default (purgeable after 30 days); `hard=true` deletes permanently; there is no one-shot clear command — delete the directory to clear everything.
+- **Deletion semantics**: `harnmem_forget` moves to `trash/` by default (purgeable after 30 days); `hard=true` deletes permanently; there is no one-shot clear command — delete the directory to clear everything.
 - **Multi-machine sharing**: pointing the same home at a sync drive shares memories across machines; v0.1 does not heavily validate concurrent writes from multiple hosts.
 
 ## 11. Known limitations (v0.2)

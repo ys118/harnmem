@@ -25,7 +25,7 @@ async function engineOf(ctx: ExtensionToolContext, adapter: Adapter) {
   return eng;
 }
 
-export function registerTools(pi: ExtensionAPI, adapter: Adapter, toolPrefix = "memory_"): void {
+export function registerTools(pi: ExtensionAPI, adapter: Adapter, toolPrefix = "harnmem_"): void {
   const name = (suffix: string) => `${toolPrefix}${suffix}`;
   pi.registerTool(
     defineTool({

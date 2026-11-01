@@ -41,7 +41,7 @@ In a pi session:
 
 ```text
 You: remember this project uses pnpm — never npm install.
-pi:  → memory_write(...) → stored mem_01J8... (NEW)
+pi:  → harnmem_write(...) → stored mem_01J8... (NEW)
 ```
 
 Next session, the hot index is injected automatically:
@@ -79,37 +79,38 @@ Settings are read (lowest → highest priority) from: built-in defaults → `<ho
     "timeoutMs": 60000
   },
   "log": "errors",          // off | errors | on  → <home>/logs/pi.jsonl
-  "toolPrefix": "memory_",  // model-facing tool prefix; use "harnmem_" when pi-memory is also installed
+  "toolPrefix": "harnmem_",  // model-facing tool prefix (default); "memory_" only when no other memory extension is installed
   "debug": false
 }
 ```
 
-Environment overrides: `HARNMEM_HOME`, `HARNMEM_DISABLED=1`, `HARNMEM_READONLY=1`, `HARNMEM_INJECT=1|0`, `HARNMEM_STATUS_LINE=1|0`, `HARNMEM_AUTO_EXTRACT=1`, `HARNMEM_DEBUG=1`.
+Environment overrides: `HARNMEM_HOME`, `HARNMEM_DISABLED=1`, `HARNMEM_READONLY=1`, `HARNMEM_INJECT=1|0`, `HARNMEM_STATUS_LINE=1|0`, `HARNMEM_AUTO_EXTRACT=1`, `HARNMEM_TOOL_PREFIX`, `HARNMEM_DEBUG=1`.
 
 > **Clean footer.** The one-line `harnmem: 22 entries · ~1061 tokens · <sha>` status is
 > informational; set `"statusLine": false` in `<agentDir>/harnmem.json` (or
 > `HARNMEM_STATUS_LINE=0`) to hide it. Memory injection, tools and extraction are unaffected;
-> `/memory status` and the `memory_status` tool still report the snapshot.
+> `/memory status` and the `harnmem_status` tool still report the snapshot.
 
-> **Coexisting with pi-memory.** Both extensions otherwise register the same tool names
-> (`memory_write`, `memory_search`, …), and pi silently keeps one of the duplicates. Set
-> `"toolPrefix": "harnmem_"` in `<agentDir>/harnmem.json` to expose `harnmem_write`,
-> `harnmem_search`, `harnmem_read`, `harnmem_forget`, `harnmem_status` instead. The
-> `/memory` command keeps its name (pi-memory ships no conflicting command).
+> **Coexisting with pi-memory.** The default `harnmem_` prefix means pi-harnmem registers
+> `harnmem_write`, `harnmem_search`, `harnmem_read`, `harnmem_forget` and `harnmem_status`,
+> so it loads cleanly next to pi-memory (pi refuses to start an extension that registers a
+> duplicate tool name; the default used to be `memory_` and the two extensions
+> collided). The `/memory` command keeps its name (pi-memory ships no conflicting command).
+> Only set `"toolPrefix": "memory_"` when no other memory extension is installed.
 
 ## Tools (model-facing)
 
 | Tool | Parameters | Notes |
 |---|---|---|
-| `memory_write` | `type` (user/feedback/project/reference), `title`, `description`, `content`, `category`, `scope` (auto/user/project), `importance` (0–10), `confidence` (0–1), `pinned`, `tags`, `entities`, `links`, `supersedes`, `evidence` | Returns one line: `stored … (NEW)` / `already exists … (SKIP)` / `merged into … (MERGE)` / `superseded … → …` / `linked to existing … (LINK)` |
-| `memory_search` | `query`, `limit` (8), `scope`, `project`, `include_archived`, `include_history`, `as_of`, `entity`, `debug` | BM25F + synonyms + link diffusion; abstains when not confident |
-| `memory_read` | `id`, `as_of`, `include_history` | Frontmatter summary + body + backlinks |
-| `memory_forget` | `id`, `hard` | Default moves to `trash/` (30-day grace); `hard` is permanent |
-| `memory_status` | — | Shards, index state, health, extraction counters |
+| `harnmem_write` | `type` (user/feedback/project/reference), `title`, `description`, `content`, `category`, `scope` (auto/user/project), `importance` (0–10), `confidence` (0–1), `pinned`, `tags`, `entities`, `links`, `supersedes`, `evidence` | Returns one line: `stored … (NEW)` / `already exists … (SKIP)` / `merged into … (MERGE)` / `superseded … → …` / `linked to existing … (LINK)` |
+| `harnmem_search` | `query`, `limit` (8), `scope`, `project`, `include_archived`, `include_history`, `as_of`, `entity`, `debug` | BM25F + synonyms + link diffusion; abstains when not confident |
+| `harnmem_read` | `id`, `as_of`, `include_history` | Frontmatter summary + body + backlinks |
+| `harnmem_forget` | `id`, `hard` | Default moves to `trash/` (30-day grace); `hard` is permanent |
+| `harnmem_status` | — | Shards, index state, health, extraction counters |
 
-`memory_write` marks the snapshot dirty; every successful write refreshes the injected index in the next step.
+`harnmem_write` marks the snapshot dirty; every successful write refreshes the injected index in the next step.
 
-Tool names follow the `toolPrefix` setting (`memory_` by default, `harnmem_` in the recommended coexistence setup); the table above uses the default names.
+Tool names follow the `toolPrefix` setting (`harnmem_` by default; the table above uses the default names). The injected SSOT footer may still say `memory_search` — that string comes from `@harnmem/core` and is pending a prefix-aware fix there.
 
 ## Commands (human-facing)
 
