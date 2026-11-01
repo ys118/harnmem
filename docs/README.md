@@ -56,6 +56,7 @@ specifications; the design docs above are the source of truth.
 | [`research/grok-plugin.md`](research/grok-plugin.md) | Grok CLI 1.0.70 plugin, hooks and MCP surfaces, real-machine probe evidence, grok-harnmem architecture (memory index via MCP `initialize.instructions`) |
 | [`research/cursor-plugin.md`](research/cursor-plugin.md) | Cursor desktop 3.27.22 extension surfaces (hooks, plugins, MCP, rules), real-machine probe evidence, cursor-harnmem architecture (first-prompt injection via `beforeSubmitPrompt`) |
 | [`research/hermes-plugin.md`](research/hermes-plugin.md) | Hermes Agent v0.22.5 Python plugin system: `MemoryProvider` ABC, `prefetch` injection, session lifecycle, tools, subagents, discovery and catalog distribution |
+| [`research/omp-plugin.md`](research/omp-plugin.md) | omp (oh-my-pi) 18.14.1 extension runtime: pi 1.x surface behind a legacy-pi compat layer, `before_agent_start` injection, 2-second `session_shutdown` budget, real-machine probe evidence, omp-harnmem architecture |
 
 ## Operations and evaluation
 
