@@ -461,11 +461,15 @@ export const CONTEXT_HEADER = "## HarnMem memory (cross-harness; stable snapshot
  * Build the injected SSOT footer for a tool-name prefix. Adapters register
  * tools under different prefixes (pi/omp/dsh default to "harnmem_", the MCP
  * servers to "harnmem_", third-party integrations to anything); the footer
- * must name the search tool exactly as the model sees it. Invalid values fall
- * back to the historical "memory_" default so output stays deterministic.
+ * must name the search tool exactly as the model sees it. The empty string is
+ * a valid prefix (tools registered without one, e.g. plain `search`); invalid
+ * values fall back to the historical "memory_" default so output stays
+ * deterministic.
  */
 export function contextFooter(toolPrefix) {
-    const prefix = typeof toolPrefix === "string" && /^[A-Za-z][A-Za-z0-9_]*$/.test(toolPrefix) ? toolPrefix : "memory_";
+    const prefix = toolPrefix === "" || (typeof toolPrefix === "string" && /^[A-Za-z][A-Za-z0-9_]*$/.test(toolPrefix))
+        ? toolPrefix
+        : "memory_";
     return `<!-- SSOT: ~/.harnmem. Use ${prefix}search for details; never invent memory ids. Snapshot refreshes on session start, after memory writes and at day rollover. -->`;
 }
 /** Footer for the default "memory_" tool names (kept for backward compatibility). */

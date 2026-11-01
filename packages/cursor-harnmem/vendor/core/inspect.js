@@ -24,7 +24,7 @@
  */
 import { promises as fs } from "node:fs";
 import { basename, join, relative } from "node:path";
-import { DEFAULT_BUDGET } from "./config.js";
+import { DEFAULT_BUDGET, DEFAULT_CONFIG, loadConfig } from "./config.js";
 import { parseFrontmatter, recordFromFrontmatter } from "./frontmatter.js";
 import { renderHotContextSync } from "./hot-context.js";
 import { loadProjects } from "./project.js";
@@ -95,6 +95,7 @@ export class MemoryInspector {
     store;
     fixedNow;
     cacheTtlMs;
+    toolPrefix;
     snapshots = new Map();
     registryCache = null;
     constructor(options) {
@@ -102,16 +103,23 @@ export class MemoryInspector {
         this.store = new Store(options.home);
         this.fixedNow = options.now ?? null;
         this.cacheTtlMs = options.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
+        this.toolPrefix = options.toolPrefix;
     }
     /**
      * Open an inspector over `home` (resolved like the engine: explicit option,
-     * then `HARNMEM_HOME`, then `~/.harnmem`). Never writes to disk.
+     * then `HARNMEM_HOME`, then `~/.harnmem`). Never writes to disk. The
+     * rendered hot-context preview picks up `toolPrefix` from the explicit
+     * option first, then `<home>/config.json`, mirroring how the engine
+     * resolves it.
      */
     static async open(options = {}) {
+        const home = resolveHome(options.home);
+        const config = await loadConfig(home, undefined, options.toolPrefix !== undefined ? { ...DEFAULT_CONFIG, home, toolPrefix: options.toolPrefix } : undefined);
         return new MemoryInspector({
-            home: resolveHome(options.home),
+            home,
             now: options.now,
             cacheTtlMs: options.cacheTtlMs,
+            toolPrefix: config.toolPrefix,
         });
     }
     /** Drop cached shards and registry state. */
@@ -244,7 +252,7 @@ export class MemoryInspector {
             home: this.home,
             cwd: options.cwd,
             now: this.clock(),
-            config: { budget },
+            config: { budget, toolPrefix: this.toolPrefix },
         });
         const projectName = result.projectId ? names.get(result.projectId) ?? fallbackProjectName(result.projectId) : null;
         return {

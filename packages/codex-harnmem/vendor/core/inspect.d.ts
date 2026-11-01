@@ -8,6 +8,13 @@ export interface MemoryInspectorOptions {
     now?: number;
     /** Parsed-shard cache TTL in milliseconds; `0` disables caching. */
     cacheTtlMs?: number;
+    /**
+     * Tool-name prefix used when rendering the hot-context preview, so the
+     * injected SSOT footer names the search tool exactly as the adapter
+     * registers it. Defaults to the `toolPrefix` in `<home>/config.json`, and
+     * ultimately to the core `"memory_"` default.
+     */
+    toolPrefix?: string;
 }
 /** One diagnostics/warning row surfaced by the inspector. */
 export interface InspectIssue {
@@ -240,12 +247,16 @@ export declare class MemoryInspector {
     readonly store: Store;
     private readonly fixedNow;
     private readonly cacheTtlMs;
+    private readonly toolPrefix;
     private readonly snapshots;
     private registryCache;
     private constructor();
     /**
      * Open an inspector over `home` (resolved like the engine: explicit option,
-     * then `HARNMEM_HOME`, then `~/.harnmem`). Never writes to disk.
+     * then `HARNMEM_HOME`, then `~/.harnmem`). Never writes to disk. The
+     * rendered hot-context preview picks up `toolPrefix` from the explicit
+     * option first, then `<home>/config.json`, mirroring how the engine
+     * resolves it.
      */
     static open(options?: MemoryInspectorOptions): Promise<MemoryInspector>;
     /** Drop cached shards and registry state. */

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
-import { HarnMem, contextFooter, renderContextText, CONTEXT_FOOTER, renderHotContextSync } from "../dist/index.js";
+import { HarnMem, MemoryInspector, contextFooter, renderContextText, CONTEXT_FOOTER, renderHotContextSync } from "../dist/index.js";
 
 const roots = [];
 after(async () => {
@@ -32,7 +32,11 @@ test("contextFooter swaps the search tool name and rejects invalid prefixes", ()
     "<!-- SSOT: ~/.harnmem. Use harnmem_search for details; never invent memory ids. Snapshot refreshes on session start, after memory writes and at day rollover. -->",
   );
   assert.equal(contextFooter("agent2_"), CONTEXT_FOOTER.replace("memory_search", "agent2_search"));
-  for (const bad of ["1bad", "has space_", "", "a-b_", null, 42]) {
+  // The empty string is a valid prefix (tools registered without one): the
+  // footer names the bare tool ("search"), it does not fall back.
+  assert.ok(contextFooter("").includes("Use search for details"));
+  assert.ok(!contextFooter("").includes("memory_"));
+  for (const bad of ["1bad", "has space_", "a-b_", null, 42]) {
     assert.equal(contextFooter(bad), CONTEXT_FOOTER, `invalid prefix ${String(bad)} must fall back`);
   }
 });
@@ -68,4 +72,31 @@ test("renderHotContextSync honors config.toolPrefix in the cold-start path", asy
   const result = renderHotContextSync({ home, cwd, config: { toolPrefix: "harnmem_" } });
   assert.ok(result.text !== "", "cold-start path should render with content present");
   assert.ok(result.text.includes("Use harnmem_search for details"));
+});
+
+test("inspector preview follows the explicit toolPrefix option", async () => {
+  const { home, cwd, eng } = await fresh({ toolPrefix: "harnmem_" });
+  await eng.write({ type: "user", title: "Prefers terse replies", description: "User wants terse replies", content: "Reply tersely in this project." });
+  await eng.sessionStart({ sessionId: "s1" });
+  const inspector = await MemoryInspector.open({ home, toolPrefix: "panel_" });
+  const context = await inspector.context({ cwd });
+  assert.ok(context.text.includes("Use panel_search for details"));
+  assert.ok(!context.text.includes("Use memory_search for details"));
+});
+
+test("inspector preview falls back to toolPrefix from <home>/config.json", async () => {
+  const root = await mkdtemp(join(tmpdir(), "harnmem-footer-"));
+  roots.push(root);
+  const home = join(root, "home");
+  const cwd = join(root, "work", "proj");
+  await mkdir(home, { recursive: true });
+  await writeFile(join(home, "config.json"), JSON.stringify({ toolPrefix: "cli_" }), "utf8");
+  const eng = await HarnMem.open({ harness: "cli", cwd, home, project: "proj", autoExtract: false });
+  await eng.write({ type: "user", title: "Prefers terse replies", description: "User wants terse replies", content: "Reply tersely in this project." });
+  const block = await eng.sessionStart({ sessionId: "s1" });
+  assert.ok(block.text.includes("Use cli_search for details"), "engine should honor the home config too");
+  const inspector = await MemoryInspector.open({ home });
+  const context = await inspector.context({ cwd });
+  assert.ok(context.text.includes("Use cli_search for details"));
+  assert.ok(!context.text.includes("Use memory_search for details"));
 });

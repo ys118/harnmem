@@ -252,7 +252,7 @@ export function registerPanelApi(options: PanelApiOptions): () => Promise<void> 
   let opening: Promise<MemoryInspector> | undefined;
   const inspector = (): Promise<MemoryInspector> => {
     if (opening === undefined) {
-      opening = MemoryInspector.open({ home: settings.home, cacheTtlMs: 0 }).catch((error: unknown) => {
+      opening = MemoryInspector.open({ home: settings.home, cacheTtlMs: 0, toolPrefix: settings.toolPrefix }).catch((error: unknown) => {
         opening = undefined;
         throw error;
       });
