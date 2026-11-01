@@ -42,11 +42,11 @@ packages/hermes-harnmem/
 
 ```yaml
 name: harnmem
-version: 0.1.0
+version: 0.1.1
 description: persistent memory for Hermes Agent — session-start recall injection, five memory
   tools (harnmem_write, harnmem_search, harnmem_read, harnmem_forget, harnmem_status), and
   bounded session-end extraction. Shares one ~/.harnmem store with the pi, Claude Code, Codex,
-  opencode, DSH, Grok and Cursor adapters.
+  opencode, DSH, Grok, Cursor and omp adapters.
 requires_hermes: ">=0.22.5"
 external_dependencies:
   - name: node
