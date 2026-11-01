@@ -784,7 +784,7 @@ backlog by user decision (2026-10-30).
   provider available; a real `hermes -z` session injected a seeded memory and
   answered from it; a second session returned a color written by
   `harnmem_write` from the first; `state.db` `api_content` shows the injected
-  block inside `<memory-context>`; 21 Node and 30 Python deterministic tests.
+  block inside `<memory-context>`; 22 Node and 37 Python deterministic tests.
   Known limit: extraction needs an OpenAI-compatible endpoint (the local
   `opencode-go` gateway requires a proprietary `x-opencode-session` header;
   documented in the design doc as risk R5).
@@ -806,6 +806,36 @@ backlog by user decision (2026-10-30).
   no `llm`), so the change would be Hermes-only unless the CLI grows the same
   flag. Not a blocker for the catalog submission or the release; revisit when a
   real endpoint needs it.
+
+### Phase L — omp adapter
+
+- [x] **N31. Implement the omp memory plugin `omp-harnmem`.** Research of
+  record: [`research/omp-plugin.md`](research/omp-plugin.md) (2026-10-31,
+  baseline oh-my-pi 18.14.1). omp is a deep fork of pi that keeps the pi 1.x
+  extension surface behind an explicit legacy-pi compatibility layer, so the
+  adapter is a thin port of `pi-harnmem`: the plugin appends a byte-stable
+  memory index to the system prompt on `before_agent_start`, exposes the same
+  five `harnmem_*` tools, and bridges the host model for optional extraction.
+  Two omp-specific constraints shaped the port: `session_shutdown` has a
+  2-second concurrent budget (the pi adapter's 8-second self-imposed limit was
+  cut), and `session_start`/`session_shutdown` carry no reason field, so resume
+  detection is inferred from the conversation while omp's extra
+  `session_switch`/`session_branch` events give finer switch semantics. omp's
+  built-in memory is a hardcoded five-way choice with no third-party backend
+  registration API, so the plugin is a plain extension that coexists with
+  `memory.backend: off`. Install with `omp plugin install` (npm, git or link);
+  the package ships as `omp-harnmem`. *Acceptance:* real `omp -p` sessions
+  loaded a linked plugin, injected a seeded memory into the system prompt tail
+  and recalled it in a later session; injection stays byte-stable across turns;
+  4 deterministic Node tests (`test/config.test.mjs`) run in the root test
+  chain.
+
+- [ ] **N32. omp adapter follow-ups.** Re-run the probe when omp changes its
+  extension runtime or its legacy-pi compatibility layer, and re-stamp
+  `research/omp-plugin.md`; the runtime-vs-types discrepancy on string-valued
+  `before_agent_start` returns (the runtime applies a string where the types
+  say `string[]`) is the early-warning signal. Revisit a backend integration if
+  omp ever exposes a third-party memory registration API.
 
 ## 5. Decision log
 
@@ -976,7 +1006,7 @@ backlog by user decision (2026-10-30).
 # from <repo>
 pnpm -r build
 pnpm -r typecheck
-pnpm test                                   # core + CLI + five adapter suites
+pnpm test                                   # core + CLI + every adapter suite
 node evals/gen/generate.mjs --check         # 36 files byte-identical
 node evals/run.mjs --engine core --gate     # functional PASS; 5 advisory
 
