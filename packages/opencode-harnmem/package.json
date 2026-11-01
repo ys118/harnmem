@@ -1,6 +1,6 @@
 {
   "name": "opencode-harnmem",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": false,
   "type": "module",
   "description": "opencode v2 plugin for HarnMem, the cross-harness agent memory: byte-stable session-context injection, five native memory tools, and per-turn journaling — in-process, zero runtime dependencies. One shared store of plain, human-editable Markdown under ~/.harnmem — no server, no vector database.",

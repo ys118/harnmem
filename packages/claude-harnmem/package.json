@@ -1,6 +1,6 @@
 {
   "name": "claude-harnmem",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "private": false,
   "type": "module",
   "description": "Claude Code plugin for HarnMem, the cross-harness agent memory: byte-stable SessionStart injection, five MCP memory tools, and a /memory command. One shared store of plain, human-editable Markdown under ~/.harnmem — no server, no vector database, no embedding model.",

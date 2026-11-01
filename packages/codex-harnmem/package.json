@@ -1,6 +1,6 @@
 {
   "name": "codex-harnmem",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "private": false,
   "type": "module",
   "description": "Codex plugin for HarnMem, the cross-harness agent memory: byte-stable SessionStart injection, rollout backfill/journaling, and seven MCP memory tools. One shared store of plain, human-editable Markdown under ~/.harnmem — no server, no vector database, no embedding model.",

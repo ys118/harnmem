@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.5] - 2026-11-01
+
+### Changed
+
+- Every published package now leads its npm description with what makes
+  HarnMem different (#49) — "cross-harness agent memory", one shared store of
+  plain, human-editable Markdown under `~/.harnmem`, and "no server, no vector
+  database, no embedding model" — instead of a per-feature sentence that read
+  like any other memory plugin. `claude-harnmem` 0.4.6, `codex-harnmem` 0.2.6,
+  `opencode-harnmem` 0.1.4, `grok-harnmem` 0.1.3, `cursor-harnmem` 0.1.4 and
+  `hermes-harnmem` 0.1.2 gained their first npm keywords
+  (`agent-memory`, `cross-harness` and friends), and every other package added
+  those keywords too, so the adapters surface in npm keyword searches.
+- The HarnMem logo now shows wherever a package is displayed (#50). Every
+  adapter tarball ships the 1024×1024 `logo.png` (added to `files`),
+  `codex-harnmem` 0.2.6 declares `"logo": "./logo.png"` in its
+  `.codex-plugin/plugin.json` (a field the Codex plugin manifest schema
+  defines), `omp-harnmem` 0.1.3 carries the pi-style `image` URL in its
+  manifest for gallery listings, and all eleven package READMEs plus the root
+  README open with the logo. `pi-harnmem` and `cursor-harnmem` already did.
+- Bookkeeping bumps so npm serves the new metadata: `@harnmem/core` 0.4.5,
+  `@harnmem/cli` 0.4.2, `pi-harnmem` 0.4.8 and `dsh-harnmem` 0.4.4 carry only
+  the description, keyword and README/logo changes (no code changes). The
+  plugin manifests and `plugin.yaml` are synced with their package versions.
+  `hermes-harnmem` 0.1.2 stays private: it is distributed through Hermes' own
+  plugin manager, never npm.
+
 ## [0.7.4] - 2026-11-01
 
 ### Added
