@@ -7,7 +7,7 @@
  * (probe P10/P13/P19, docs/research/grok-plugin.md §1/§3.4). These tests pin:
  *  - empty store => no instructions field at all (0-byte rule);
  *  - seeded store => instructions carry the byte-stable snapshot;
- *  - the byte cap + memory_context fallback pointer;
+ *  - the byte cap + harnmem_context fallback pointer;
  *  - six tools, the canonical read/write path, and protocol errors.
  */
 import assert from "node:assert/strict";
@@ -79,7 +79,7 @@ async function seedMemory(home, title, description) {
   const server = startServer({ HARNMEM_HOME: home });
   try {
     await handshake(server);
-    const result = await callTool(server, 2, "memory_write", {
+    const result = await callTool(server, 2, "harnmem_write", {
       type: "feedback",
       title,
       description,
@@ -133,7 +133,7 @@ test("seeded store injects a byte-stable instructions snapshot", async () => {
   }
 });
 
-test("instructions respect HARNMEM_GROK_MAX_INSTRUCT_BYTES and point at memory_context", async () => {
+test("instructions respect HARNMEM_GROK_MAX_INSTRUCT_BYTES and point at harnmem_context", async () => {
   const home = await mkdtemp(path.join(tmpdir(), "harnmem-grok-mcp-cap-"));
   try {
     // Distinct, semantically unrelated records: near-duplicates would supersede
@@ -150,7 +150,7 @@ test("instructions respect HARNMEM_GROK_MAX_INSTRUCT_BYTES and point at memory_c
       const instructions = (await handshake(server)).instructions;
       assert.equal(typeof instructions, "string");
       assert.ok(Buffer.byteLength(instructions, "utf8") <= 120, `instructions exceeded cap: ${instructions.length}`);
-      assert.match(instructions, /memory_context for the full snapshot/);
+      assert.match(instructions, /harnmem_context for the full snapshot/);
     } finally {
       await server.close();
     }
@@ -159,7 +159,7 @@ test("instructions respect HARNMEM_GROK_MAX_INSTRUCT_BYTES and point at memory_c
   }
 });
 
-test("tools/list exposes the canonical five tools plus memory_context", async () => {
+test("tools/list exposes the canonical five tools plus harnmem_context", async () => {
   const home = await mkdtemp(path.join(tmpdir(), "harnmem-grok-mcp-tools-"));
   const server = startServer({ HARNMEM_HOME: home });
   try {
@@ -167,12 +167,12 @@ test("tools/list exposes the canonical five tools plus memory_context", async ()
     server.send({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
     const names = (await server.next()).result.tools.map((tool) => tool.name).sort();
     assert.deepEqual(names, [
-      "memory_context",
-      "memory_forget",
-      "memory_read",
-      "memory_search",
-      "memory_status",
-      "memory_write",
+      "harnmem_context",
+      "harnmem_forget",
+      "harnmem_read",
+      "harnmem_search",
+      "harnmem_status",
+      "harnmem_write",
     ]);
   } finally {
     await server.close();
@@ -185,7 +185,7 @@ test("write -> search -> context -> status round-trip", async () => {
   const server = startServer({ HARNMEM_HOME: home });
   try {
     await handshake(server);
-    const write = await callTool(server, 2, "memory_write", {
+    const write = await callTool(server, 2, "harnmem_write", {
       type: "feedback",
       title: "提交信息格式偏好",
       description: "用户偏好中文 conventional commit 前缀。",
@@ -193,14 +193,14 @@ test("write -> search -> context -> status round-trip", async () => {
     });
     assert.match(write.content[0].text, /stored mem_\w+ \(NEW\)/);
 
-    const search = await callTool(server, 3, "memory_search", { query: "提交信息 格式" });
+    const search = await callTool(server, 3, "harnmem_search", { query: "提交信息 格式" });
     assert.match(search.content[0].text, /提交信息格式偏好/);
 
-    const context = await callTool(server, 4, "memory_context", {});
+    const context = await callTool(server, 4, "harnmem_context", {});
     assert.match(context.content[0].text, /HarnMem memory/);
     assert.match(context.content[0].text, /提交信息格式偏好/);
 
-    const status = await callTool(server, 5, "memory_status", {});
+    const status = await callTool(server, 5, "harnmem_status", {});
     assert.match(status.content[0].text, /harnmem v/);
     assert.match(status.content[0].text, new RegExp(`home=${home.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
 
@@ -218,7 +218,7 @@ test("disabled store injects nothing and refuses tools with a readable error", a
   try {
     const result = await handshake(server);
     assert.equal(Object.hasOwn(result, "instructions"), false);
-    const status = await callTool(server, 2, "memory_status", {});
+    const status = await callTool(server, 2, "harnmem_status", {});
     assert.equal(status.isError, true);
     assert.match(status.content[0].text, /disabled/i);
   } finally {

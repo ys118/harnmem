@@ -492,14 +492,27 @@ export class Retriever {
     if (!layout.hasContent) {
       return { text: "", reason, snapshotAt: now, ids: [], tokensEstimate: 0 };
     }
-    const text = renderContextText(layout.sections);
+    const text = renderContextText(layout.sections, contextFooter(config.toolPrefix));
     return { text, reason, snapshotAt: now, ids: layout.ids, tokensEstimate: estimateTokens(text) };
   }
 }
 
 export const CONTEXT_HEADER = "## HarnMem memory (cross-harness; stable snapshot)";
-export const CONTEXT_FOOTER =
-  "<!-- SSOT: ~/.harnmem. Use memory_search for details; never invent memory ids. Snapshot refreshes on session start, after memory writes and at day rollover. -->";
+
+/**
+ * Build the injected SSOT footer for a tool-name prefix. Adapters register
+ * tools under different prefixes (pi/omp/dsh default to "harnmem_", the MCP
+ * servers to "harnmem_", third-party integrations to anything); the footer
+ * must name the search tool exactly as the model sees it. Invalid values fall
+ * back to the historical "memory_" default so output stays deterministic.
+ */
+export function contextFooter(toolPrefix?: string): string {
+  const prefix = typeof toolPrefix === "string" && /^[A-Za-z][A-Za-z0-9_]*$/.test(toolPrefix) ? toolPrefix : "memory_";
+  return `<!-- SSOT: ~/.harnmem. Use ${prefix}search for details; never invent memory ids. Snapshot refreshes on session start, after memory writes and at day rollover. -->`;
+}
+
+/** Footer for the default "memory_" tool names (kept for backward compatibility). */
+export const CONTEXT_FOOTER = contextFooter();
 
 /** Digest page summary used by the injected hot index. */
 export interface HotDigest {
@@ -590,8 +603,8 @@ export function layoutHotContext(
 }
 
 /** Render the exact injected block around a hot-index layout. */
-export function renderContextText(sections: readonly string[]): string {
-  return `${CONTEXT_HEADER}\n\n${sections.join("\n")}\n\n${CONTEXT_FOOTER}`;
+export function renderContextText(sections: readonly string[], footer: string = CONTEXT_FOOTER): string {
+  return `${CONTEXT_HEADER}\n\n${sections.join("\n")}\n\n${footer}`;
 }
 
 function parseAsOfSafe(value: number | string, fallback: number): number {

@@ -3,8 +3,8 @@
  * HarnMem MCP stdio server for Grok CLI (JSON-RPC 2.0 over ndjson).
  *
  * Exposes six tools: the five canonical memory tools (contract §2)
- *   memory_search / memory_read / memory_write / memory_forget / memory_status
- * plus `memory_context` (the full hot-context snapshot; Grok's injected index
+ *   harnmem_search / harnmem_read / harnmem_write / harnmem_forget / harnmem_status
+ * plus `harnmem_context` (the full hot-context snapshot; Grok's injected index
  * is truncated to fit the aggregate MCP reminder cap, probe P19).
  *
  * Why `instructions` matters here (docs/research/grok-plugin.md §1/§3):
@@ -55,14 +55,14 @@ function textResult(text, isError = false) {
  *
  * Grok prints instructions after "server (N tools): " and truncates the whole
  * aggregate reminder (~4.3 KB with one verbose server, probe P19), so our
- * share must stay small and end with a pointer to memory_context. Truncation
+ * share must stay small and end with a pointer to harnmem_context. Truncation
  * happens on a character boundary (never splits a UTF-8 code point) and backs
  * off to the last complete line when one is close enough.
  */
 function capInstructText(text, maxBytes) {
   if (!text) return "";
   if (Buffer.byteLength(text, "utf8") <= maxBytes) return text;
-  const suffix = "\n… (memory index truncated; call memory_context for the full snapshot)";
+  const suffix = "\n… (memory index truncated; call harnmem_context for the full snapshot)";
   const budget = maxBytes - Buffer.byteLength(suffix, "utf8");
   let cut = "";
   let used = 0;
@@ -79,7 +79,7 @@ function capInstructText(text, maxBytes) {
 
 const TOOL_DEFINITIONS = [
   {
-    name: "memory_search",
+    name: "harnmem_search",
     description:
       "Search persistent cross-harness memory (user preferences, feedback, project decisions, references). Natural-language query; Chinese is matched by bigram. Prefer this before re-asking the user for known preferences or decisions.",
     inputSchema: {
@@ -97,7 +97,7 @@ const TOOL_DEFINITIONS = [
     },
   },
   {
-    name: "memory_read",
+    name: "harnmem_read",
     description: "Read one memory in full by id, including backlinks and optionally older versions.",
     inputSchema: {
       type: "object",
@@ -110,7 +110,7 @@ const TOOL_DEFINITIONS = [
     },
   },
   {
-    name: "memory_write",
+    name: "harnmem_write",
     description:
       "Store one durable memory (preference, lesson, decision, project fact). Only when genuinely valuable; do not store transient task state. Returns one line with the id and action (NEW/SKIP/MERGE/SUPERSEDE/LINK).",
     inputSchema: {
@@ -134,7 +134,7 @@ const TOOL_DEFINITIONS = [
     },
   },
   {
-    name: "memory_forget",
+    name: "harnmem_forget",
     description: "Forget one memory. Default moves it to trash for a grace period; hard=true deletes physically and cannot be undone.",
     inputSchema: {
       type: "object",
@@ -146,15 +146,15 @@ const TOOL_DEFINITIONS = [
     },
   },
   {
-    // No parameters: core stats() is store-wide (same as pi memory_status).
-    name: "memory_status",
+    // No parameters: core stats() is store-wide (same as pi harnmem_status).
+    name: "harnmem_status",
     description: "Show HarnMem store health: shards, index freshness, duplicates, extraction backlog.",
     inputSchema: { type: "object", properties: {} },
   },
   {
     // Grok-specific: the injected index is truncated (P19), so the model needs
     // an explicit way to pull the complete hot-context snapshot on demand.
-    name: "memory_context",
+    name: "harnmem_context",
     description:
       "Return HarnMem's full hot-context snapshot (the memory index injected at session start, before truncation). Use it when the injected index was cut off or you need the complete list of hottest memories.",
     inputSchema: { type: "object", properties: {} },
@@ -212,7 +212,7 @@ async function buildInstructions(ctx) {
 async function callTool(name, args, ctx) {
   const { settings, sessionId, cwd } = ctx;
   const eng = await getEngine(settings, { sessionId, cwd, readOnly: false });
-  switch (name) {    case "memory_search": {
+  switch (name) {    case "harnmem_search": {
       const result = await eng.search({
         query: String(args.query || ""),
         limit: Number.isFinite(Number(args.limit)) && Number(args.limit) > 0 ? Math.floor(Number(args.limit)) : 8,
@@ -224,14 +224,14 @@ async function callTool(name, args, ctx) {
       });
       return textResult(formatSearch(result));
     }
-    case "memory_read": {
+    case "harnmem_read": {
       const result = await eng.read(String(args.id || ""), {
         asOf: typeof args.as_of === "string" ? args.as_of : undefined,
         includeHistory: args.include_history === true,
       });
       return textResult(formatRead(result, String(args.id || "")));
     }
-    case "memory_write": {
+    case "harnmem_write": {
       // Schema is a hint, not a guard (contract §3.6): old prompts may send
       // out-of-range numbers, so clamp like pi tools.ts does. The engine
       // clamps again, but never trust the transport.
@@ -254,15 +254,15 @@ async function callTool(name, args, ctx) {
       eng.noteModelWrite();
       return textResult(formatWrite(result));
     }
-    case "memory_forget": {
+    case "harnmem_forget": {
       const result = await eng.forget(String(args.id || ""), { hard: args.hard === true });
       return textResult(formatForget(result));
     }
-    case "memory_status": {
+    case "harnmem_status": {
       const stats = await eng.stats();
       return textResult(formatStats(stats));
     }
-    case "memory_context": {
+    case "harnmem_context": {
       // "manual" audits as a real injection (byte-stable snapshot, same as the
       // one shipped in initialize.instructions but untruncated).
       const block = await eng.ensureContext("manual");

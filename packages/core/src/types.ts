@@ -485,6 +485,13 @@ export interface HarnMemConfig {
   governance?: Partial<GovernanceConfig>;
   /** Disable all automatic extraction (tool writes still work). */
   readOnly?: boolean;
+  /**
+   * Tool-name prefix the hosting adapter registers (default "memory_"). The
+   * injected SSOT footer names the search tool as `${toolPrefix}search`;
+   * adapters that register tools under another prefix (e.g. "harnmem_") set
+   * this so the footer matches the tools the model actually sees.
+   */
+  toolPrefix?: string;
   /** Extra debug logging sink (optional). */
   log?: (level: "debug" | "info" | "warn" | "error", msg: string, data?: unknown) => void;
 }

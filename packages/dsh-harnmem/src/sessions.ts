@@ -227,6 +227,8 @@ export class SessionManager {
       cwd: state.cwd,
       readOnly: state.readOnly,
       llm: state.llm?.fn ?? null,
+      // Keep the injected SSOT footer in sync with the registered tool names.
+      toolPrefix: state.settings.toolPrefix,
       budget: { injectTokens: state.settings.injectMaxTokens, hotEntries: state.settings.hotEntries },
       write: {
         autoExtract: state.settings.autoExtract,

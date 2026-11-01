@@ -51,7 +51,7 @@ Next session, the hot index is injected automatically:
 
 - 📌 [user] Dependencies in this project use pnpm — never npm install (avoids lockfile drift) (mem_01J8...)
 
-<!-- SSOT: ~/.harnmem. Use memory_search for details; never invent memory ids. ... -->
+<!-- SSOT: ~/.harnmem. Use harnmem_search for details; never invent memory ids. ... -->
 ```
 
 An empty store injects **nothing** (0 bytes).
@@ -110,7 +110,7 @@ Environment overrides: `HARNMEM_HOME`, `HARNMEM_DISABLED=1`, `HARNMEM_READONLY=1
 
 `harnmem_write` marks the snapshot dirty; every successful write refreshes the injected index in the next step.
 
-Tool names follow the `toolPrefix` setting (`harnmem_` by default; the table above uses the default names). The injected SSOT footer may still say `memory_search` — that string comes from `@harnmem/core` and is pending a prefix-aware fix there.
+Tool names follow the `toolPrefix` setting (`harnmem_` by default; the table above uses the default names). The injected SSOT footer follows the same prefix.
 
 ## Commands (human-facing)
 

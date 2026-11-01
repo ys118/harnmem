@@ -46,7 +46,7 @@ In an omp session:
 
 ```text
 You: remember this project uses pnpm — never npm install.
-omp: → memory_write(...) → stored mem_01J8... (NEW)
+omp: → harnmem_write(...) → stored mem_01J8... (NEW)
 ```
 
 Next session, the hot index is injected automatically as a trailing system-prompt segment:
@@ -56,7 +56,7 @@ Next session, the hot index is injected automatically as a trailing system-promp
 
 - 📌 [user] Dependencies in this project use pnpm — never npm install (avoids lockfile drift) (mem_01J8...)
 
-<!-- SSOT: ~/.harnmem. Use memory_search for details; never invent memory ids. ... -->
+<!-- SSOT: ~/.harnmem. Use harnmem_search for details; never invent memory ids. ... -->
 ```
 
 An empty store injects **nothing** (0 bytes).
@@ -84,7 +84,7 @@ Settings are read (lowest → highest priority) from: built-in defaults → `<ho
     "timeoutMs": 60000
   },
   "log": "errors",          // off | errors | on  → <home>/logs/omp.jsonl
-  "toolPrefix": "memory_",  // model-facing tool prefix; use "harnmem_" to avoid clashes
+  "toolPrefix": "harnmem_",  // model-facing tool prefix; set "memory_" for the legacy names
   "debug": false
 }
 ```
@@ -94,26 +94,26 @@ Environment overrides: `HARNMEM_HOME`, `HARNMEM_DISABLED=1`, `HARNMEM_READONLY=1
 > **Clean footer.** The one-line `harnmem: 22 entries · ~1061 tokens · <sha>` status is
 > informational; set `"statusLine": false` in `<agentDir>/harnmem.json` (or
 > `HARNMEM_STATUS_LINE=0`) to hide it. Memory injection, tools and extraction are unaffected;
-> `/memory status` and the `memory_status` tool still report the snapshot.
+> `/memory status` and the `harnmem_status` tool still report the snapshot.
 
-> **Tool-name clashes.** If another extension already registers `memory_*` tools, set
-> `"toolPrefix": "harnmem_"` in `<agentDir>/harnmem.json` to expose `harnmem_write`,
-> `harnmem_search`, `harnmem_read`, `harnmem_forget`, `harnmem_status` instead. The
-> `/memory` command keeps its name.
+> **Tool-name clashes.** Tool names follow the `toolPrefix` setting, `harnmem_` by default —
+> chosen so extensions that already register `memory_*` tools (e.g. pi-memory) never collide.
+> To switch to the legacy names, set `"toolPrefix": "memory_"` in `<agentDir>/harnmem.json`;
+> the `/memory` command keeps its name.
 
 ## Tools (model-facing)
 
 | Tool | Parameters | Notes |
 |---|---|---|
-| `memory_write` | `type` (user/feedback/project/reference), `title`, `description`, `content`, `category`, `scope` (auto/user/project), `importance` (0–10), `confidence` (0–1), `pinned`, `tags`, `entities`, `links`, `supersedes`, `evidence` | Returns one line: `stored … (NEW)` / `already exists … (SKIP)` / `merged into … (MERGE)` / `superseded … → …` / `linked to existing … (LINK)`; registered with `approval: "write"` |
-| `memory_search` | `query`, `limit` (8), `scope`, `project`, `include_archived`, `include_history`, `as_of`, `entity`, `debug` | BM25F + synonyms + link diffusion; abstains when not confident; `approval: "read"` |
-| `memory_read` | `id`, `as_of`, `include_history` | Frontmatter summary + body + backlinks; `approval: "read"` |
-| `memory_forget` | `id`, `hard` | Default moves to `trash/` (30-day grace); `hard` is permanent; `approval: "write"` |
-| `memory_status` | — | Shards, index state, health, extraction counters; `approval: "read"` |
+| `harnmem_write` | `type` (user/feedback/project/reference), `title`, `description`, `content`, `category`, `scope` (auto/user/project), `importance` (0–10), `confidence` (0–1), `pinned`, `tags`, `entities`, `links`, `supersedes`, `evidence` | Returns one line: `stored … (NEW)` / `already exists … (SKIP)` / `merged into … (MERGE)` / `superseded … → …` / `linked to existing … (LINK)`; registered with `approval: "write"` |
+| `harnmem_search` | `query`, `limit` (8), `scope`, `project`, `include_archived`, `include_history`, `as_of`, `entity`, `debug` | BM25F + synonyms + link diffusion; abstains when not confident; `approval: "read"` |
+| `harnmem_read` | `id`, `as_of`, `include_history` | Frontmatter summary + body + backlinks; `approval: "read"` |
+| `harnmem_forget` | `id`, `hard` | Default moves to `trash/` (30-day grace); `hard` is permanent; `approval: "write"` |
+| `harnmem_status` | — | Shards, index state, health, extraction counters; `approval: "read"` |
 
-`memory_write` marks the snapshot dirty; every successful write refreshes the injected index in the next step.
+`harnmem_write` marks the snapshot dirty; every successful write refreshes the injected index in the next step.
 
-Tool names follow the `toolPrefix` setting (`memory_` by default); the table above uses the default names.
+Tool names follow the `toolPrefix` setting (`harnmem_` by default); the table above uses the default names. The injected SSOT footer follows the same prefix.
 
 ## Commands (human-facing)
 
@@ -136,14 +136,14 @@ Tool names follow the `toolPrefix` setting (`memory_` by default); the table abo
   requires byte-identical payloads — is not invalidated.
 - **Injection budget:** `maxInjectTokens` (default 1200). Pinned entries first, then
   user/project/digest sections; whole entries only. Body text is never injected — the model
-  calls `memory_read` for detail.
+  calls `harnmem_read` for detail.
 - **Resume detection:** omp's `session_start` event carries no reason field; the adapter
   infers `"resume"` from existing conversational entries (the same predicate omp itself uses).
 - **Session switches:** `session_before_switch` / `session_before_branch` flush the outgoing
   session's journal under its own id before omp swaps files; `session_switch` / `session_branch`
   re-open state under the new session id.
 - **Read-only children:** task/subagent sessions (`ctx.agent.depth > 0` or `kind !== "main"`)
-  get no LLM and cannot write: `memory_write failed: HarnMem is read-only`.
+  get no LLM and cannot write: `harnmem_write failed: HarnMem is read-only`.
 - **Session end:** the transcript (last ≤240 messages, assistant truncated) is journaled; when
   `autoExtract` is on, extraction runs at shutdown with a 1.5 s hard timeout (omp gives shutdown
   handlers a ~2 s concurrent budget), ≥3 user messages, and is skipped if the model wrote a
@@ -198,7 +198,7 @@ specifiers onto its host-bundled copies before evaluation.
 
 - omp only for this package; other harnesses use their own adapters.
 - Config resolution has unit tests (`node --test test/*.test.mjs`); runtime behavior is covered by manual end-to-end runs against omp 18.14.1.
-- `autoExtract` extraction window is bounded to 1.5 s at shutdown (omp budget); long transcripts may not fully extract — prefer explicit `memory_write`.
+- `autoExtract` extraction window is bounded to 1.5 s at shutdown (omp budget); long transcripts may not fully extract — prefer explicit `harnmem_write`.
 - omp's session_stop event fires per turn settle, so extraction is anchored to `session_shutdown` instead.
 
 ## License

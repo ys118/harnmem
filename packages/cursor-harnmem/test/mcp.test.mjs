@@ -64,7 +64,7 @@ test("MCP e2e: initialize, tools/list, Chinese write+search, status", async () =
     srv.send({ jsonrpc: "2.0", id: 2, method: "tools/list" });
     const tools = await srv.recv(2);
     const names = tools.result.tools.map((t) => t.name).sort();
-    assert.deepEqual(names, ["memory_forget", "memory_read", "memory_search", "memory_status", "memory_write"]);
+    assert.deepEqual(names, ["harnmem_forget", "harnmem_read", "harnmem_search", "harnmem_status", "harnmem_write"]);
     for (const tool of tools.result.tools) {
       const descBytes = Buffer.byteLength(tool.description || "", "utf8");
       assert.ok(descBytes > 0);
@@ -75,7 +75,7 @@ test("MCP e2e: initialize, tools/list, Chinese write+search, status", async () =
       id: 3,
       method: "tools/call",
       params: {
-        name: "memory_write",
+        name: "harnmem_write",
         arguments: {
           type: "feedback",
           title: "提交信息使用英文并按 type(scope): 格式",
@@ -90,16 +90,16 @@ test("MCP e2e: initialize, tools/list, Chinese write+search, status", async () =
     const writeText = write.result.content[0].text;
     assert.match(writeText, /^stored mem_\w+ \(NEW\)$/);
 
-    srv.send({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "memory_search", arguments: { query: "提交信息 格式" } } });
+    srv.send({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "harnmem_search", arguments: { query: "提交信息 格式" } } });
     const search = await srv.recv(4);
     const searchText = search.result.content[0].text;
     assert.ok(searchText.includes("提交信息使用英文"), "Chinese bigram search must hit the stored record");
 
-    srv.send({ jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "memory_search", arguments: { query: "完全不存在的量子 phrase" } } });
+    srv.send({ jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "harnmem_search", arguments: { query: "完全不存在的量子 phrase" } } });
     const miss = await srv.recv(5);
     assert.ok(miss.result.content[0].text.length > 0);
 
-    srv.send({ jsonrpc: "2.0", id: 6, method: "tools/call", params: { name: "memory_status", arguments: {} } });
+    srv.send({ jsonrpc: "2.0", id: 6, method: "tools/call", params: { name: "harnmem_status", arguments: {} } });
     const status = await srv.recv(6);
     assert.ok(status.result.content[0].text.includes(`home=${path.resolve(home)}`));
 

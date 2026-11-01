@@ -64,7 +64,16 @@ export declare class Retriever {
     buildContext(reason?: ContextReason): Promise<ContextBlock>;
 }
 export declare const CONTEXT_HEADER = "## HarnMem memory (cross-harness; stable snapshot)";
-export declare const CONTEXT_FOOTER = "<!-- SSOT: ~/.harnmem. Use memory_search for details; never invent memory ids. Snapshot refreshes on session start, after memory writes and at day rollover. -->";
+/**
+ * Build the injected SSOT footer for a tool-name prefix. Adapters register
+ * tools under different prefixes (pi/omp/dsh default to "harnmem_", the MCP
+ * servers to "harnmem_", third-party integrations to anything); the footer
+ * must name the search tool exactly as the model sees it. Invalid values fall
+ * back to the historical "memory_" default so output stays deterministic.
+ */
+export declare function contextFooter(toolPrefix?: string): string;
+/** Footer for the default "memory_" tool names (kept for backward compatibility). */
+export declare const CONTEXT_FOOTER: string;
 /** Digest page summary used by the injected hot index. */
 export interface HotDigest {
     title: string;
@@ -91,5 +100,5 @@ export interface HotContextLayout {
  */
 export declare function layoutHotContext(docs: readonly DocMeta[], digests: readonly HotDigest[], options: HotContextOptions): HotContextLayout;
 /** Render the exact injected block around a hot-index layout. */
-export declare function renderContextText(sections: readonly string[]): string;
+export declare function renderContextText(sections: readonly string[], footer?: string): string;
 //# sourceMappingURL=retrieval.d.ts.map

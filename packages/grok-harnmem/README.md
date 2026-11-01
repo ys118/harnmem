@@ -5,7 +5,7 @@ Cross-harness persistent memory for [Grok CLI](https://github.com/xai-org/grok-c
 ## What it does
 
 - **Injected memory index** — a byte-stable snapshot of your hottest memories reaches the model before the first turn through the MCP server's `initialize.instructions`, which Grok injects as the `<system-reminder>` titled "MCP servers connected: …". Empty store ⇒ nothing injected. The snapshot only rebuilds on session start, after a write, or at day rollover, so prompt caching stays intact across turns.
-- **Six MCP tools** — the five canonical `memory_search`, `memory_read`, `memory_write`, `memory_forget`, `memory_status` tools plus `memory_context`, which returns the full index when Grok's aggregate reminder cap cut the injected copy. Grok exposes plugin MCP tools as `harnmem__*` and the model may inspect schemas through `search_tool` first.
+- **Six MCP tools** — the five canonical `harnmem_search`, `harnmem_read`, `harnmem_write`, `harnmem_forget`, `harnmem_status` tools plus `harnmem_context`, which returns the full index when Grok's aggregate reminder cap cut the injected copy. Grok exposes plugin MCP tools as `harnmem__*` and the model may inspect schemas through `search_tool` first.
 - **`/grok-harnmem:memory` command** — a manual operator entry point to search/read/write/forget/status/context without leaving the chat (plugin commands are namespaced by the plugin name).
 - **Session-end extraction** — the `SessionEnd` hook journals the transcript tail and hands it to a detached child process, so the hook returns inside Grok's 1.5 s plugin budget and extraction never blocks your exit. It reads `chat_history.jsonl` (falling back to `updates.jsonl`) from the Grok session directory.
 - **Subagent-safe** — sessions carrying `subagentType` run read-only and never extract; only the main session writes.
@@ -49,7 +49,7 @@ Environment first, then files — malformed config is ignored, never fatal:
 
 Grok-specific knobs:
 
-- `HARNMEM_GROK_MAX_INSTRUCT_BYTES` (default `2500`) — byte cap for the injected index. Grok truncates the aggregate "MCP servers connected" reminder at roughly 4.3 KB when other servers also declare instructions; keep this small and use `memory_context` for the full copy.
+- `HARNMEM_GROK_MAX_INSTRUCT_BYTES` (default `2500`) — byte cap for the injected index. Grok truncates the aggregate "MCP servers connected" reminder at roughly 4.3 KB when other servers also declare instructions; keep this small and use `harnmem_context` for the full copy.
 - `HARNMEM_GROK_MAX_INJECT_TOKENS` (default `1200`) — core's retrieval budget for the snapshot itself.
 
 Extraction is dry by default (`autoExtract: false`): the session transcript is journaled but no LLM is called. Set `autoExtract: true` in `~/.harnmem/config.json` and wire the shared `llm` config to extract durable memories at session end; without an LLM the store records `status: no_llm` in the audit log and nothing is written.
@@ -81,7 +81,7 @@ Extraction is dry by default (`autoExtract: false`): the session transcript is j
 ## Notes
 
 - The MCP server never writes to stdout outside the JSON-RPC protocol; hook scripts print nothing and exit 0 on any failure so a broken adapter can never wedge a session.
-- MCP tools are not in Grok's tool definitions, so the model reaches them through `search_tool` / `use_tool`; the injected index appends a `memory_context` pointer only when the index was truncated, and `memory_context` stays available for a full pull at any time.
+- MCP tools are not in Grok's tool definitions, so the model reaches them through `search_tool` / `use_tool`; the injected index appends a `harnmem_context` pointer only when the index was truncated, and `harnmem_context` stays available for a full pull at any time.
 - The hook only registers `SessionEnd`; no `SessionStart` hook exists by design (see above).
 - Design and verification evidence: `docs/design/11-grok-adapter.md`, `docs/research/grok-plugin.md`.
 

@@ -64,12 +64,12 @@ test("hooks register SessionEnd only (SessionStart injection is impossible in Gr
 test("commands and skills are discoverable components", async () => {
   const command = await readFile(path.join(pkgRoot, "commands", "memory.md"), "utf8");
   assert.match(command, /^---\n/);
-  assert.match(command, /allowed-tools: .*harnmem__memory_search/);
-  assert.match(command, /harnmem__memory_context/, "the command should expose the full-snapshot fallback");
+  assert.match(command, /allowed-tools: .*harnmem__harnmem_search/);
+  assert.match(command, /harnmem__harnmem_context/, "the command should expose the full-snapshot fallback");
 
   const skill = await readFile(path.join(pkgRoot, "skills", "harnmem-recall", "SKILL.md"), "utf8");
   assert.match(skill, /^---\nname: harnmem-recall\n/);
-  assert.match(skill, /memory_context/);
+  assert.match(skill, /harnmem_context/);
 });
 
 test("README documents the Grok-specific injection channel", async () => {

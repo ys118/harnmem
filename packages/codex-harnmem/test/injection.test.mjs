@@ -11,11 +11,11 @@ const pkgRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const mcpPath = path.join(pkgRoot, "mcp", "mcp.mjs");
 
 /**
- * Start a fresh server process and call memory_context once. The engine is
+ * Start a fresh server process and call harnmem_context once. The engine is
  * opened inside the child, so byte-stability across calls is measured across
  * full process lifecycles (the property the contract actually requires).
  *
- * The server also runs backfill on every memory_context call, so the sandbox
+ * The server also runs backfill on every harnmem_context call, so the sandbox
  * MUST pin CODEX_HOME and HARNMEM_PAYLOAD_DIR to empty tmp dirs — otherwise
  * the child scans the developer's real ~/.codex and races the tmp-home cleanup
  * with detached workers writing markers into it (the flaky ENOTEMPTY rmdir).
@@ -83,7 +83,7 @@ function contextCall(env, args) {
         id: 2,
         method: "tools/call",
         params: {
-          name: "memory_context",
+          name: "harnmem_context",
           arguments: {
             hook_event_name: "SessionStart",
             session_id: "019a2b3c-test",
@@ -112,7 +112,7 @@ function pathToFileUrl(p) {
   return "file:///" + p.replace(/\\/g, "/");
 }
 
-test("memory_context: empty store injects nothing", async () => {
+test("harnmem_context: empty store injects nothing", async () => {
   const home = await mkdtemp(path.join(os.tmpdir(), "harnmem-cx-inj-"));
   try {
     const text = await contextCall({ HARNMEM_HOME: home });
@@ -122,7 +122,7 @@ test("memory_context: empty store injects nothing", async () => {
   }
 });
 
-test("memory_context: seeded snapshot, byte-stable across processes, capped at 10k bytes", async () => {
+test("harnmem_context: seeded snapshot, byte-stable across processes, capped at 10k bytes", async () => {
   const home = await mkdtemp(path.join(os.tmpdir(), "harnmem-cx-inj-"));
   try {
     await seedMemory(home, "包管理器统一用 pnpm", "用户要求本仓库一律 pnpm，不用 npm。");
@@ -137,7 +137,7 @@ test("memory_context: seeded snapshot, byte-stable across processes, capped at 1
   }
 });
 
-test("memory_context: disabled or inject=off injects nothing", async () => {
+test("harnmem_context: disabled or inject=off injects nothing", async () => {
   const home = await mkdtemp(path.join(os.tmpdir(), "harnmem-cx-inj-"));
   try {
     await seedMemory(home, "seed-disabled", "body");

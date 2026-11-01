@@ -45,6 +45,39 @@ test("config-file home supports ~ expansion; env wins", async () => {
   }
 });
 
+test("toolPrefix defaults to harnmem_ so memory_* extensions can coexist", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "harnmem-omp-prefix-"));
+  const project = join(dir, "project");
+  const store = join(dir, "store");
+  const agentDir = join(dir, "agent");
+  try {
+    await mkdir(project, { recursive: true });
+    // Isolate the store home and the agent dir so no real user config leaks in.
+    const resolved = resolveSettings(project, { HARNMEM_HOME: store, OMP_AGENT_DIR: agentDir });
+    assert.equal(resolved.toolPrefix, "harnmem_");
+    assert.equal(resolved.warnings.length, 0);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("HARNMEM_TOOL_PREFIX overrides the default; invalid values fall back with a warning", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "harnmem-omp-prefix-env-"));
+  const project = join(dir, "project");
+  const agentDir = join(dir, "agent");
+  try {
+    await mkdir(project, { recursive: true });
+    const env = { OMP_AGENT_DIR: agentDir };
+    const override = resolveSettings(project, { ...env, HARNMEM_HOME: join(dir, "store-a"), HARNMEM_TOOL_PREFIX: "memory_" });
+    assert.equal(override.toolPrefix, "memory_");
+    const bad = resolveSettings(project, { ...env, HARNMEM_HOME: join(dir, "store-b"), HARNMEM_TOOL_PREFIX: "1bad-prefix" });
+    assert.equal(bad.toolPrefix, "harnmem_");
+    assert.ok(bad.warnings.some((w) => w.includes("toolPrefix")));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("config file with a UTF-8 BOM and JSONC comments still applies", async () => {
   const dir = await mkdtemp(join(tmpdir(), "harnmem-omp-bom-"));
   const project = join(dir, "project");

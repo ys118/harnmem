@@ -168,7 +168,7 @@ const eng = await HarnMem.open({
 | Layer | What to implement | Degrade to |
 |---|---|---|
 | Injection | Put `eng.ensureContext()` text into the system prompt / hook `additionalContext` at session start | Keep the session running, audit the failure |
-| Tools | `memory_write`, `memory_search`, `memory_read`, `memory_forget`, `memory_status` (+ optional restore/consolidate/pin) | Injection-only mode |
+| Tools | `harnmem_write`, `harnmem_search`, `harnmem_read`, `harnmem_forget`, `harnmem_status` (+ optional restore/consolidate/pin) | Injection-only mode |
 | Lifecycle | Session start/resume (open engine, inject), compaction (re-inject), memory writes (mark context dirty), session end (`sessionEnd()` → bounded extraction), `close()` | Audited extraction failure, never a blocked exit |
 | Config | Map harness config + env (`HARNMEM_HOME`, `HARNMEM_DISABLED`, `HARNMEM_READONLY`) into `HarnMemConfig` | Built-in defaults; precedence in 07 §7 |
 
@@ -210,7 +210,7 @@ const eng = await HarnMem.open({
 - [ ] Empty store injects 0 bytes without errors
 - [ ] A memory written now is visible in a new session's injection (test once
       cross-session, once cross-harness)
-- [ ] `memory_search` finds a Chinese query (bigram tokenization works)
+- [ ] `harnmem_search` finds a Chinese query (bigram tokenization works)
 - [ ] Two turns in one session inject identical bytes (cache stability)
 - [ ] Session exit does not hang (extraction timeout protection)
 - [ ] Read-only mode works with no LLM and no write permission

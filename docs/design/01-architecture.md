@@ -104,7 +104,7 @@ export class HarnMem {
 
 **Adapter contract (6 hooks + 5 tools)**: harness events map to facade methods — `session_start`→`open`+`sessionStart`; per-turn context→`ensureContext` (pi: append to systemPrompt in `before_agent_start`); message journaling/memory writes→`noteModelWrite`/`invalidateContext`; compaction→`ensureContext("compaction")`; shutdown→`sessionEnd`+`close`; LLM→`LlmFn` (optional; without it, writes rely on tools plus mechanical governance).
 
-Tool set (unified across harnesses): `memory_write`, `memory_search`, `memory_read`, `memory_forget`, `memory_status` (5 tools; the earlier draft's `memory_update`/`memory_restore`/`memory_stats`/`scratchpad_write` were not implemented — updates go through `write`'s supersede/merge, and restore goes through `/memory restore` or `restore()`).
+Tool set (unified across harnesses): `harnmem_write`, `harnmem_search`, `harnmem_read`, `harnmem_forget`, `harnmem_status` (5 tools; the earlier draft's `memory_update`/`harnmem_restore`/`memory_stats`/`scratchpad_write` were not implemented — updates go through `write`'s supersede/merge, and restore goes through `/memory restore` or `restore()`).
 
 ## 4. Data flows
 
@@ -119,7 +119,7 @@ Tool set (unified across harnesses): `memory_write`, `memory_search`, `memory_re
 
 ### 4.2 Retrieval (tool call)
 
-`memory_search(query, {scope, type, limit})`:
+`harnmem_search(query, {scope, type, limit})`:
 
 1. Tokenize (English words + Chinese bigrams) → multi-field BM25 scoring;
 2. Filter: status != dropped, scope match (default user + current project), optional includeArchived;
@@ -128,7 +128,7 @@ Tool set (unified across harnesses): `memory_write`, `memory_search`, `memory_re
 5. Truncate: return ≤ N entries (default 8) with total bytes ≤ budget; each entry returns id/title/description/snippet (first 400 chars of the body);
 6. Record `last_used/used_count` (recall feedback used by governance, persisted asynchronously).
 
-`memory_read(id)` returns the full body (constrained by the per-record limit).
+`harnmem_read(id)` returns the full body (constrained by the per-record limit).
 
 ### 4.3 Write (tool)
 

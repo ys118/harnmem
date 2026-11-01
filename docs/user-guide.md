@@ -74,7 +74,7 @@ stored mem_xxxxxxxxxxxxxxxxxxxxxxxxxx (NEW)
 ### Project memories
 - [feedback] Dependency management uses pnpm — npm install is forbidden in this project
 
-<!-- SSOT: ~/.harnmem. Use memory_search for details; never invent memory ids. ... -->
+<!-- SSOT: ~/.harnmem. Use harnmem_search for details; never invent memory ids. ... -->
 ```
 
 **An empty store injects nothing (0 bytes)**, so no tokens are wasted.

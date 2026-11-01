@@ -117,6 +117,7 @@ async function openEngine(core, payload) {
     harness: typeof payload.harness === "string" && payload.harness ? payload.harness : "hermes",
     cwd: typeof payload.cwd === "string" && payload.cwd ? payload.cwd : process.cwd(),
     readOnly: payload.readOnly === true,
+    toolPrefix: "harnmem_",
     budget: { injectTokens: positiveInt(payload.injectTokens ?? payload.budgetInjectTokens, DEFAULT_INJECT_TOKENS) },
     write: { autoExtract: payload.autoExtract === true },
     log: makeLogger(debug),

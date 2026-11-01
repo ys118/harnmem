@@ -34,6 +34,8 @@ export async function openEngine(settings, opts = {}) {
     cwd: opts.cwd || process.cwd(),
     project: typeof settings.project === "string" && settings.project.trim() ? settings.project.trim() : undefined,
     readOnly: opts.readOnly === true || settings.readOnly === true,
+    // Keep the injected SSOT footer in sync with the tool names below.
+    toolPrefix: "harnmem_",
     budget: { injectTokens: settings.maxInjectTokens },
     write: { autoExtract: settings.autoExtract === true },
     log:

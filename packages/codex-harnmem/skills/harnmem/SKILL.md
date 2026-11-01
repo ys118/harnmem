@@ -9,7 +9,7 @@ You have persistent cross-harness memory through the `mcp__harnmem__*` tools
 (shared with the user's other coding agents — Claude Code, DSH, pi). A memory
 snapshot is already injected at session start; the tools let you go deeper.
 
-## When to search (`memory_search`)
+## When to search (`harnmem_search`)
 
 - The user references a past decision, preference, or setup ("like before",
   "as usual", "the rules from last time") and the injected snapshot does not
@@ -19,7 +19,7 @@ snapshot is already injected at session start; the tools let you go deeper.
 - When starting work on a project you have touched before: search the project
   name or repo for decisions and guardrails.
 
-## When to write (`memory_write`)
+## When to write (`harnmem_write`)
 
 Store only durable, reusable facts — never transient task state:
 
@@ -33,10 +33,10 @@ already tracked in the repo, or secrets/credentials — never store secrets.
 
 ## Hygiene
 
-- `memory_write` returns one line (`NEW` / `SKIP` / `MERGE` / `SUPERSEDE` /
+- `harnmem_write` returns one line (`NEW` / `SKIP` / `MERGE` / `SUPERSEDE` /
   `LINK`) — trust it; do not re-write to "confirm".
 - Prefer one specific record over a sprawling essay; supersede outdated
   records instead of writing contradictory new ones.
-- `memory_forget` moves records to trash (recoverable); `hard=true` is
+- `harnmem_forget` moves records to trash (recoverable); `hard=true` is
   irreversible and needs an explicit user request.
-- `memory_status` shows store health when something looks off.
+- `harnmem_status` shows store health when something looks off.

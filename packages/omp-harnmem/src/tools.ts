@@ -17,7 +17,7 @@ import type { Adapter } from "./state.js";
 const MEMORY_TYPES = ["user", "feedback", "project", "reference"] as const;
 const CATEGORIES = ["decision", "convention", "lesson", "pitfall", "state", "profile", "external"] as const;
 const SCOPES = ["auto", "user", "project"] as const;
-/** memory_search scope: SearchOptions.scope has no "auto" mode (write-only concept). */
+/** harnmem_search scope: SearchOptions.scope has no "auto" mode (write-only concept). */
 const SEARCH_SCOPES = ["user", "project", "all"] as const;
 
 function errText(err: unknown): string {
@@ -29,7 +29,7 @@ async function engineOf(ctx: ExtensionContext, adapter: Adapter) {
   return eng;
 }
 
-export function registerTools(pi: ExtensionAPI, adapter: Adapter, toolPrefix = "memory_"): void {
+export function registerTools(pi: ExtensionAPI, adapter: Adapter, toolPrefix = "harnmem_"): void {
   const name = (suffix: string) => `${toolPrefix}${suffix}`;
   const { Type } = pi.typebox;
   pi.registerTool({
@@ -46,7 +46,7 @@ export function registerTools(pi: ExtensionAPI, adapter: Adapter, toolPrefix = "
         description: Type.String({ description: "One-line description shown in search results and the hot index." }),
         category: Type.Optional(Type.Unsafe<MemoryCategory>({ type: "string", enum: [...CATEGORIES] })),
         scope: Type.Optional(Type.Unsafe<MemoryScope | "auto">({ type: "string", enum: [...SCOPES] })),
-        project: Type.Optional(Type.String({ description: "Registered project id, name or path (see memory_status); omit to store against the current project. Unknown names are rejected." })),
+        project: Type.Optional(Type.String({ description: "Registered project id, name or path (see harnmem_status); omit to store against the current project. Unknown names are rejected." })),
         tags: Type.Optional(Type.Array(Type.String())),
         entities: Type.Optional(Type.Array(Type.String())),
         importance: Type.Optional(Type.Number({ description: "0..10 (higher = more important), default 5" })),

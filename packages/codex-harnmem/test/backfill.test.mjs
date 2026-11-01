@@ -112,7 +112,7 @@ test("backfill worker: journals the previous session and advances the marker", a
   }
 });
 
-test("memory_context queues backfill payloads for unextracted rollouts only", async () => {
+test("harnmem_context queues backfill payloads for unextracted rollouts only", async () => {
   const home = await mkdtemp(path.join(os.tmpdir(), "harnmem-cx-bf2-home-"));
   const codexHome = await mkdtemp(path.join(os.tmpdir(), "harnmem-cx-bf2-code-"));
   const payloads = await mkdtemp(path.join(os.tmpdir(), "harnmem-cx-bf2-pay-"));
@@ -167,7 +167,7 @@ test("memory_context queues backfill payloads for unextracted rollouts only", as
         jsonrpc: "2.0",
         id: 2,
         method: "tools/call",
-        params: { name: "memory_context", arguments: { hook_event_name: "SessionStart", session_id: liveThread, cwd: CWD } },
+        params: { name: "harnmem_context", arguments: { hook_event_name: "SessionStart", session_id: liveThread, cwd: CWD } },
       });
       await recv(2);
 
@@ -188,7 +188,7 @@ test("memory_context queues backfill payloads for unextracted rollouts only", as
         jsonrpc: "2.0",
         id: 3,
         method: "tools/call",
-        params: { name: "memory_context", arguments: { hook_event_name: "SessionStart", session_id: liveThread, cwd: CWD } },
+        params: { name: "harnmem_context", arguments: { hook_event_name: "SessionStart", session_id: liveThread, cwd: CWD } },
       });
       await recv(3);
       await new Promise((r) => setTimeout(r, 700));
