@@ -1,3 +1,5 @@
+![HarnMem logo](https://raw.githubusercontent.com/ys118/harnmem/master/packages/hermes-harnmem/logo.png)
+
 # hermes-harnmem
 
 Cross-harness long-term memory for [Hermes Agent](https://hermes-agent.nousresearch.com)

@@ -20,6 +20,7 @@
     "config.py",
     "lib/",
     "vendor/",
+    "logo.png",
     "README.md",
     "LICENSE"
   ],

@@ -1,3 +1,5 @@
+![HarnMem logo](https://raw.githubusercontent.com/ys118/harnmem/master/packages/codex-harnmem/logo.png)
+
 # codex-harnmem — HarnMem memory for Codex
 
 Cross-harness persistent memory for the [Codex CLI](https://developers.openai.com/codex), powered by [`@harnmem/core`](../../README.md). One store (`~/.harnmem/`), shared with the pi, DSH and Claude adapters: a preference or decision captured in one harness is visible in every other one on the next session start.

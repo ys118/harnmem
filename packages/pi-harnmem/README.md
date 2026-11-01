@@ -1,3 +1,5 @@
+![HarnMem logo](https://raw.githubusercontent.com/ys118/harnmem/master/packages/pi-harnmem/logo.png)
+
 # pi-harnmem
 
 Long-term, plain-file memory for [pi](https://github.com/earendil-works/pi) — the pi adapter for [harnmem](../../README.md).

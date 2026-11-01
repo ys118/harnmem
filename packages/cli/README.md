@@ -1,3 +1,5 @@
+![HarnMem logo](https://raw.githubusercontent.com/ys118/harnmem/master/packages/cli/logo.png)
+
 # @harnmem/cli
 
 The `harnmem` command: inspect the store, search/read/write memories, and migrate

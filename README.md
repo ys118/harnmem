@@ -1,5 +1,7 @@
 # HarnMem
 
+![HarnMem logo](https://raw.githubusercontent.com/ys118/harnmem/master/packages/pi-harnmem/logo.png)
+
 **Cross-harness agent memory that lives in plain files.**
 
 > HarnMem = *harness* + *memory* (`harn` is also a Scots word for "brains").

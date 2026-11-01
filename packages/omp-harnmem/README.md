@@ -1,3 +1,5 @@
+![HarnMem logo](https://raw.githubusercontent.com/ys118/harnmem/master/packages/omp-harnmem/logo.png)
+
 # omp-harnmem
 
 Long-term, plain-file memory for [oh-my-pi (omp)](https://github.com/can1357/oh-my-pi) — the omp adapter for [harnmem](../../README.md).
