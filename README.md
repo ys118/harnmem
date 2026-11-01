@@ -186,8 +186,10 @@ pi install ./packages/pi-harnmem
 ```
 
 The extension injects the hot index before each turn, registers the memory
-tools (`memory_write`, `memory_search`, `memory_read`, `memory_forget`,
-`memory_status`), adds `/memory`, and runs a bounded extraction at session end.
+tools (`harnmem_write`, `harnmem_search`, `harnmem_read`, `harnmem_forget`,
+`harnmem_status` — names follow the `toolPrefix` setting, and the `harnmem_`
+default lets pi-memory, which owns the bare `memory_*` names, load alongside),
+adds `/memory`, and runs a bounded extraction at session end.
 Configuration lives in `~/.harnmem/config.json` (or `$HARNMEM_HOME/config.json`).
 
 ### DSH adapter
@@ -220,8 +222,8 @@ verified against 2.1.310). The plugin:
   turns, an empty store injects zero bytes, and output is deterministically
   truncated under Claude's 10,000-character `additionalContext` cap;
 - exposes the five memory tools through a bundled, zero-dependency stdio MCP
-  server (`memory_search`, `memory_read`, `memory_write`, `memory_forget`,
-  `memory_status`; tool outputs are clipped well under the client's 25k-token
+  server (`harnmem_search`, `harnmem_read`, `harnmem_write`, `harnmem_forget`,
+  `harnmem_status`; tool outputs are clipped well under the client's 25k-token
   cap);
 - adds a `/harnmem:memory` slash command for manual search/read/write/forget/
   status;
