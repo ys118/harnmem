@@ -14,6 +14,7 @@
     "cross-harness"
   ],
   "omp": {
+    "image": "https://raw.githubusercontent.com/ys118/harnmem/master/packages/omp-harnmem/logo.png",
     "extensions": [
       "./omp-harnmem.js"
     ]
@@ -22,6 +23,7 @@
   "types": "./dist/index.d.ts",
   "files": [
     "omp-harnmem.js",
+    "logo.png",
     "dist/",
     "README.md"
   ],

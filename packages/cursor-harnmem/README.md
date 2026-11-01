@@ -1,3 +1,5 @@
+![HarnMem logo](https://raw.githubusercontent.com/ys118/harnmem/master/packages/cursor-harnmem/logo.png)
+
 # cursor-harnmem — HarnMem memory for Cursor
 
 Cross-harness persistent memory for [Cursor](https://cursor.com), powered by [`@harnmem/core`](../../README.md). One store (`~/.harnmem/`), shared with the Claude Code, Codex, pi, DSH and opencode adapters: a preference or decision captured in one harness is visible in every other one on the next conversation.

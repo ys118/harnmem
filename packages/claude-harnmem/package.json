@@ -21,6 +21,7 @@
     "commands/",
     "lib/",
     "vendor/",
+    "logo.png",
     "README.md",
     "LICENSE"
   ],

@@ -1,3 +1,5 @@
+![HarnMem logo](https://raw.githubusercontent.com/ys118/harnmem/master/packages/grok-harnmem/logo.png)
+
 # grok-harnmem — HarnMem memory for Grok CLI
 
 Cross-harness persistent memory for [Grok CLI](https://github.com/xai-org/grok-cli), powered by [`@harnmem/core`](../../README.md). One store (`~/.harnmem/`), shared with the pi, DSH, Claude Code, Codex and opencode adapters: a preference or decision captured in one harness is visible in every other one.

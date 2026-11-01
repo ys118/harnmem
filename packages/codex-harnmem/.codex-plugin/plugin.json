@@ -17,6 +17,7 @@
     "type": "git",
     "url": "https://github.com/ys118/harnmem"
   },
+  "logo": "./logo.png",
   "mcpServers": "./.mcp.json",
   "skills": "./skills/",
   "hooks": {

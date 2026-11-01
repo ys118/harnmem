@@ -1,3 +1,5 @@
+![HarnMem logo](https://raw.githubusercontent.com/ys118/harnmem/master/packages/claude-harnmem/logo.png)
+
 # claude-harnmem — HarnMem memory for Claude Code
 
 Cross-harness persistent memory for [Claude Code](https://docs.claude.com/en/docs/claude-code), powered by [`@harnmem/core`](../../README.md). One store (`~/.harnmem/`), shared with the pi and DSH adapters: a preference or decision captured in one harness is visible in every other one on the next session start.

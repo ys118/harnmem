@@ -28,6 +28,7 @@
   },
   "files": [
     "dist/",
+    "logo.png",
     "README.md",
     "cordis.patch.yml"
   ],

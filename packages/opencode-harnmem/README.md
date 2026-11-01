@@ -1,3 +1,5 @@
+![HarnMem logo](https://raw.githubusercontent.com/ys118/harnmem/master/packages/opencode-harnmem/logo.png)
+
 # opencode-harnmem — HarnMem memory for opencode
 
 Cross-harness persistent memory for [opencode](https://opencode.ai) v2.x, powered by [`@harnmem/core`](../../README.md). One store (`~/.harnmem/`), shared with the pi / DSH / Claude / Codex adapters: a preference or decision captured in one harness is visible in every other one on the next session start.

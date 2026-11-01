@@ -1,3 +1,5 @@
+![HarnMem logo](https://raw.githubusercontent.com/ys118/harnmem/master/packages/dsh-harnmem/logo.png)
+
 # dsh-harnmem
 
 [HarnMem](https://github.com/ys118/harnmem) memory for DeepSeek Harness (DSH): a byte-stable hot-memory index injected into the system prompt, five

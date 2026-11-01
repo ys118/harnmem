@@ -1,3 +1,5 @@
+![HarnMem logo](https://raw.githubusercontent.com/ys118/harnmem/master/packages/core/logo.png)
+
 # @harnmem/core
 
 The harness-agnostic memory engine behind HarnMem.

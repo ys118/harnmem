@@ -16,6 +16,7 @@
     "index.js",
     "lib/",
     "vendor/",
+    "logo.png",
     "README.md",
     "LICENSE"
   ],
