@@ -13,7 +13,7 @@ import type { Adapter } from "./state.js";
 const MEMORY_TYPES = ["user", "feedback", "project", "reference"] as const;
 const CATEGORIES = ["decision", "convention", "lesson", "pitfall", "state", "profile", "external"] as const;
 const SCOPES = ["auto", "user", "project"] as const;
-/** memory_search scope: SearchOptions.scope has no "auto" mode (write-only concept). */
+/** harnmem_search scope: SearchOptions.scope has no "auto" mode (write-only concept). */
 const SEARCH_SCOPES = ["user", "project", "all"] as const;
 
 function errText(err: unknown): string {

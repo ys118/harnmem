@@ -89,6 +89,7 @@ export class SessionManager {
         cwd: state.cwd,
         config: {
           budget: { injectTokens: state.settings.injectMaxTokens, hotEntries: state.settings.hotEntries },
+          toolPrefix: state.settings.toolPrefix,
         },
       }).text;
     } catch (err) {

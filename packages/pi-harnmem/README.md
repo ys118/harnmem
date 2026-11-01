@@ -127,8 +127,8 @@ Tool names follow the `toolPrefix` setting (`harnmem_` by default; the table abo
 ## How it works
 
 - **Stable snapshot (Option-P):** the context block is rebuilt only on session start, before compaction, after a successful write, and on day rollover. Within a session it is byte-identical, so the provider prompt cache is not invalidated. Rebuild cost is well under 20 ms for typical stores.
-- **Injection budget:** `maxInjectTokens` (default 1200). Pinned entries first, then user/project/digest sections; whole entries only. Body text is never injected — the model calls `memory_read` for detail.
-- **Read-only children:** subagent sessions (child markers such as `PI_SUBAGENT_CHILD`) get no LLM and cannot write: `memory_write failed: HarnMem is read-only`.
+- **Injection budget:** `maxInjectTokens` (default 1200). Pinned entries first, then user/project/digest sections; whole entries only. Body text is never injected — the model calls `harnmem_read` for detail.
+- **Read-only children:** subagent sessions (child markers such as `PI_SUBAGENT_CHILD`) get no LLM and cannot write: `harnmem_write failed: HarnMem is read-only`.
 - **Session end:** the transcript (last ≤200 messages, assistant truncated) is journaled; when `autoExtract` is on, extraction runs at quit with an 8 s hard timeout, ≥3 user messages, and is skipped if the model wrote a memory itself that session. Extracted candidates below `confidence 0.5` are dropped; at most 6 are stored.
 - **Custom extraction prompt:** `<home>/prompts/extract.md` is loaded when present and parsed into `## system` / `## user` sections; placeholders such as `{{observation_date}}`, `{{existing_memories}}` and `{{transcript}}` are substituted into the user template. Missing files or sections fall back to built-in English defaults, and editing the file takes effect on the next extraction without restarting.
 
