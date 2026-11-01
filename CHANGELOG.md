@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.4] - 2026-11-01
+
+### Added
+
+- `@harnmem/core` 0.4.4: the injected SSOT footer follows a configurable
+  prefix. `HarnMemConfig.toolPrefix` flows through `contextFooter()` so the
+  footer names the search tool exactly as the model sees it; the empty prefix
+  renders unprefixed names (`search`) instead of falling back, and invalid
+  values still fall back to the historical `memory_` footer, keeping output
+  byte-identical for consumers that do not opt in. The `MemoryInspector`
+  hot-context preview resolves the prefix like the engine (explicit option
+  first, then `<home>/config.json`).
+
+### Changed
+
+- `pi-harnmem` 0.4.7 and `omp-harnmem` 0.1.2: the default `toolPrefix` is now
+  `harnmem_`, so installing either extension next to one that already
+  registers `memory_*` tools (e.g. pi-memory) no longer collides at load time
+  (#47). Existing users can restore the legacy names with
+  `"toolPrefix": "memory_"`; the `/memory` slash commands are unchanged.
+- All remaining harness adapters register their model-facing tools under the
+  `harnmem_` prefix too: the vendored `claude-harnmem` 0.4.5, `codex-harnmem`
+  0.2.5, `grok-harnmem` 0.1.2, `cursor-harnmem` 0.1.3 and `opencode-harnmem`
+  0.1.3 rename their MCP/native tools (including codex/grok's
+  `harnmem_context` and `harnmem_session_end`), with each package's hooks,
+  allowed-tools, skills, commands and docs updated in the same release so
+  nothing references a stale name. Unbumped consumers of `@harnmem/core`
+  (0.4.3) keep byte-identical output, and `dsh-harnmem` 0.4.3 declares the
+  new core at `^0.4.4`.
+
+### Fixed
+
+- `dsh-harnmem` 0.4.3: the synchronous cold-start fallback passes
+  `toolPrefix` into the injected block, so the first-turn footer names
+  `harnmem_search` and stays byte-identical with the async engine path — the
+  mismatch used to invalidate the prompt cache on session handoff. The
+  sidebar Memory panel passes the configured prefix to the inspector preview
+  as well.
+
 ## [0.7.3] - 2026-10-31
 
 ### Added
