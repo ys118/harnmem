@@ -75,7 +75,7 @@ the local process, and lifecycle decisions are explainable and reversible.**
 
 - **Cross-harness by construction.** The store and data model are
   harness-agnostic; adapters are thin. The same store is shared by the pi,
-  DeepSeek Harness, Claude Code, Codex, opencode, Grok, Cursor and Hermes
+  DeepSeek Harness, Claude Code, Codex, opencode, Grok, Cursor, Hermes and omp
   adapters and by the CLI
   without any harness.
 - **File-native SSOT.** One memory per Markdown file with YAML frontmatter.
