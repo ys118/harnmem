@@ -1,7 +1,7 @@
 {
   "name": "@harnmem/core",
   "version": "0.4.4",
-  "description": "HarnMem memory engine: file-native, harness-agnostic, zero-runtime-dependency memory.",
+  "description": "Cross-harness agent memory engine: one shared store of plain, human-editable Markdown under ~/.harnmem — no server, no vector database, no embedding model, zero runtime dependencies. Memories written in one coding agent are available in every other.",
   "license": "MIT",
   "type": "module",
   "keywords": [
@@ -12,7 +12,8 @@
     "file-native",
     "local-first",
     "bm25",
-    "markdown"
+    "markdown",
+    "cross-harness"
   ],
   "engines": {
     "node": ">=22.15"

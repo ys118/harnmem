@@ -3,7 +3,14 @@
   "version": "0.1.1",
   "private": true,
   "type": "module",
-  "description": "Hermes Agent memory provider for HarnMem: byte-stable recall injection, five memory tools, and bounded session-end extraction over a bundled @harnmem/core bridge.",
+  "description": "Hermes Agent memory provider for HarnMem, the cross-harness agent memory: byte-stable recall injection, five native memory tools, and bounded session-end extraction. One shared store of plain, human-editable Markdown under ~/.harnmem — no server, no vector database, no embedding model.",
+  "keywords": [
+    "hermes",
+    "memory",
+    "agent-memory",
+    "harnmem",
+    "cross-harness"
+  ],
   "license": "MIT",
   "files": [
     "plugin.yaml",

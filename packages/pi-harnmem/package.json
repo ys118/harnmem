@@ -1,14 +1,16 @@
 {
   "name": "pi-harnmem",
   "version": "0.4.7",
-  "description": "HarnMem memory extension for the pi coding agent: byte-stable hot-index injection, memory tools, and session-end extraction.",
+  "description": "pi coding-agent extension for HarnMem, the cross-harness agent memory: byte-stable hot-index injection, memory tools, and session-end extraction. One shared store of plain, human-editable Markdown under ~/.harnmem — no server, no vector database, no embedding model.",
   "license": "MIT",
   "type": "module",
   "keywords": [
     "pi-package",
     "pi-extension",
     "memory",
-    "harnmem"
+    "harnmem",
+    "agent-memory",
+    "cross-harness"
   ],
   "pi": {
     "image": "https://raw.githubusercontent.com/ys118/harnmem/master/packages/pi-harnmem/logo.png",
