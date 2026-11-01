@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "version": "0.0.0",
-  "description": "Monorepo for HarnMem: cross-harness, file-native agent memory.",
+  "description": "Monorepo for HarnMem, the cross-harness agent memory: one shared store of plain Markdown under ~/.harnmem — no server, no vector database, no embedding model.",
   "license": "MIT",
   "packageManager": "pnpm@10.33.2",
   "engines": {

@@ -3,7 +3,15 @@
   "version": "0.2.5",
   "private": false,
   "type": "module",
-  "description": "Codex plugin for HarnMem: byte-stable memory injection (SessionStart mcp_tool hook), rollout backfill/journaling, and seven memory tools over a bundled MCP stdio server.",
+  "description": "Codex plugin for HarnMem, the cross-harness agent memory: byte-stable SessionStart injection, rollout backfill/journaling, and seven MCP memory tools. One shared store of plain, human-editable Markdown under ~/.harnmem — no server, no vector database, no embedding model.",
+  "keywords": [
+    "codex",
+    "memory",
+    "agent-memory",
+    "mcp",
+    "harnmem",
+    "cross-harness"
+  ],
   "license": "MIT",
   "files": [
     ".codex-plugin/",
