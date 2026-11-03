@@ -280,6 +280,7 @@ class ConfigTests(ProviderTestCase):
                 "read_only",
                 "llm_url",
                 "llm_model",
+                "llm_api_key",
                 "project",
                 "debug",
             ],
@@ -287,8 +288,11 @@ class ConfigTests(ProviderTestCase):
         by_key = {field["key"]: field for field in schema}
         self.assertEqual(by_key["auto_extract"]["choices"], ["true", "false"])
         self.assertEqual(by_key["llm_url"]["when"], {"auto_extract": "true"})
-        # The extraction key is a secret-scope credential, not a wizard field.
-        self.assertNotIn("llm_api_key", by_key)
+        # The extraction key stays a declared secret: the wizard routes it to
+        # the profile .env (the secret-scope source), never to config.yaml.
+        self.assertTrue(by_key["llm_api_key"]["secret"])
+        self.assertEqual(by_key["llm_api_key"]["env_var"], "HARNMEM_LLM_API_KEY")
+        self.assertEqual(by_key["llm_api_key"]["when"], {"auto_extract": "true"})
 
     def test_status_config_is_json_friendly(self):
         with mock.patch.object(plugin.bridge, "node_version", return_value="v22.15.0"):

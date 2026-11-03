@@ -622,6 +622,16 @@ class HarnmemMemoryProvider(MemoryProvider):
                 "env_var": "HARNMEM_LLM_MODEL",
                 "when": {"auto_extract": "true"},
             },
+            # ``secret`` routes the wizard answer to the profile .env (the
+            # secret-scope source) instead of config.yaml; resolution itself
+            # only ever reads ``agent.secret_scope.get_secret``.
+            {
+                "key": "llm_api_key",
+                "description": "API key for the extraction endpoint",
+                "secret": True,
+                "env_var": "HARNMEM_LLM_API_KEY",
+                "when": {"auto_extract": "true"},
+            },
             {
                 "key": "project",
                 "description": "Override the detected project name for project-scoped memories",
