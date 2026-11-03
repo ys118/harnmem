@@ -41,8 +41,11 @@ NODE_PROBE_TIMEOUT_S = 5.0
 #: Session-end payloads are handed to a detached bridge process; the bridge
 #: deletes the file it reads. Files that survive a crash are swept once older
 #: than this.
-PAYLOAD_DIR = Path(tempfile.gettempdir()) / "harnmem-hermes"
 PAYLOAD_TTL_S = 3600
+#: Payloads used to live in the shared system temp directory; crash leftovers
+#: from an earlier plugin version are swept there once after the move to the
+#: profile directory (see :func:`payload_dir`).
+LEGACY_PAYLOAD_DIR = Path(tempfile.gettempdir()) / "harnmem-hermes"
 #: Guard against pathological transcripts: the engine only needs the tail of a
 #: session, and a multi-megabyte stdin risks platform pipe limits.
 MAX_PAYLOAD_BYTES = 8 * 1024 * 1024
@@ -161,29 +164,27 @@ def unavailable_reason() -> str:
 def _apply_secret_scope(env: Dict[str, str]) -> None:
     """Copy the extraction key from Hermes' profile-aware scope into ``env``.
 
-    Hermes loads the profile's ``.env`` into the process environment before
-    plugins run, but under multiplexing that environment can belong to another
-    profile. ``agent.secret_scope.get_secret`` is the documented route for a
-    declared plugin secret (catalog rule 11); it is imported lazily so tests and
-    standalone CLI use keep working when Hermes is absent.
+    The inherited environment is scrubbed unconditionally, then the key is set
+    only from a successful scoped read. ``agent.secret_scope.get_secret`` is
+    the documented route for a declared plugin secret (catalog rule 11); it
+    falls through to the process environment in single-profile runs, so the
+    observable value there is unchanged — but under multiplexing the inherited
+    copy may belong to another profile, which is exactly what this scrub
+    prevents. It is imported lazily so tests and standalone CLI use keep
+    working when Hermes is absent.
     """
+    # Never let an inherited copy of any profile's key reach the child.
+    env.pop(EXTRACTION_SECRET, None)
     try:
-        from agent.secret_scope import UnscopedSecretError, get_secret, is_multiplex_active
+        from agent.secret_scope import UnscopedSecretError, get_secret
     except Exception:  # pragma: no cover - Hermes absent in tests/CLI
         return
     try:
-        multiplexing = bool(is_multiplex_active())
-    except Exception:  # pragma: no cover - defensive
-        multiplexing = False
-    try:
         value = (get_secret(EXTRACTION_SECRET, "") or "").strip()
     except UnscopedSecretError:
-        value = ""
+        return
     except Exception:  # pragma: no cover - defensive
-        value = ""
-    if multiplexing:
-        # Never let a copy of another profile's key reach the child process.
-        env.pop(EXTRACTION_SECRET, None)
+        return
     if value:
         env[EXTRACTION_SECRET] = value
 
@@ -192,10 +193,11 @@ def child_env(extra: Optional[Dict[str, str]] = None) -> Dict[str, str]:
     """Environment for bridge child processes.
 
     Starts from the process environment (Hermes has already loaded the profile
-    ``.env`` there), re-reads the extraction secret through the profile-aware
-    scope, then prepends the resolved Node.js directory to ``PATH`` so the child
-    starts even when the runtime lives outside the inherited path. ``extra``
-    overrides individual variables without mutating ``os.environ``.
+    ``.env`` there), drops any inherited copy of the extraction secret and
+    re-reads it through the profile-aware scope, then prepends the resolved
+    Node.js directory to ``PATH`` so the child starts even when the runtime
+    lives outside the inherited path. ``extra`` overrides individual variables
+    without mutating ``os.environ``.
     """
     env = dict(os.environ)
     _apply_secret_scope(env)
@@ -295,20 +297,46 @@ def _spawn_flags() -> tuple[int, bool]:
     return 0, True
 
 
+def payload_dir(hermes_home: Optional[str] = None) -> Path:
+    """Directory for session-end payload files.
+
+    Payloads carry the session transcript, so they live under the Hermes
+    profile (``<hermes_home>/plugin-data/harnmem/payloads``) — a user-owned
+    location on every platform — instead of the shared system temp directory.
+    ``hermes_home`` is the value Hermes passes to
+    ``initialize()``; without it the ``HERMES_HOME`` environment variable is
+    consulted, then the platform default. ``HARNMEM_PAYLOAD_DIR`` overrides the
+    resolved directory outright (tests, sandboxed runs).
+    """
+    override = os.environ.get("HARNMEM_PAYLOAD_DIR", "").strip()
+    if override:
+        return Path(override)
+    base = str(hermes_home or os.environ.get("HERMES_HOME", "") or "").strip()
+    if not base:
+        if os.name == "nt":
+            local_app_data = os.environ.get("LOCALAPPDATA", "").strip()
+            base = os.path.join(local_app_data, "hermes") if local_app_data else str(Path.home() / ".hermes")
+        else:
+            base = str(Path.home() / ".hermes")
+    return Path(base) / "plugin-data" / "harnmem" / "payloads"
+
+
 def run_detached(
     payload: Dict[str, Any],
     *,
     label: str,
     env_extra: Optional[Dict[str, str]] = None,
+    hermes_home: Optional[str] = None,
 ) -> Optional[str]:
     """Hand a payload to a detached bridge process and return its path.
 
     The process outlives this session (Hermes may exit right after
     ``on_session_end``); the bridge deletes the payload file once handled.
     Returns ``None`` when the job could not be started. The payload file is
-    created owner-only (0600) inside an owner-only directory: it carries the
-    session transcript, and secrets are deliberately kept out of it — the
-    extraction key travels only in the child's environment (``env_extra``).
+    created owner-only (0600) inside an owner-only directory under the Hermes
+    profile: it carries the session transcript, and secrets are deliberately
+    kept out of it — the extraction key and the extraction endpoint travel only
+    in the child's environment (``env_extra``).
     """
     node = resolve_node()
     if node is None or not BRIDGE_SCRIPT.is_file():
@@ -318,12 +346,13 @@ def run_detached(
     if len(raw) > MAX_PAYLOAD_BYTES:
         logger.warning("harnmem: dropping oversized %s payload (%d bytes)", label, len(raw))
         return None
+    directory = payload_dir(hermes_home)
     try:
-        PAYLOAD_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+        directory.mkdir(parents=True, exist_ok=True, mode=0o700)
     except OSError as error:
-        logger.warning("harnmem: cannot create payload directory %s: %s", PAYLOAD_DIR, error)
+        logger.warning("harnmem: cannot create payload directory %s: %s", directory, error)
         return None
-    path = PAYLOAD_DIR / f"{label}-{int(time.time())}-{uuid.uuid4().hex[:8]}.json"
+    path = directory / f"{label}-{int(time.time())}-{uuid.uuid4().hex[:8]}.json"
     try:
         descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     except OSError as error:
@@ -364,19 +393,25 @@ def run_detached(
     return str(path)
 
 
-def sweep_payloads(*, ttl: int = PAYLOAD_TTL_S) -> int:
-    """Delete stale payload files (crash leftovers). Returns the count removed."""
-    try:
-        entries = list(PAYLOAD_DIR.iterdir())
-    except OSError:
-        return 0
-    removed = 0
+def sweep_payloads(*, ttl: int = PAYLOAD_TTL_S, hermes_home: Optional[str] = None) -> int:
+    """Delete stale payload files (crash leftovers). Returns the count removed.
+
+    Also sweeps the pre-0.1.3 system temp directory once, so leftovers from an
+    earlier plugin version do not linger past their TTL after the payload
+    directory moved under the Hermes profile.
+    """
     cutoff = time.time() - ttl
-    for entry in entries:
+    removed = 0
+    for directory in (payload_dir(hermes_home), LEGACY_PAYLOAD_DIR):
         try:
-            if entry.is_file() and entry.stat().st_mtime < cutoff:
-                entry.unlink(missing_ok=True)
-                removed += 1
+            entries = list(directory.iterdir())
         except OSError:
             continue
+        for entry in entries:
+            try:
+                if entry.is_file() and entry.stat().st_mtime < cutoff:
+                    entry.unlink(missing_ok=True)
+                    removed += 1
+            except OSError:
+                continue
     return removed

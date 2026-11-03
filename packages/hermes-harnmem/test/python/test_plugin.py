@@ -14,8 +14,10 @@ import importlib.util
 import io
 import json
 import os
+import shutil
 import sys
 import tempfile
+import time
 import types
 import unittest
 from pathlib import Path
@@ -278,15 +280,15 @@ class ConfigTests(ProviderTestCase):
                 "read_only",
                 "llm_url",
                 "llm_model",
-                "llm_api_key",
                 "project",
                 "debug",
             ],
         )
         by_key = {field["key"]: field for field in schema}
         self.assertEqual(by_key["auto_extract"]["choices"], ["true", "false"])
-        self.assertTrue(by_key["llm_api_key"]["secret"])
         self.assertEqual(by_key["llm_url"]["when"], {"auto_extract": "true"})
+        # The extraction key is a secret-scope credential, not a wizard field.
+        self.assertNotIn("llm_api_key", by_key)
 
     def test_status_config_is_json_friendly(self):
         with mock.patch.object(plugin.bridge, "node_version", return_value="v22.15.0"):
@@ -328,11 +330,32 @@ class SecretScopeTests(ProviderTestCase):
         )
         self.assertEqual(config["llm"]["apiKey"], "scoped-key")
 
+    def test_resolve_config_ignores_a_config_file_key(self):
+        # config.yaml is not a credential store: a stale llm_api_key entry must
+        # not provide the key even when the scope is empty (catalog rule 11).
+        config = plugin_config.resolve_config(
+            {
+                "llm_url": "https://llm.example.test/v1",
+                "llm_model": "test-model",
+                "llm_api_key": "block-key",
+            }
+        )
+        self.assertEqual(config["llm"]["apiKey"], "")
+
     def test_child_env_never_forwards_a_foreign_key_while_multiplexing(self):
         os.environ["HARNMEM_LLM_API_KEY"] = "foreign-key"
         MULTIPLEX["active"] = True
         with mock.patch.object(plugin.bridge, "resolve_node", return_value=None):
             env = plugin.bridge.child_env()
+        self.assertNotIn("HARNMEM_LLM_API_KEY", env)
+
+    def test_child_env_drops_an_inherited_key_without_hermes(self):
+        # Outside Hermes (tests, standalone CLI) there is no scoped read, so the
+        # inherited environment copy must never reach a bridge child.
+        os.environ["HARNMEM_LLM_API_KEY"] = "plain-env"
+        with mock.patch.dict(sys.modules, {"agent.secret_scope": None}):
+            with mock.patch.object(plugin.bridge, "resolve_node", return_value=None):
+                env = plugin.bridge.child_env()
         self.assertNotIn("HARNMEM_LLM_API_KEY", env)
 
     def test_child_env_uses_the_scoped_key_and_honours_overrides(self):
@@ -542,10 +565,11 @@ class ExtractionTests(ProviderTestCase):
         captured = {}
         SCOPED_SECRETS["HARNMEM_LLM_API_KEY"] = "scoped-key"
 
-        def fake_detached(payload, *, label, env_extra=None):
+        def fake_detached(payload, *, label, env_extra=None, hermes_home=None):
             captured["payload"] = payload
             captured["label"] = label
             captured["env_extra"] = env_extra
+            captured["hermes_home"] = hermes_home
             return "/tmp/payload.json"
 
         provider = self._provider(
@@ -558,7 +582,7 @@ class ExtractionTests(ProviderTestCase):
         )
         with mock.patch.object(plugin.bridge, "run_detached", side_effect=fake_detached), mock.patch.object(
             plugin.bridge, "sweep_payloads"
-        ):
+        ) as sweep:
             result = provider.on_session_end(
                 [
                     {"role": "user", "content": "remember this"},
@@ -567,12 +591,22 @@ class ExtractionTests(ProviderTestCase):
             )
         self.assertIsNone(result)
         self.assertEqual(captured["label"], "session-end")
+        self.assertEqual(captured["hermes_home"], "/tmp/hermes-home")
         self.assertEqual(captured["payload"]["command"], "session-end")
         self.assertTrue(captured["payload"]["autoExtract"])
         self.assertEqual(captured["payload"]["messages"][0]["role"], "user")
-        # The key goes through the child environment, never the on-disk payload.
-        self.assertEqual(captured["payload"]["llm"], {"url": "https://llm.example.test/v1", "model": "test-model"})
-        self.assertEqual(captured["env_extra"], {"HARNMEM_LLM_API_KEY": "scoped-key"})
+        # Neither credentials nor endpoint selection may reach the on-disk
+        # payload: they travel in the child environment only.
+        self.assertNotIn("llm", captured["payload"])
+        self.assertEqual(
+            captured["env_extra"],
+            {
+                "HARNMEM_LLM_API_KEY": "scoped-key",
+                "HARNMEM_LLM_URL": "https://llm.example.test/v1",
+                "HARNMEM_LLM_MODEL": "test-model",
+            },
+        )
+        sweep.assert_called_once_with(hermes_home="/tmp/hermes-home")
 
     def test_session_end_does_nothing_without_auto_extract(self):
         provider = self._provider()
@@ -729,6 +763,54 @@ class CliTests(ProviderTestCase):
             code = cli.harnmem_command(args)
         self.assertEqual(code, 2)
         self.assertIn("hermes harnmem", output.getvalue())
+
+
+class PayloadDirTests(ProviderTestCase):
+    """Session-end payloads live under the Hermes profile, not shared temp."""
+
+    def test_payload_dir_prefers_the_explicit_profile(self):
+        directory = plugin.bridge.payload_dir("/tmp/hermes-home")
+        self.assertEqual(directory, Path("/tmp/hermes-home") / "plugin-data" / "harnmem" / "payloads")
+
+    def test_payload_dir_env_override_wins(self):
+        override = tempfile.mkdtemp(prefix="harnmem-payload-override-")
+        self.addCleanup(lambda: os.rmdir(override))
+        with mock.patch.dict(os.environ, {"HARNMEM_PAYLOAD_DIR": override}):
+            self.assertEqual(plugin.bridge.payload_dir("/tmp/hermes-home"), Path(override))
+
+    def test_payload_dir_falls_back_to_the_hermes_home_env(self):
+        with mock.patch.dict(os.environ, {"HERMES_HOME": "/tmp/env-hermes-home"}):
+            directory = plugin.bridge.payload_dir()
+        self.assertEqual(directory, Path("/tmp/env-hermes-home") / "plugin-data" / "harnmem" / "payloads")
+
+    def test_sweep_payloads_also_sweeps_the_legacy_temp_dir(self):
+        current = Path(tempfile.mkdtemp(prefix="harnmem-payloads-current-"))
+        legacy = Path(tempfile.mkdtemp(prefix="harnmem-payloads-legacy-"))
+        self.addCleanup(lambda: shutil.rmtree(current, ignore_errors=True))
+        self.addCleanup(lambda: shutil.rmtree(legacy, ignore_errors=True))
+        stale = time.time() - 2 * plugin.bridge.PAYLOAD_TTL_S
+        fresh = time.time()
+        stale_current = current / "session-end-stale-current.json"
+        keep_current = current / "session-end-keep-current.json"
+        stale_legacy = legacy / "session-end-stale-legacy.json"
+        keep_legacy = legacy / "session-end-keep-legacy.json"
+        for path, mtime in (
+            (stale_current, stale),
+            (keep_current, fresh),
+            (stale_legacy, stale),
+            (keep_legacy, fresh),
+        ):
+            path.write_text("{}", encoding="utf-8")
+            os.utime(path, (mtime, mtime))
+        with mock.patch.dict(os.environ, {"HARNMEM_PAYLOAD_DIR": str(current)}), mock.patch.object(
+            plugin.bridge, "LEGACY_PAYLOAD_DIR", legacy
+        ):
+            removed = plugin.bridge.sweep_payloads()
+        self.assertEqual(removed, 2)
+        self.assertTrue(keep_current.exists())
+        self.assertFalse(stale_current.exists())
+        self.assertTrue(keep_legacy.exists())
+        self.assertFalse(stale_legacy.exists())
 
 
 if __name__ == "__main__":

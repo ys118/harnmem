@@ -15,8 +15,9 @@
  *     1 on an unexpected crash, 2 on a usage error.
  *
  * A ``--payload <file>`` invocation is deleted once handled: the Hermes side
- * writes session-end payloads to a temp file and detaches this process, so the
- * bridge owns the cleanup.
+ * writes session-end payloads to a profile-local file under
+ * ``<hermes-home>/plugin-data/harnmem/payloads`` and detaches this process, so
+ * the bridge owns the cleanup.
  */
 
 import { realpathSync } from "node:fs";
@@ -24,7 +25,7 @@ import { readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { createLlm, createLlmFromEnv } from "./llm.mjs";
+import { createLlmFromEnv } from "./llm.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const vendorEntry = path.join(here, "..", "vendor", "core", "index.js");
@@ -89,25 +90,16 @@ async function loadCore() {
 }
 
 /**
- * Build the extraction LLM from the payload plus the child environment.
+ * Build the extraction LLM from this process' environment only.
  *
- * The Python side resolves the API key through Hermes' profile-aware secret
- * scope and passes it in this process' environment only, so the payload that
- * may be written to disk never carries a credential. When the environment has
- * no key, fall back to the standalone ``HARNMEM_LLM_*`` configuration.
+ * The Python side resolves the endpoint and the API key (the key through
+ * Hermes' profile-aware secret scope) and passes the ``HARNMEM_LLM_*``
+ * variables in this process' environment. The payload may be written to disk,
+ * so nothing read from it — including any ``llm`` block left over from an
+ * older plugin version — may decide where the transcript is sent;
+ * ``payload.llm`` is therefore ignored.
  */
-function buildLlm(payload) {
-  const options = payload.llm ?? {};
-  const key = (process.env.HARNMEM_LLM_API_KEY ?? "").trim();
-  if (key) {
-    const configured = createLlm({
-      url: options.url,
-      model: options.model,
-      apiKey: key,
-      timeoutMs: options.timeoutMs,
-    });
-    if (configured) return configured;
-  }
+function buildLlm() {
   return createLlmFromEnv();
 }
 
@@ -126,7 +118,7 @@ async function openEngine(core, payload) {
   if (typeof payload.project === "string" && payload.project.trim() !== "") config.project = payload.project.trim();
   if (typeof payload.sessionId === "string" && payload.sessionId.trim() !== "") config.sessionId = payload.sessionId.trim();
   if (config.write.autoExtract) {
-    config.llm = buildLlm(payload);
+    config.llm = buildLlm();
   }
   return core.HarnMem.open(config);
 }
