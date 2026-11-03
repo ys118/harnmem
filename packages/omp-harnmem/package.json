@@ -43,7 +43,7 @@
     "@harnmem/core": "workspace:^",
     "@oh-my-pi/pi-ai": "18.14.1",
     "@oh-my-pi/pi-coding-agent": "18.14.1",
-    "tsdown": "^0.22.2"
+    "tsdown": "^0.23.4"
   },
   "publishConfig": {
     "access": "public"
