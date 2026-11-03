@@ -1,6 +1,6 @@
 {
   "name": "hermes-harnmem",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "type": "module",
   "description": "Hermes Agent memory provider for HarnMem, the cross-harness agent memory: byte-stable recall injection, five native memory tools, and bounded session-end extraction. One shared store of plain, human-editable Markdown under ~/.harnmem — no server, no vector database, no embedding model.",
