@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.6] - 2026-11-03
+
+### Fixed
+
+- `hermes-harnmem` 0.1.3 addresses the two blocking points from the Hermes
+  plugin-catalog review (#52). The session-end extraction key is now read only
+  through Hermes' profile-aware secret scope
+  (`agent.secret_scope.get_secret("HARNMEM_LLM_API_KEY")`): the config.yaml
+  `llm_api_key` fallback is gone (a stale entry is ignored), and the key is
+  always scrubbed from inherited bridge child environments and then set only
+  from the scoped value, so another profile's key can no longer leak in under
+  multiplexing. The setup wizard keeps prompting for the key — `secret`
+  schema fields route to the profile `.env`, which is exactly the scope the
+  runtime reads.
+- Session-end extraction payloads moved out of the shared system temp
+  directory into the Hermes profile
+  (`<hermes-home>/plugin-data/harnmem/payloads`, owner-only 0700/0600, deleted
+  by the bridge after reading, swept past a 1 h TTL; the old temp location is
+  still swept once for crash leftovers). The bridge now ignores any `llm`
+  block inside a `--payload` file — a file on disk can no longer choose where
+  the transcript is sent: the extraction endpoint and key travel only in the
+  child process environment. The package stays private and is distributed
+  through Hermes' own plugin manager, never npm.
+
 ## [0.7.5] - 2026-11-01
 
 ### Changed
