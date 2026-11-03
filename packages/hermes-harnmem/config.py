@@ -66,10 +66,12 @@ def secret(name: str, default: str = "") -> str:
 
     Hermes routes credentials through ``agent.secret_scope.get_secret``, which
     honours the active profile; a bare ``os.environ`` read can pick up another
-    profile's value under multiplexing. ``default`` is returned when Hermes is
-    not importable (tests, standalone CLI use) or the variable is unset. When
-    multiplexing is active without a bound scope the read fails closed instead
-    of falling back to the environment.
+    profile's value under multiplexing, and config.yaml is not a credential
+    store. ``default`` is returned when Hermes is not importable (tests,
+    standalone CLI use) or the variable is unset. When multiplexing is active
+    without a bound scope the read fails closed instead of falling back to the
+    environment. Never pass an env- or config-derived default for a credential:
+    the only supported source for a secret is the scope itself.
     """
     try:
         from agent.secret_scope import UnscopedSecretError, get_secret
@@ -149,10 +151,12 @@ def resolve_config(block: Dict[str, Any]) -> Dict[str, Any]:
         "llm": {
             "url": str(pick("llm_url", "HARNMEM_LLM_URL", "") or "").strip(),
             "model": str(pick("llm_model", "HARNMEM_LLM_MODEL", "") or "").strip(),
-            "apiKey": secret(
-                "HARNMEM_LLM_API_KEY",
-                str(pick("llm_api_key", "HARNMEM_LLM_API_KEY", "") or "").strip(),
-            ),
+            # Catalog rule 11: the key comes from the secret scope only. No
+            # env/config-derived default here — in single-profile runs
+            # ``get_secret`` already falls through to the environment, and a
+            # plugin-level fallback would read another profile's key under
+            # multiplexing. A stale ``llm_api_key`` in config.yaml is ignored.
+            "apiKey": secret("HARNMEM_LLM_API_KEY"),
         },
     }
 

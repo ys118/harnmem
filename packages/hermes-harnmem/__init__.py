@@ -303,16 +303,28 @@ class HarnmemMemoryProvider(MemoryProvider):
                     "autoExtract": True,
                 }
             )
-            # The extraction key is resolved for the active profile right before
-            # the detached child starts and travels in its environment only: the
-            # payload file on disk never contains a credential.
-            api_key = secret(
-                "HARNMEM_LLM_API_KEY",
-                str(self._config["llm"].get("apiKey") or "").strip(),
-            )
-            env_extra = {"HARNMEM_LLM_API_KEY": api_key} if api_key else None
-            if bridge.run_detached(payload, label="session-end", env_extra=env_extra) is not None:
-                bridge.sweep_payloads()
+            # The extraction endpoint and key are resolved for the active profile
+            # right before the detached child starts and travel in its
+            # environment only: the payload file on disk contains neither a
+            # credential nor anything that decides where the transcript is sent.
+            api_key = secret("HARNMEM_LLM_API_KEY")
+            env_extra: Dict[str, str] = {}
+            if api_key:
+                env_extra["HARNMEM_LLM_API_KEY"] = api_key
+            if self._config["llm"]["url"]:
+                env_extra["HARNMEM_LLM_URL"] = str(self._config["llm"]["url"])
+            if self._config["llm"]["model"]:
+                env_extra["HARNMEM_LLM_MODEL"] = str(self._config["llm"]["model"])
+            if (
+                bridge.run_detached(
+                    payload,
+                    label="session-end",
+                    env_extra=env_extra or None,
+                    hermes_home=self._hermes_home,
+                )
+                is not None
+            ):
+                bridge.sweep_payloads(hermes_home=self._hermes_home)
         except Exception:  # never let memory bookkeeping break shutdown
             logger.warning("harnmem: session-end extraction could not be scheduled", exc_info=True)
 
@@ -595,7 +607,10 @@ class HarnmemMemoryProvider(MemoryProvider):
             },
             {
                 "key": "llm_url",
-                "description": "OpenAI-compatible endpoint for memory extraction",
+                "description": (
+                    "OpenAI-compatible endpoint for memory extraction (its API key is a plugin "
+                    "secret: set it through the Hermes secret scope, never in config.yaml)"
+                ),
                 "default": "",
                 "env_var": "HARNMEM_LLM_URL",
                 "when": {"auto_extract": "true"},
@@ -607,6 +622,9 @@ class HarnmemMemoryProvider(MemoryProvider):
                 "env_var": "HARNMEM_LLM_MODEL",
                 "when": {"auto_extract": "true"},
             },
+            # ``secret`` routes the wizard answer to the profile .env (the
+            # secret-scope source) instead of config.yaml; resolution itself
+            # only ever reads ``agent.secret_scope.get_secret``.
             {
                 "key": "llm_api_key",
                 "description": "API key for the extraction endpoint",
@@ -748,12 +766,9 @@ class HarnmemMemoryProvider(MemoryProvider):
         }
         if self._config["project"]:
             payload["project"] = self._config["project"]
-        if self._config["llm"]["url"] and self._config["llm"]["model"]:
-            llm = dict(self._config["llm"])
-            # Credentials never reach the on-disk payload: the bridge reads the
-            # key from the child environment instead.
-            llm.pop("apiKey", None)
-            payload["llm"] = llm
+        # Deliberately no "llm" block: the extraction endpoint and key are
+        # profile-scoped runtime inputs that travel in the child's environment
+        # (see ``on_session_end``), never in the payload file on disk.
         return payload
 
 

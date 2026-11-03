@@ -103,7 +103,11 @@ the transcript payload on disk.
 | `debug` | `false` | `HARNMEM_DEBUG` | Bridge diagnostics in the Hermes log |
 | `llm_url` | — | `HARNMEM_LLM_URL` | OpenAI-compatible base URL (extraction only) |
 | `llm_model` | — | `HARNMEM_LLM_MODEL` | Model name for extraction |
-| `llm_api_key` | — | `HARNMEM_LLM_API_KEY` | Secret; read through Hermes' secret scope (setup writes `.env`) |
+
+The extraction API key (`HARNMEM_LLM_API_KEY`) is deliberately absent from this
+table: it is a declared plugin secret, readable only through Hermes'
+profile-aware secret scope (`hermes memory setup` writes it to the profile
+`.env`). It is never accepted from `config.yaml`.
 
 `enabled` / `HARNMEM_ENABLED` and `HARNMEM_DISABLED` toggle the provider without
 uninstalling it.
@@ -139,9 +143,10 @@ Every subcommand accepts `--json`.
    identical bytes.
 5. Ask the agent to call `harnmem_search` with a Chinese query; the result is
    non-empty when the store has CJK content (bigram tokenization works).
-6. Enable extraction (`auto_extract: true` plus `llm_url`/`llm_model`/`llm_api_key`),
-   run a short session, then check `hermes harnmem status` — the extraction
-   backlog/writes move and `~/.harnmem/state/audit.jsonl` records the run.
+6. Enable extraction (`auto_extract: true` plus `llm_url`/`llm_model` and the
+   `HARNMEM_LLM_API_KEY` secret), run a short session, then check
+   `hermes harnmem status` — the extraction backlog/writes move and
+   `~/.harnmem/state/audit.jsonl` records the run.
 7. Start a subagent session: it can search but writes are refused
    (`harnmem is read-only for this session`).
 
@@ -168,12 +173,15 @@ made only when `auto_extract` is `true`. The plugin sends the session
 transcript to that endpoint when extraction runs; disable extraction to keep
 everything local.
 
-The transcript payload handed to the detached extractor is written owner-only
-(`0600` inside a `0700` directory) and deleted as soon as it is read. The
-extraction key is never part of that payload: it is resolved through Hermes'
-profile-aware secret scope and passed in the child's environment. HarnMem itself
-keeps memories as plain Markdown under `~/.harnmem/`, never uploads them, and
-emits no telemetry.
+The transcript payload handed to the detached extractor is written under the
+Hermes profile (`<hermes-home>/plugin-data/harnmem/payloads`), owner-only
+(`0600` inside a `0700` directory), and deleted as soon as it is read; stale
+files past an hour are swept on the next session end. The payload file never
+contains a credential or an endpoint: the extraction key is resolved through
+Hermes' profile-aware secret scope and the `HARNMEM_LLM_*` endpoint settings
+travel in the child's environment, so nothing on disk can redirect the
+extraction call. HarnMem itself keeps memories as plain Markdown under
+`~/.harnmem/`, never uploads them, and emits no telemetry.
 
 ## License
 

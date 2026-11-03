@@ -3,12 +3,12 @@
  * performs network I/O; when extraction needs a model, the adapter injects it as
  * ``config.llm``).
  *
- * Configuration sources, in order:
- *   1. an explicit ``llm`` object in the bridge payload (written by the Hermes
- *      plugin from ``memory.harnmem.llm_*``),
- *   2. ``HARNMEM_LLM_URL`` / ``HARNMEM_LLM_MODEL`` / ``HARNMEM_LLM_API_KEY``
- *      (``HARNMEM_LLM_TIMEOUT_MS`` optional) — the same variables the
- *      ``harnmem synonyms`` command documents.
+ * Configuration sources: ``HARNMEM_LLM_URL`` / ``HARNMEM_LLM_MODEL`` /
+ * ``HARNMEM_LLM_API_KEY`` (``HARNMEM_LLM_TIMEOUT_MS`` optional) — the same
+ * variables the ``harnmem synonyms`` command documents. The Hermes plugin
+ * resolves them for the active profile and passes them in the bridge child's
+ * environment; the bridge payload is never a configuration source, so a file
+ * on disk cannot choose the extraction endpoint.
  *
  * An incomplete configuration returns ``null`` so ``sessionEnd()`` reports
  * ``no_llm`` instead of failing.

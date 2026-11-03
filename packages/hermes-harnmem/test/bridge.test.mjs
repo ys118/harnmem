@@ -297,11 +297,14 @@ test("session-end extracts memories through an OpenAI-compatible endpoint", asyn
             { role: "user", text: `two ${filler}` },
             { role: "user", text: `three ${filler}` },
           ],
-          // The Python side strips the credential before writing the payload and
-          // passes it in the child environment instead; assert both halves.
-          llm: { url: `http://127.0.0.1:${port}/v1`, model: "test-model" },
+          // A payload file on disk must never decide where the transcript is
+          // sent: the bridge reads the endpoint from the child environment and
+          // ignores payload.llm (decoy values below must not be used).
+          llm: { url: "http://127.0.0.1:9/v1", model: "wrong-model" },
         }),
         {
+          HARNMEM_LLM_URL: `http://127.0.0.1:${port}/v1`,
+          HARNMEM_LLM_MODEL: "test-model",
           HARNMEM_LLM_API_KEY: "test-key",
         },
       );
