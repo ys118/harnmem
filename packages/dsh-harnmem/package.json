@@ -42,7 +42,7 @@
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@deepseek-ai/schemastery": "^3.18.2",
+    "@deepseek-ai/schemastery": "^3.19.0",
     "@harnmem/core": "workspace:^"
   },
   "devDependencies": {
